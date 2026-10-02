@@ -154,6 +154,9 @@ function fakeCapabilities(): SettingsCapabilities {
         motion: 0.5,
         lighting: 'fixed' as const,
         timezone: 'UTC',
+        solarFacingOffset: 0,
+        solarFollowStrength: 0.5,
+        solarEffect: 'atmospheric' as const,
       })),
       setMaterial: vi.fn(
         async (preference: PersistedMaterialPreference) => preference,

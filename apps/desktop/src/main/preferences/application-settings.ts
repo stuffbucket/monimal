@@ -151,6 +151,9 @@ const applicationSettingsSchema = z.object({
   materialMotion: z.number().min(0).max(1),
   materialLighting: z.enum(['fixed', 'timezone']),
   materialTimezone: z.string().refine((value) => materialTimezones.has(value)),
+  materialSolarFacingOffset: z.number().min(-180).max(180),
+  materialSolarFollowStrength: z.number().min(0).max(1),
+  materialSolarEffect: z.enum(['atmospheric', 'rays']),
 })
 type ApplicationSettings = z.infer<typeof applicationSettingsSchema>
 
@@ -177,6 +180,9 @@ const applicationSettingsPersistence = {
   materialMotion: 'user',
   materialLighting: 'user',
   materialTimezone: 'user',
+  materialSolarFacingOffset: 'user',
+  materialSolarFollowStrength: 'user',
+  materialSolarEffect: 'user',
 } as const
 const reportListenerError = (error: unknown): never => {
   throw error
@@ -248,6 +254,12 @@ function applicationSettingsDefaults(
     materialTimezone: applicationSettingsSchema.shape.materialTimezone.catch(
       Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
     ),
+    materialSolarFacingOffset:
+      applicationSettingsSchema.shape.materialSolarFacingOffset.catch(0),
+    materialSolarFollowStrength:
+      applicationSettingsSchema.shape.materialSolarFollowStrength.catch(0.5),
+    materialSolarEffect:
+      applicationSettingsSchema.shape.materialSolarEffect.catch('atmospheric'),
   }).parse(legacy)
   return defaults
 }
@@ -415,6 +427,9 @@ export async function setMaterialPreference(
     motion: applicationSettingsSchema.shape.materialMotion,
     lighting: applicationSettingsSchema.shape.materialLighting,
     timezone: applicationSettingsSchema.shape.materialTimezone,
+    solarFacingOffset: applicationSettingsSchema.shape.materialSolarFacingOffset,
+    solarFollowStrength: applicationSettingsSchema.shape.materialSolarFollowStrength,
+    solarEffect: applicationSettingsSchema.shape.materialSolarEffect,
   }).parse(input)
   const store = applicationSettingsStore(userDataDirectory)
   const settings = [
@@ -424,6 +439,9 @@ export async function setMaterialPreference(
     ['materialMotion', preference.motion],
     ['materialLighting', preference.lighting],
     ['materialTimezone', preference.timezone],
+    ['materialSolarFacingOffset', preference.solarFacingOffset],
+    ['materialSolarFollowStrength', preference.solarFollowStrength],
+    ['materialSolarEffect', preference.solarEffect],
   ] as const
   for (const [settingPath, value] of settings) {
     try {
@@ -451,6 +469,9 @@ export function materialPreferenceFrom(
     motion: settings.materialMotion,
     lighting: settings.materialLighting,
     timezone: settings.materialTimezone,
+    solarFacingOffset: settings.materialSolarFacingOffset,
+    solarFollowStrength: settings.materialSolarFollowStrength,
+    solarEffect: settings.materialSolarEffect,
   }
 }
 

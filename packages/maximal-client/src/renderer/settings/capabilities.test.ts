@@ -226,6 +226,9 @@ function fakeBridge(): MaximalHost {
         motion: 0.5,
         lighting: 'fixed' as const,
         timezone: 'UTC',
+        solarFacingOffset: 0,
+        solarFollowStrength: 0.5,
+        solarEffect: 'atmospheric' as const,
       })),
       set: vi.fn(
         async (preference: PersistedMaterialPreference) => preference,

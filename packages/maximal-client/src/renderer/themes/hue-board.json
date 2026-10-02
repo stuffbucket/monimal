@@ -1,0 +1,2478 @@
+[
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-ember-mesa",
+    "name": "Ember Mesa",
+    "description": "Nocturne crimson balanced with an analogous supporting note.",
+    "source": "Palette study inspired by sunset over iron-rich mesas",
+    "category": "heritage-inspired",
+    "tags": [
+      "crimson",
+      "nocturne",
+      "ember",
+      "mesa"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 0,
+      "cue": 0
+    },
+    "colors": {
+      "light": {
+        "background": "#E6D2D1",
+        "surface": "#EBE1E0",
+        "text": "#0C0B10",
+        "accent": "#682B27"
+      },
+      "dark": {
+        "background": "#1B0E0D",
+        "surface": "#2A1A19",
+        "text": "#FFF9F5",
+        "accent": "#D89B97"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-volcanic-ochre",
+    "name": "Volcanic Ochre",
+    "description": "Nocturne amber balanced with an analogous supporting note.",
+    "source": "Palette study inspired by ochre earth around volcanic fields",
+    "category": "heritage-inspired",
+    "tags": [
+      "amber",
+      "nocturne",
+      "volcanic",
+      "ochre"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 1,
+      "cue": 0
+    },
+    "colors": {
+      "light": {
+        "background": "#E6DBD1",
+        "surface": "#EBE6E0",
+        "text": "#0C0B10",
+        "accent": "#684727"
+      },
+      "dark": {
+        "background": "#1B140D",
+        "surface": "#2A2119",
+        "text": "#FFF9F5",
+        "accent": "#D8B897"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-candlelit-ginkgo",
+    "name": "Candlelit Ginkgo",
+    "description": "Nocturne gold balanced with an analogous supporting note.",
+    "source": "Palette study inspired by ginkgo leaves in warm evening light",
+    "category": "heritage-inspired",
+    "tags": [
+      "gold",
+      "nocturne",
+      "candlelit",
+      "ginkgo"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 2,
+      "cue": 0
+    },
+    "colors": {
+      "light": {
+        "background": "#E6E4D1",
+        "surface": "#EBEAE0",
+        "text": "#0C0B10",
+        "accent": "#686327"
+      },
+      "dark": {
+        "background": "#1B1A0D",
+        "surface": "#2A2819",
+        "text": "#FFF9F5",
+        "accent": "#D8D397"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-cedar-night",
+    "name": "Cedar Night",
+    "description": "Nocturne leaf balanced with an analogous supporting note.",
+    "source": "Palette study inspired by cedar silhouettes under a moonless sky",
+    "category": "heritage-inspired",
+    "tags": [
+      "leaf",
+      "nocturne",
+      "cedar",
+      "night"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 3,
+      "cue": 0
+    },
+    "colors": {
+      "light": {
+        "background": "#D1E6D3",
+        "surface": "#E0EBE1",
+        "text": "#0C0B10",
+        "accent": "#27682F"
+      },
+      "dark": {
+        "background": "#0D1B0F",
+        "surface": "#192A1B",
+        "text": "#FFF9F5",
+        "accent": "#97D8A0"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-lagoon-night",
+    "name": "Lagoon Night",
+    "description": "Nocturne turquoise balanced with an analogous supporting note.",
+    "source": "Palette study inspired by a sheltered lagoon after dark",
+    "category": "heritage-inspired",
+    "tags": [
+      "turquoise",
+      "nocturne",
+      "lagoon",
+      "night"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 4,
+      "cue": 0
+    },
+    "colors": {
+      "light": {
+        "background": "#D1E5E6",
+        "surface": "#E0EBEB",
+        "text": "#0C0B10",
+        "accent": "#276668"
+      },
+      "dark": {
+        "background": "#0D1B1B",
+        "surface": "#19292A",
+        "text": "#FFF9F5",
+        "accent": "#97D6D8"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-midnight-fjord",
+    "name": "Midnight Fjord",
+    "description": "Nocturne cobalt balanced with an analogous supporting note.",
+    "source": "Palette study inspired by a deep fjord beneath winter night",
+    "category": "heritage-inspired",
+    "tags": [
+      "cobalt",
+      "nocturne",
+      "midnight",
+      "fjord"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 5,
+      "cue": 0
+    },
+    "colors": {
+      "light": {
+        "background": "#D1D8E6",
+        "surface": "#E0E4EB",
+        "text": "#0C0B10",
+        "accent": "#273C68"
+      },
+      "dark": {
+        "background": "#0D121B",
+        "surface": "#191E2A",
+        "text": "#FFF9F5",
+        "accent": "#97ADD8"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-andes-twilight",
+    "name": "Andes Twilight",
+    "description": "Nocturne violet balanced with an analogous supporting note.",
+    "source": "Palette study inspired by high Andean slopes after sunset",
+    "category": "heritage-inspired",
+    "tags": [
+      "violet",
+      "nocturne",
+      "andes",
+      "twilight"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 6,
+      "cue": 0
+    },
+    "colors": {
+      "light": {
+        "background": "#DBD1E6",
+        "surface": "#E6E0EB",
+        "text": "#0C0B10",
+        "accent": "#472768"
+      },
+      "dark": {
+        "background": "#140D1B",
+        "surface": "#21192A",
+        "text": "#FFF9F5",
+        "accent": "#B897D8"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-plum-night-market",
+    "name": "Plum Night Market",
+    "description": "Nocturne magenta balanced with an analogous supporting note.",
+    "source": "Palette study inspired by dark plum fruit and night-market light",
+    "category": "heritage-inspired",
+    "tags": [
+      "magenta",
+      "nocturne",
+      "plum",
+      "night",
+      "market"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 7,
+      "cue": 0
+    },
+    "colors": {
+      "light": {
+        "background": "#E6D1DE",
+        "surface": "#EBE0E7",
+        "text": "#0C0B10",
+        "accent": "#682750"
+      },
+      "dark": {
+        "background": "#1B0D16",
+        "surface": "#2A1923",
+        "text": "#FFF9F5",
+        "accent": "#D897C0"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-kyoto-maple",
+    "name": "Kyoto Maple",
+    "description": "Dusk crimson balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by Japanese maple leaves after rain",
+    "category": "heritage-inspired",
+    "tags": [
+      "crimson",
+      "dusk",
+      "kyoto",
+      "maple"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 0,
+      "cue": 1
+    },
+    "colors": {
+      "light": {
+        "background": "#E9D0CE",
+        "surface": "#EEDEDD",
+        "text": "#0C0B10",
+        "accent": "#71241E"
+      },
+      "dark": {
+        "background": "#2D1211",
+        "surface": "#3C1D1B",
+        "text": "#FFF9F5",
+        "accent": "#E1948E"
+      }
+    },
+    "shader": {
+      "material": "ink-wash",
+      "strength": 0.58,
+      "motion": 0.24,
+      "gradient": {
+        "type": "radial",
+        "stops": [
+          {
+            "color": "#E5908A",
+            "position": 0
+          },
+          {
+            "color": "#D05888",
+            "position": 52
+          },
+          {
+            "color": "#2D1211",
+            "position": 100
+          }
+        ]
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-namib-dune",
+    "name": "Namib Dune",
+    "description": "Dusk amber balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by Namib dunes near sunset",
+    "category": "heritage-inspired",
+    "tags": [
+      "amber",
+      "dusk",
+      "namib",
+      "dune"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 1,
+      "cue": 1
+    },
+    "colors": {
+      "light": {
+        "background": "#E9DBCE",
+        "surface": "#EEE6DD",
+        "text": "#0C0B10",
+        "accent": "#71471E"
+      },
+      "dark": {
+        "background": "#2D1F11",
+        "surface": "#3C2B1B",
+        "text": "#FFF9F5",
+        "accent": "#E1B88E"
+      }
+    },
+    "shader": {
+      "material": "stardust",
+      "strength": 0.58,
+      "motion": 0.24,
+      "gradient": {
+        "type": "linear",
+        "angle": 135,
+        "stops": [
+          {
+            "color": "#E5B88A",
+            "position": 0
+          },
+          {
+            "color": "#D05C58",
+            "position": 52
+          },
+          {
+            "color": "#2D1F11",
+            "position": 100
+          }
+        ]
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-atlas-saffron",
+    "name": "Atlas Saffron",
+    "description": "Dusk gold balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by saffron and Atlas mountain stone",
+    "category": "heritage-inspired",
+    "tags": [
+      "gold",
+      "dusk",
+      "atlas",
+      "saffron"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 2,
+      "cue": 1
+    },
+    "colors": {
+      "light": {
+        "background": "#E9E7CE",
+        "surface": "#EEEDDD",
+        "text": "#0C0B10",
+        "accent": "#6D661D"
+      },
+      "dark": {
+        "background": "#2D2A11",
+        "surface": "#3C391B",
+        "text": "#FFF9F5",
+        "accent": "#E1DA8E"
+      }
+    },
+    "shader": {
+      "material": "marble",
+      "strength": 0.58,
+      "motion": 0.24,
+      "gradient": {
+        "type": "radial",
+        "stops": [
+          {
+            "color": "#E5DE8A",
+            "position": 0
+          },
+          {
+            "color": "#D08E58",
+            "position": 52
+          },
+          {
+            "color": "#2D2A11",
+            "position": 100
+          }
+        ]
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-moss-courtyard",
+    "name": "Moss Courtyard",
+    "description": "Dusk leaf balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by moss across shaded courtyard stone",
+    "category": "heritage-inspired",
+    "tags": [
+      "leaf",
+      "dusk",
+      "moss",
+      "courtyard"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 3,
+      "cue": 1
+    },
+    "colors": {
+      "light": {
+        "background": "#CEE9D1",
+        "surface": "#DDEEDF",
+        "text": "#0C0B10",
+        "accent": "#1E7129"
+      },
+      "dark": {
+        "background": "#112D14",
+        "surface": "#1B3C1F",
+        "text": "#FFF9F5",
+        "accent": "#8EE199"
+      }
+    },
+    "shader": {
+      "material": "halftone",
+      "strength": 0.58,
+      "motion": 0.24,
+      "gradient": {
+        "type": "linear",
+        "angle": 149,
+        "stops": [
+          {
+            "color": "#8AE596",
+            "position": 0
+          },
+          {
+            "color": "#80D058",
+            "position": 52
+          },
+          {
+            "color": "#112D14",
+            "position": 100
+          }
+        ]
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-glacier-lake",
+    "name": "Glacier Lake",
+    "description": "Dusk turquoise balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by mineral-blue water below a glacier",
+    "category": "heritage-inspired",
+    "tags": [
+      "turquoise",
+      "dusk",
+      "glacier",
+      "lake"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 4,
+      "cue": 1
+    },
+    "colors": {
+      "light": {
+        "background": "#CEE8E9",
+        "surface": "#DDEEEE",
+        "text": "#0C0B10",
+        "accent": "#1E6E71"
+      },
+      "dark": {
+        "background": "#112C2D",
+        "surface": "#1B3B3C",
+        "text": "#FFF9F5",
+        "accent": "#8EDEE1"
+      }
+    },
+    "shader": {
+      "material": "cloth",
+      "strength": 0.58,
+      "motion": 0.24,
+      "gradient": {
+        "type": "radial",
+        "stops": [
+          {
+            "color": "#8AE2E5",
+            "position": 0
+          },
+          {
+            "color": "#58D09C",
+            "position": 52
+          },
+          {
+            "color": "#112C2D",
+            "position": 100
+          }
+        ]
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-seoul-rain",
+    "name": "Seoul Rain",
+    "description": "Dusk cobalt balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by rain-washed signs and asphalt in Seoul",
+    "category": "heritage-inspired",
+    "tags": [
+      "cobalt",
+      "dusk",
+      "seoul",
+      "rain"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 5,
+      "cue": 1
+    },
+    "colors": {
+      "light": {
+        "background": "#CED7E9",
+        "surface": "#DDE3EE",
+        "text": "#0C0B10",
+        "accent": "#1E3A71"
+      },
+      "dark": {
+        "background": "#111A2D",
+        "surface": "#1B263C",
+        "text": "#FFF9F5",
+        "accent": "#8EAAE1"
+      }
+    },
+    "shader": {
+      "material": "water",
+      "strength": 0.58,
+      "motion": 0.24,
+      "gradient": {
+        "type": "linear",
+        "angle": 163,
+        "stops": [
+          {
+            "color": "#8AA8E5",
+            "position": 0
+          },
+          {
+            "color": "#58B8D0",
+            "position": 52
+          },
+          {
+            "color": "#111A2D",
+            "position": 100
+          }
+        ]
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-kyoto-iris",
+    "name": "Kyoto Iris",
+    "description": "Dusk violet balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by iris petals beside dark garden water",
+    "category": "heritage-inspired",
+    "tags": [
+      "violet",
+      "dusk",
+      "kyoto",
+      "iris"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 6,
+      "cue": 1
+    },
+    "colors": {
+      "light": {
+        "background": "#DBCEE9",
+        "surface": "#E6DDEE",
+        "text": "#0C0B10",
+        "accent": "#471E71"
+      },
+      "dark": {
+        "background": "#1F112D",
+        "surface": "#2B1B3C",
+        "text": "#FFF9F5",
+        "accent": "#B88EE1"
+      }
+    },
+    "shader": {
+      "material": "paper",
+      "strength": 0.58,
+      "motion": 0.24,
+      "gradient": {
+        "type": "radial",
+        "stops": [
+          {
+            "color": "#B88AE5",
+            "position": 0
+          },
+          {
+            "color": "#5C58D0",
+            "position": 52
+          },
+          {
+            "color": "#1F112D",
+            "position": 100
+          }
+        ]
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-bougainvillea-dusk",
+    "name": "Bougainvillea Dusk",
+    "description": "Dusk magenta balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by bougainvillea against a dusk wall",
+    "category": "heritage-inspired",
+    "tags": [
+      "magenta",
+      "dusk",
+      "bougainvillea",
+      "dusk"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 7,
+      "cue": 1
+    },
+    "colors": {
+      "light": {
+        "background": "#E9CEDF",
+        "surface": "#EEDDE8",
+        "text": "#0C0B10",
+        "accent": "#711E52"
+      },
+      "dark": {
+        "background": "#2D1122",
+        "surface": "#3C1B30",
+        "text": "#FFF9F5",
+        "accent": "#E18EC3"
+      }
+    },
+    "shader": {
+      "material": "cel-sky",
+      "strength": 0.58,
+      "motion": 0.24,
+      "gradient": {
+        "type": "linear",
+        "angle": 177,
+        "stops": [
+          {
+            "color": "#E58AC4",
+            "position": 0
+          },
+          {
+            "color": "#C458D0",
+            "position": 52
+          },
+          {
+            "color": "#2D1122",
+            "position": 100
+          }
+        ]
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-ruby-camellia",
+    "name": "Ruby Camellia",
+    "description": "Jewel crimson balanced with an analogous supporting note.",
+    "source": "Palette study inspired by camellia petals and lacquered wood",
+    "category": "nature",
+    "tags": [
+      "crimson",
+      "jewel",
+      "ruby",
+      "camellia"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 0,
+      "cue": 2
+    },
+    "colors": {
+      "light": {
+        "background": "#EECBC9",
+        "surface": "#F2DBD9",
+        "text": "#0C0B10",
+        "accent": "#7B1B14"
+      },
+      "dark": {
+        "background": "#411410",
+        "surface": "#511D1A",
+        "text": "#FFF9F5",
+        "accent": "#EB8B84"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-marigold-market",
+    "name": "Marigold Market",
+    "description": "Jewel amber balanced with an analogous supporting note.",
+    "source": "Palette study inspired by marigold garlands and market textiles",
+    "category": "nature",
+    "tags": [
+      "amber",
+      "jewel",
+      "marigold",
+      "market"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 1,
+      "cue": 2
+    },
+    "colors": {
+      "light": {
+        "background": "#EEDBC9",
+        "surface": "#F2E6D9",
+        "text": "#0C0B10",
+        "accent": "#7B4714"
+      },
+      "dark": {
+        "background": "#412910",
+        "surface": "#51361A",
+        "text": "#FFF9F5",
+        "accent": "#EBB884"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-golden-wattle",
+    "name": "Golden Wattle",
+    "description": "Jewel gold balanced with an analogous supporting note.",
+    "source": "Palette study inspired by golden wattle against deep foliage",
+    "category": "nature",
+    "tags": [
+      "gold",
+      "jewel",
+      "golden",
+      "wattle"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 2,
+      "cue": 2
+    },
+    "colors": {
+      "light": {
+        "background": "#EEEBC9",
+        "surface": "#F2F0D9",
+        "text": "#0C0B10",
+        "accent": "#726A13"
+      },
+      "dark": {
+        "background": "#413D10",
+        "surface": "#514D1A",
+        "text": "#FFF9F5",
+        "accent": "#EBE284"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-emerald-canopy",
+    "name": "Emerald Canopy",
+    "description": "Jewel leaf balanced with an analogous supporting note.",
+    "source": "Palette study inspired by layered tropical forest canopy",
+    "category": "nature",
+    "tags": [
+      "leaf",
+      "jewel",
+      "emerald",
+      "canopy"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 3,
+      "cue": 2
+    },
+    "colors": {
+      "light": {
+        "background": "#C9EECE",
+        "surface": "#D9F2DD",
+        "text": "#0C0B10",
+        "accent": "#137620"
+      },
+      "dark": {
+        "background": "#104117",
+        "surface": "#1A5121",
+        "text": "#FFF9F5",
+        "accent": "#84EB92"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-turquoise-tile",
+    "name": "Turquoise Tile",
+    "description": "Jewel turquoise balanced with an analogous supporting note.",
+    "source": "Palette study inspired by turquoise glazed architectural tile",
+    "category": "nature",
+    "tags": [
+      "turquoise",
+      "jewel",
+      "turquoise",
+      "tile"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 4,
+      "cue": 2
+    },
+    "colors": {
+      "light": {
+        "background": "#C9EDEE",
+        "surface": "#D9F1F2",
+        "text": "#0C0B10",
+        "accent": "#136F72"
+      },
+      "dark": {
+        "background": "#104041",
+        "surface": "#1A5051",
+        "text": "#FFF9F5",
+        "accent": "#84E8EB"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-cobalt-medina",
+    "name": "Cobalt Medina",
+    "description": "Jewel cobalt balanced with an analogous supporting note.",
+    "source": "Palette study inspired by cobalt-painted lanes and geometric tile",
+    "category": "nature",
+    "tags": [
+      "cobalt",
+      "jewel",
+      "cobalt",
+      "medina"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 5,
+      "cue": 2
+    },
+    "colors": {
+      "light": {
+        "background": "#C9D5EE",
+        "surface": "#D9E1F2",
+        "text": "#0C0B10",
+        "accent": "#14367B"
+      },
+      "dark": {
+        "background": "#102141",
+        "surface": "#1A2C51",
+        "text": "#FFF9F5",
+        "accent": "#84A6EB"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-amethyst-peak",
+    "name": "Amethyst Peak",
+    "description": "Jewel violet balanced with an analogous supporting note.",
+    "source": "Palette study inspired by amethyst crystal and shadowed granite",
+    "category": "nature",
+    "tags": [
+      "violet",
+      "jewel",
+      "amethyst",
+      "peak"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 6,
+      "cue": 2
+    },
+    "colors": {
+      "light": {
+        "background": "#DBC9EE",
+        "surface": "#E6D9F2",
+        "text": "#0C0B10",
+        "accent": "#47147B"
+      },
+      "dark": {
+        "background": "#291041",
+        "surface": "#361A51",
+        "text": "#FFF9F5",
+        "accent": "#B884EB"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-dragon-fruit-bloom",
+    "name": "Dragon Fruit Bloom",
+    "description": "Jewel magenta balanced with an analogous supporting note.",
+    "source": "Palette study inspired by dragon fruit skin and climbing blooms",
+    "category": "nature",
+    "tags": [
+      "magenta",
+      "jewel",
+      "dragon",
+      "fruit",
+      "bloom"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 7,
+      "cue": 2
+    },
+    "colors": {
+      "light": {
+        "background": "#EEC9E0",
+        "surface": "#F2D9E9",
+        "text": "#0C0B10",
+        "accent": "#7B1455"
+      },
+      "dark": {
+        "background": "#41102F",
+        "surface": "#511A3D",
+        "text": "#FFF9F5",
+        "accent": "#EB84C5"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-poppy-quarter",
+    "name": "Poppy Quarter",
+    "description": "Vivid crimson balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by poppies against urban brick",
+    "category": "nature",
+    "tags": [
+      "crimson",
+      "vivid",
+      "poppy",
+      "quarter"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 0,
+      "cue": 3
+    },
+    "colors": {
+      "light": {
+        "background": "#F1C9C6",
+        "surface": "#F4D9D7",
+        "text": "#0C0B10",
+        "accent": "#7F1710"
+      },
+      "dark": {
+        "background": "#5A1611",
+        "surface": "#6A201B",
+        "text": "#FFF9F5",
+        "accent": "#EF8780"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-citrus-arcade",
+    "name": "Citrus Arcade",
+    "description": "Vivid amber balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by citrus stalls beneath shaded arcades",
+    "category": "nature",
+    "tags": [
+      "amber",
+      "vivid",
+      "citrus",
+      "arcade"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 1,
+      "cue": 3
+    },
+    "colors": {
+      "light": {
+        "background": "#F1DBC6",
+        "surface": "#F4E6D7",
+        "text": "#0C0B10",
+        "accent": "#7F4710"
+      },
+      "dark": {
+        "background": "#5A3611",
+        "surface": "#6A421B",
+        "text": "#FFF9F5",
+        "accent": "#EFB880"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-marigold-courtyard",
+    "name": "Marigold Courtyard",
+    "description": "Vivid gold balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by marigolds in a shaded courtyard",
+    "category": "nature",
+    "tags": [
+      "gold",
+      "vivid",
+      "marigold",
+      "courtyard"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 2,
+      "cue": 3
+    },
+    "colors": {
+      "light": {
+        "background": "#F1EDC6",
+        "surface": "#F4F1D7",
+        "text": "#0C0B10",
+        "accent": "#71690E"
+      },
+      "dark": {
+        "background": "#5A5411",
+        "surface": "#5A5416",
+        "text": "#FFF9F5",
+        "accent": "#EFE680"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-monsoon-tea",
+    "name": "Monsoon Tea",
+    "description": "Vivid leaf balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by tea terraces during monsoon season",
+    "category": "nature",
+    "tags": [
+      "leaf",
+      "vivid",
+      "monsoon",
+      "tea"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 3,
+      "cue": 3
+    },
+    "colors": {
+      "light": {
+        "background": "#C6F1CC",
+        "surface": "#D7F4DB",
+        "text": "#0C0B10",
+        "accent": "#0F761C"
+      },
+      "dark": {
+        "background": "#115A1B",
+        "surface": "#186222",
+        "text": "#FFF9F5",
+        "accent": "#80EF8F"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-island-tide",
+    "name": "Island Tide",
+    "description": "Vivid turquoise balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by clear tide over pale volcanic sand",
+    "category": "nature",
+    "tags": [
+      "turquoise",
+      "vivid",
+      "island",
+      "tide"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 4,
+      "cue": 3
+    },
+    "colors": {
+      "light": {
+        "background": "#C6EFF1",
+        "surface": "#D7F3F4",
+        "text": "#0C0B10",
+        "accent": "#0F7376"
+      },
+      "dark": {
+        "background": "#11585A",
+        "surface": "#185F62",
+        "text": "#FFF9F5",
+        "accent": "#80ECEF"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-aegean-noon",
+    "name": "Aegean Noon",
+    "description": "Vivid cobalt balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by Aegean water under clear noon light",
+    "category": "nature",
+    "tags": [
+      "cobalt",
+      "vivid",
+      "aegean",
+      "noon"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 5,
+      "cue": 3
+    },
+    "colors": {
+      "light": {
+        "background": "#C6D4F1",
+        "surface": "#D7E1F4",
+        "text": "#0C0B10",
+        "accent": "#10357F"
+      },
+      "dark": {
+        "background": "#11295A",
+        "surface": "#1B356A",
+        "text": "#FFF9F5",
+        "accent": "#80A5EF"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-lavender-festival",
+    "name": "Lavender Festival",
+    "description": "Vivid violet balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by lavender fields arranged in long rows",
+    "category": "nature",
+    "tags": [
+      "violet",
+      "vivid",
+      "lavender",
+      "festival"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 6,
+      "cue": 3
+    },
+    "colors": {
+      "light": {
+        "background": "#DBC6F1",
+        "surface": "#E6D7F4",
+        "text": "#0C0B10",
+        "accent": "#47107F"
+      },
+      "dark": {
+        "background": "#36115A",
+        "surface": "#421B6A",
+        "text": "#FFF9F5",
+        "accent": "#B880EF"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-fuchsia-city-lights",
+    "name": "Fuchsia City Lights",
+    "description": "Vivid magenta balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by fuchsia light across wet city streets",
+    "category": "nature",
+    "tags": [
+      "magenta",
+      "vivid",
+      "fuchsia",
+      "city",
+      "lights"
+    ],
+    "appearance": "dark",
+    "placement": {
+      "hue": 7,
+      "cue": 3
+    },
+    "colors": {
+      "light": {
+        "background": "#F1C6E1",
+        "surface": "#F4D7E9",
+        "text": "#0C0B10",
+        "accent": "#7F1056"
+      },
+      "dark": {
+        "background": "#5A113F",
+        "surface": "#6A1B4D",
+        "text": "#FFF9F5",
+        "accent": "#EF80C6"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-autumn-rowan",
+    "name": "Autumn Rowan",
+    "description": "Garden crimson balanced with an analogous supporting note.",
+    "source": "Palette study inspired by rowan berries in early autumn",
+    "category": "nature",
+    "tags": [
+      "crimson",
+      "garden",
+      "autumn",
+      "rowan"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 0,
+      "cue": 4
+    },
+    "colors": {
+      "light": {
+        "background": "#E5A39E",
+        "surface": "#E7B5B1",
+        "text": "#0C0B10",
+        "accent": "#791C15"
+      },
+      "dark": {
+        "background": "#2C0E0C",
+        "surface": "#3D1714",
+        "text": "#FFF9F5",
+        "accent": "#EA8C86"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-autumn-persimmon",
+    "name": "Autumn Persimmon",
+    "description": "Garden amber balanced with an analogous supporting note.",
+    "source": "Palette study inspired by ripe persimmon and autumn bark",
+    "category": "nature",
+    "tags": [
+      "amber",
+      "garden",
+      "autumn",
+      "persimmon"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 1,
+      "cue": 4
+    },
+    "colors": {
+      "light": {
+        "background": "#E5C29E",
+        "surface": "#E7CCB1",
+        "text": "#0C0B10",
+        "accent": "#794715"
+      },
+      "dark": {
+        "background": "#2C1C0C",
+        "surface": "#3D2914",
+        "text": "#FFF9F5",
+        "accent": "#EAB886"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-summer-sunflower",
+    "name": "Summer Sunflower",
+    "description": "Garden gold balanced with an analogous supporting note.",
+    "source": "Palette study inspired by sunflowers under high summer light",
+    "category": "nature",
+    "tags": [
+      "gold",
+      "garden",
+      "summer",
+      "sunflower"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 2,
+      "cue": 4
+    },
+    "colors": {
+      "light": {
+        "background": "#E5DF9E",
+        "surface": "#E7E2B1",
+        "text": "#0C0B10",
+        "accent": "#686112"
+      },
+      "dark": {
+        "background": "#2C2A0C",
+        "surface": "#3D3A14",
+        "text": "#FFF9F5",
+        "accent": "#EAE186"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-bamboo-rain",
+    "name": "Bamboo Rain",
+    "description": "Garden leaf balanced with an analogous supporting note.",
+    "source": "Palette study inspired by rain moving through bamboo leaves",
+    "category": "nature",
+    "tags": [
+      "leaf",
+      "garden",
+      "bamboo",
+      "rain"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 3,
+      "cue": 4
+    },
+    "colors": {
+      "light": {
+        "background": "#9EE5A8",
+        "surface": "#B1E7B9",
+        "text": "#0C0B10",
+        "accent": "#12681E"
+      },
+      "dark": {
+        "background": "#0C2C10",
+        "surface": "#143D1A",
+        "text": "#FFF9F5",
+        "accent": "#86EA93"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-eucalyptus-mist",
+    "name": "Eucalyptus Mist",
+    "description": "Garden turquoise balanced with an analogous supporting note.",
+    "source": "Palette study inspired by mist through blue-green eucalyptus",
+    "category": "nature",
+    "tags": [
+      "turquoise",
+      "garden",
+      "eucalyptus",
+      "mist"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 4,
+      "cue": 4
+    },
+    "colors": {
+      "light": {
+        "background": "#9EE3E5",
+        "surface": "#B1E5E7",
+        "text": "#0C0B10",
+        "accent": "#126568"
+      },
+      "dark": {
+        "background": "#0C2B2C",
+        "surface": "#143C3D",
+        "text": "#FFF9F5",
+        "accent": "#86E6EA"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-blue-poppy",
+    "name": "Blue Poppy",
+    "description": "Garden cobalt balanced with an analogous supporting note.",
+    "source": "Palette study inspired by Himalayan blue poppy petals",
+    "category": "nature",
+    "tags": [
+      "cobalt",
+      "garden",
+      "blue",
+      "poppy"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 5,
+      "cue": 4
+    },
+    "colors": {
+      "light": {
+        "background": "#9EB6E5",
+        "surface": "#B1C3E7",
+        "text": "#0C0B10",
+        "accent": "#153779"
+      },
+      "dark": {
+        "background": "#0C172C",
+        "surface": "#14223D",
+        "text": "#FFF9F5",
+        "accent": "#86A7EA"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-wisteria-garden",
+    "name": "Wisteria Garden",
+    "description": "Garden violet balanced with an analogous supporting note.",
+    "source": "Palette study inspired by wisteria blooms beneath a garden trellis",
+    "category": "nature",
+    "tags": [
+      "violet",
+      "garden",
+      "wisteria",
+      "garden"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 6,
+      "cue": 4
+    },
+    "colors": {
+      "light": {
+        "background": "#C29EE5",
+        "surface": "#CCB1E7",
+        "text": "#0C0B10",
+        "accent": "#471579"
+      },
+      "dark": {
+        "background": "#1C0C2C",
+        "surface": "#29143D",
+        "text": "#FFF9F5",
+        "accent": "#B886EA"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-peony-season",
+    "name": "Peony Season",
+    "description": "Garden magenta balanced with an analogous supporting note.",
+    "source": "Palette study inspired by peonies at the height of their season",
+    "category": "nature",
+    "tags": [
+      "magenta",
+      "garden",
+      "peony",
+      "season"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 7,
+      "cue": 4
+    },
+    "colors": {
+      "light": {
+        "background": "#E59ECB",
+        "surface": "#E7B1D3",
+        "text": "#0C0B10",
+        "accent": "#791555"
+      },
+      "dark": {
+        "background": "#2C0C20",
+        "surface": "#3D142E",
+        "text": "#FFF9F5",
+        "accent": "#EA86C5"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-coral-coast",
+    "name": "Coral Coast",
+    "description": "Seasonal crimson balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by coral shelves in clear coastal water",
+    "category": "studio",
+    "tags": [
+      "crimson",
+      "seasonal",
+      "coral",
+      "coast"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 0,
+      "cue": 5
+    },
+    "colors": {
+      "light": {
+        "background": "#E6B6B3",
+        "surface": "#E8C7C4",
+        "text": "#0C0B10",
+        "accent": "#74211B"
+      },
+      "dark": {
+        "background": "#2A100E",
+        "surface": "#3A1A18",
+        "text": "#FFF9F5",
+        "accent": "#E4918B"
+      }
+    },
+    "shader": {
+      "material": "ink-wash",
+      "strength": 0.46,
+      "motion": 0.16,
+      "gradient": {
+        "type": "radial",
+        "stops": [
+          {
+            "color": "#671914",
+            "position": 0
+          },
+          {
+            "color": "#8B234C",
+            "position": 52
+          },
+          {
+            "color": "#E6B6B3",
+            "position": 100
+          }
+        ]
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-copper-canyon",
+    "name": "Copper Canyon",
+    "description": "Seasonal amber balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by oxidized copper and canyon walls",
+    "category": "studio",
+    "tags": [
+      "amber",
+      "seasonal",
+      "copper",
+      "canyon"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 1,
+      "cue": 5
+    },
+    "colors": {
+      "light": {
+        "background": "#E6CCB3",
+        "surface": "#E8D6C4",
+        "text": "#0C0B10",
+        "accent": "#74471B"
+      },
+      "dark": {
+        "background": "#2A1C0E",
+        "surface": "#3A2918",
+        "text": "#FFF9F5",
+        "accent": "#E4B88B"
+      }
+    },
+    "shader": {
+      "material": "stardust",
+      "strength": 0.46,
+      "motion": 0.16,
+      "gradient": {
+        "type": "linear",
+        "angle": 135,
+        "stops": [
+          {
+            "color": "#673D14",
+            "position": 0
+          },
+          {
+            "color": "#8B2623",
+            "position": 52
+          },
+          {
+            "color": "#E6CCB3",
+            "position": 100
+          }
+        ]
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-alpine-larch",
+    "name": "Alpine Larch",
+    "description": "Seasonal gold balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by larch needles turning above the tree line",
+    "category": "studio",
+    "tags": [
+      "gold",
+      "seasonal",
+      "alpine",
+      "larch"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 2,
+      "cue": 5
+    },
+    "colors": {
+      "light": {
+        "background": "#E6E1B3",
+        "surface": "#E8E5C4",
+        "text": "#0C0B10",
+        "accent": "#6B6519"
+      },
+      "dark": {
+        "background": "#2A280E",
+        "surface": "#3A3718",
+        "text": "#FFF9F5",
+        "accent": "#E4DC8B"
+      }
+    },
+    "shader": {
+      "material": "marble",
+      "strength": 0.46,
+      "motion": 0.16,
+      "gradient": {
+        "type": "radial",
+        "stops": [
+          {
+            "color": "#676014",
+            "position": 0
+          },
+          {
+            "color": "#8B5123",
+            "position": 52
+          },
+          {
+            "color": "#E6E1B3",
+            "position": 100
+          }
+        ]
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-highland-meadow",
+    "name": "Highland Meadow",
+    "description": "Seasonal leaf balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by highland grasses after snowmelt",
+    "category": "studio",
+    "tags": [
+      "leaf",
+      "seasonal",
+      "highland",
+      "meadow"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 3,
+      "cue": 5
+    },
+    "colors": {
+      "light": {
+        "background": "#B3E6B9",
+        "surface": "#C4E8C9",
+        "text": "#0C0B10",
+        "accent": "#196B24"
+      },
+      "dark": {
+        "background": "#0E2A12",
+        "surface": "#183A1C",
+        "text": "#FFF9F5",
+        "accent": "#8BE497"
+      }
+    },
+    "shader": {
+      "material": "halftone",
+      "strength": 0.46,
+      "motion": 0.16,
+      "gradient": {
+        "type": "linear",
+        "angle": 149,
+        "stops": [
+          {
+            "color": "#14671F",
+            "position": 0
+          },
+          {
+            "color": "#458B23",
+            "position": 52
+          },
+          {
+            "color": "#B3E6B9",
+            "position": 100
+          }
+        ]
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-patagonian-ice",
+    "name": "Patagonian Ice",
+    "description": "Seasonal turquoise balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by blue ice fields in Patagonia",
+    "category": "studio",
+    "tags": [
+      "turquoise",
+      "seasonal",
+      "patagonian",
+      "ice"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 4,
+      "cue": 5
+    },
+    "colors": {
+      "light": {
+        "background": "#B3E4E6",
+        "surface": "#C4E7E8",
+        "text": "#0C0B10",
+        "accent": "#19696B"
+      },
+      "dark": {
+        "background": "#0E292A",
+        "surface": "#18393A",
+        "text": "#FFF9F5",
+        "accent": "#8BE1E4"
+      }
+    },
+    "shader": {
+      "material": "cloth",
+      "strength": 0.46,
+      "motion": 0.16,
+      "gradient": {
+        "type": "radial",
+        "stops": [
+          {
+            "color": "#146467",
+            "position": 0
+          },
+          {
+            "color": "#238B5E",
+            "position": 52
+          },
+          {
+            "color": "#B3E4E6",
+            "position": 100
+          }
+        ]
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-blue-ridge",
+    "name": "Blue Ridge",
+    "description": "Seasonal cobalt balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by layered mountain ridges at distance",
+    "category": "studio",
+    "tags": [
+      "cobalt",
+      "seasonal",
+      "blue",
+      "ridge"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 5,
+      "cue": 5
+    },
+    "colors": {
+      "light": {
+        "background": "#B3C4E6",
+        "surface": "#C4D0E8",
+        "text": "#0C0B10",
+        "accent": "#1B3974"
+      },
+      "dark": {
+        "background": "#0E172A",
+        "surface": "#18233A",
+        "text": "#FFF9F5",
+        "accent": "#8BA9E4"
+      }
+    },
+    "shader": {
+      "material": "water",
+      "strength": 0.46,
+      "motion": 0.16,
+      "gradient": {
+        "type": "linear",
+        "angle": 163,
+        "stops": [
+          {
+            "color": "#142F67",
+            "position": 0
+          },
+          {
+            "color": "#23768B",
+            "position": 52
+          },
+          {
+            "color": "#B3C4E6",
+            "position": 100
+          }
+        ]
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-alpine-crocus",
+    "name": "Alpine Crocus",
+    "description": "Seasonal violet balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by crocus flowers at the snow line",
+    "category": "studio",
+    "tags": [
+      "violet",
+      "seasonal",
+      "alpine",
+      "crocus"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 6,
+      "cue": 5
+    },
+    "colors": {
+      "light": {
+        "background": "#CCB3E6",
+        "surface": "#D6C4E8",
+        "text": "#0C0B10",
+        "accent": "#471B74"
+      },
+      "dark": {
+        "background": "#1C0E2A",
+        "surface": "#29183A",
+        "text": "#FFF9F5",
+        "accent": "#B88BE4"
+      }
+    },
+    "shader": {
+      "material": "paper",
+      "strength": 0.46,
+      "motion": 0.16,
+      "gradient": {
+        "type": "radial",
+        "stops": [
+          {
+            "color": "#3D1467",
+            "position": 0
+          },
+          {
+            "color": "#26238B",
+            "position": 52
+          },
+          {
+            "color": "#CCB3E6",
+            "position": 100
+          }
+        ]
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-rhododendron-pass",
+    "name": "Rhododendron Pass",
+    "description": "Seasonal magenta balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by rhododendrons along a mountain pass",
+    "category": "studio",
+    "tags": [
+      "magenta",
+      "seasonal",
+      "rhododendron",
+      "pass"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 7,
+      "cue": 5
+    },
+    "colors": {
+      "light": {
+        "background": "#E6B3D3",
+        "surface": "#E8C4DB",
+        "text": "#0C0B10",
+        "accent": "#741B53"
+      },
+      "dark": {
+        "background": "#2A0E20",
+        "surface": "#3A182D",
+        "text": "#FFF9F5",
+        "accent": "#E48BC3"
+      }
+    },
+    "shader": {
+      "material": "cel-sky",
+      "strength": 0.46,
+      "motion": 0.16,
+      "gradient": {
+        "type": "linear",
+        "angle": 177,
+        "stops": [
+          {
+            "color": "#671448",
+            "position": 0
+          },
+          {
+            "color": "#80238B",
+            "position": 52
+          },
+          {
+            "color": "#E6B3D3",
+            "position": 100
+          }
+        ]
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-rose-granite",
+    "name": "Rose Granite",
+    "description": "Mineral crimson balanced with an analogous supporting note.",
+    "source": "Palette study inspired by rose granite mountain faces",
+    "category": "studio",
+    "tags": [
+      "crimson",
+      "mineral",
+      "rose",
+      "granite"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 0,
+      "cue": 6
+    },
+    "colors": {
+      "light": {
+        "background": "#E7C7C5",
+        "surface": "#EBD7D5",
+        "text": "#0C0B10",
+        "accent": "#6E2621"
+      },
+      "dark": {
+        "background": "#281210",
+        "surface": "#371D1B",
+        "text": "#FFF9F5",
+        "accent": "#DE9691"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-terracotta-ridge",
+    "name": "Terracotta Ridge",
+    "description": "Mineral amber balanced with an analogous supporting note.",
+    "source": "Palette study inspired by terracotta rooflines on a dry ridge",
+    "category": "studio",
+    "tags": [
+      "amber",
+      "mineral",
+      "terracotta",
+      "ridge"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 1,
+      "cue": 6
+    },
+    "colors": {
+      "light": {
+        "background": "#E7D6C5",
+        "surface": "#EBE0D5",
+        "text": "#0C0B10",
+        "accent": "#6E4721"
+      },
+      "dark": {
+        "background": "#281C10",
+        "surface": "#37291B",
+        "text": "#FFF9F5",
+        "accent": "#DEB891"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-pampas-gold",
+    "name": "Pampas Gold",
+    "description": "Mineral gold balanced with an analogous supporting note.",
+    "source": "Palette study inspired by pampas grass across an open plain",
+    "category": "studio",
+    "tags": [
+      "gold",
+      "mineral",
+      "pampas",
+      "gold"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 2,
+      "cue": 6
+    },
+    "colors": {
+      "light": {
+        "background": "#E7E4C5",
+        "surface": "#EBEAD5",
+        "text": "#0C0B10",
+        "accent": "#6A6420"
+      },
+      "dark": {
+        "background": "#282610",
+        "surface": "#37341B",
+        "text": "#FFF9F5",
+        "accent": "#DED891"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-olive-grove",
+    "name": "Olive Grove",
+    "description": "Mineral leaf balanced with an analogous supporting note.",
+    "source": "Palette study inspired by silver-green olive leaves in dry sun",
+    "category": "studio",
+    "tags": [
+      "leaf",
+      "mineral",
+      "olive",
+      "grove"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 3,
+      "cue": 6
+    },
+    "colors": {
+      "light": {
+        "background": "#C5E7CA",
+        "surface": "#D5EBD8",
+        "text": "#0C0B10",
+        "accent": "#216E2B"
+      },
+      "dark": {
+        "background": "#102813",
+        "surface": "#1B371F",
+        "text": "#FFF9F5",
+        "accent": "#91DE9B"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-alpine-stream",
+    "name": "Alpine Stream",
+    "description": "Mineral turquoise balanced with an analogous supporting note.",
+    "source": "Palette study inspired by snow-fed water over alpine stone",
+    "category": "studio",
+    "tags": [
+      "turquoise",
+      "mineral",
+      "alpine",
+      "stream"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 4,
+      "cue": 6
+    },
+    "colors": {
+      "light": {
+        "background": "#C5E6E7",
+        "surface": "#D5EBEB",
+        "text": "#0C0B10",
+        "accent": "#216B6E"
+      },
+      "dark": {
+        "background": "#102728",
+        "surface": "#1B3637",
+        "text": "#FFF9F5",
+        "accent": "#91DCDE"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-canal-blue",
+    "name": "Canal Blue",
+    "description": "Mineral cobalt balanced with an analogous supporting note.",
+    "source": "Palette study inspired by canal water reflecting painted facades",
+    "category": "studio",
+    "tags": [
+      "cobalt",
+      "mineral",
+      "canal",
+      "blue"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 5,
+      "cue": 6
+    },
+    "colors": {
+      "light": {
+        "background": "#C5D0E7",
+        "surface": "#D5DDEB",
+        "text": "#0C0B10",
+        "accent": "#213B6E"
+      },
+      "dark": {
+        "background": "#101828",
+        "surface": "#1B2437",
+        "text": "#FFF9F5",
+        "accent": "#91ABDE"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-lilac-stone",
+    "name": "Lilac Stone",
+    "description": "Mineral violet balanced with an analogous supporting note.",
+    "source": "Palette study inspired by lilac-gray stone in soft weather",
+    "category": "studio",
+    "tags": [
+      "violet",
+      "mineral",
+      "lilac",
+      "stone"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 6,
+      "cue": 6
+    },
+    "colors": {
+      "light": {
+        "background": "#D6C5E7",
+        "surface": "#E0D5EB",
+        "text": "#0C0B10",
+        "accent": "#47216E"
+      },
+      "dark": {
+        "background": "#1C1028",
+        "surface": "#291B37",
+        "text": "#FFF9F5",
+        "accent": "#B891DE"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-orchid-mist",
+    "name": "Orchid Mist",
+    "description": "Mineral magenta balanced with an analogous supporting note.",
+    "source": "Palette study inspired by orchids emerging through greenhouse mist",
+    "category": "studio",
+    "tags": [
+      "magenta",
+      "mineral",
+      "orchid",
+      "mist"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 7,
+      "cue": 6
+    },
+    "colors": {
+      "light": {
+        "background": "#E7C5DB",
+        "surface": "#EBD5E3",
+        "text": "#0C0B10",
+        "accent": "#6E2152"
+      },
+      "dark": {
+        "background": "#28101F",
+        "surface": "#371B2C",
+        "text": "#FFF9F5",
+        "accent": "#DE91C2"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-dawn-azalea",
+    "name": "Dawn Azalea",
+    "description": "Luminous crimson balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by azalea petals in first light",
+    "category": "studio",
+    "tags": [
+      "crimson",
+      "luminous",
+      "dawn",
+      "azalea"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 0,
+      "cue": 7
+    },
+    "colors": {
+      "light": {
+        "background": "#E9D4D3",
+        "surface": "#EEE2E2",
+        "text": "#0C0B10",
+        "accent": "#682B27"
+      },
+      "dark": {
+        "background": "#261413",
+        "surface": "#33201E",
+        "text": "#FFF9F5",
+        "accent": "#D89B97"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-desert-calendula",
+    "name": "Desert Calendula",
+    "description": "Luminous amber balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by calendula flowers after desert rain",
+    "category": "studio",
+    "tags": [
+      "amber",
+      "luminous",
+      "desert",
+      "calendula"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 1,
+      "cue": 7
+    },
+    "colors": {
+      "light": {
+        "background": "#E9DED3",
+        "surface": "#EEE8E2",
+        "text": "#0C0B10",
+        "accent": "#684727"
+      },
+      "dark": {
+        "background": "#261C13",
+        "surface": "#33291E",
+        "text": "#FFF9F5",
+        "accent": "#D8B897"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-spring-mimosa",
+    "name": "Spring Mimosa",
+    "description": "Luminous gold balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by mimosa blossom in early spring",
+    "category": "studio",
+    "tags": [
+      "gold",
+      "luminous",
+      "spring",
+      "mimosa"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 2,
+      "cue": 7
+    },
+    "colors": {
+      "light": {
+        "background": "#E9E7D3",
+        "surface": "#EEEDE2",
+        "text": "#0C0B10",
+        "accent": "#686327"
+      },
+      "dark": {
+        "background": "#262413",
+        "surface": "#33321E",
+        "text": "#FFF9F5",
+        "accent": "#D8D397"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-new-fern",
+    "name": "New Fern",
+    "description": "Luminous leaf balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by new fern growth in diffuse light",
+    "category": "studio",
+    "tags": [
+      "leaf",
+      "luminous",
+      "new",
+      "fern"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 3,
+      "cue": 7
+    },
+    "colors": {
+      "light": {
+        "background": "#D3E9D6",
+        "surface": "#E2EEE3",
+        "text": "#0C0B10",
+        "accent": "#27682F"
+      },
+      "dark": {
+        "background": "#132615",
+        "surface": "#1E3321",
+        "text": "#FFF9F5",
+        "accent": "#97D8A0"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-morning-lotus",
+    "name": "Morning Lotus",
+    "description": "Luminous turquoise balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by lotus leaves in cool morning light",
+    "category": "studio",
+    "tags": [
+      "turquoise",
+      "luminous",
+      "morning",
+      "lotus"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 4,
+      "cue": 7
+    },
+    "colors": {
+      "light": {
+        "background": "#D3E8E9",
+        "surface": "#E2EEEE",
+        "text": "#0C0B10",
+        "accent": "#276668"
+      },
+      "dark": {
+        "background": "#132526",
+        "surface": "#1E3333",
+        "text": "#FFF9F5",
+        "accent": "#97D6D8"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-jacaranda-sky",
+    "name": "Jacaranda Sky",
+    "description": "Luminous cobalt balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by open sky behind jacaranda branches",
+    "category": "studio",
+    "tags": [
+      "cobalt",
+      "luminous",
+      "jacaranda",
+      "sky"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 5,
+      "cue": 7
+    },
+    "colors": {
+      "light": {
+        "background": "#D3DAE9",
+        "surface": "#E2E6EE",
+        "text": "#0C0B10",
+        "accent": "#273C68"
+      },
+      "dark": {
+        "background": "#131926",
+        "surface": "#1E2533",
+        "text": "#FFF9F5",
+        "accent": "#97ADD8"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-violet-dawn",
+    "name": "Violet Dawn",
+    "description": "Luminous violet balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by violet light before sunrise",
+    "category": "studio",
+    "tags": [
+      "violet",
+      "luminous",
+      "violet",
+      "dawn"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 6,
+      "cue": 7
+    },
+    "colors": {
+      "light": {
+        "background": "#DED3E9",
+        "surface": "#E8E2EE",
+        "text": "#0C0B10",
+        "accent": "#472768"
+      },
+      "dark": {
+        "background": "#1C1326",
+        "surface": "#291E33",
+        "text": "#FFF9F5",
+        "accent": "#B897D8"
+      }
+    }
+  },
+  {
+    "schema": "https://maximal.dev/schemas/theme/v2",
+    "id": "board-cherry-blossom-rain",
+    "name": "Cherry Blossom Rain",
+    "description": "Luminous magenta balanced with an split-complementary supporting note.",
+    "source": "Palette study inspired by cherry petals carried through rain",
+    "category": "studio",
+    "tags": [
+      "magenta",
+      "luminous",
+      "cherry",
+      "blossom",
+      "rain"
+    ],
+    "appearance": "light",
+    "placement": {
+      "hue": 7,
+      "cue": 7
+    },
+    "colors": {
+      "light": {
+        "background": "#E9D3E1",
+        "surface": "#EEE2EA",
+        "text": "#0C0B10",
+        "accent": "#682750"
+      },
+      "dark": {
+        "background": "#26131F",
+        "surface": "#331E2C",
+        "text": "#FFF9F5",
+        "accent": "#D897C0"
+      }
+    }
+  }
+]

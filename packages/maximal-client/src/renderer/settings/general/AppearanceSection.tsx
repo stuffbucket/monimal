@@ -1,128 +1,145 @@
 import {
+  useMemo,
   useRef,
   useState,
   type ChangeEvent,
   type ReactElement,
-  type RefObject,
 } from 'react'
 
 import {
-  Button,
-  Note,
-  Select,
-  SettingsGroup,
-  SettingsItem,
-  SettingsSection,
-  TextInput,
-} from '@maximal/maximal-electron/renderer'
-
-import {
-  APPEARANCE_PRESETS,
-  appearanceAccent,
-  appearanceSpatialCanvasBackground,
   parseAppearanceTheme,
   readAppearance,
-  saveAppearance,
   serializeAppearance,
-  type AppearanceMode,
-  type AppearancePreset,
   type AppearanceThemeFile,
+  type ThemeCategory,
+  type ThemeableSettingsSnapshot,
 } from '../../appearance'
+import {
+  previewTheme,
+  restoreTheme,
+} from '../../theme-application'
+import {
+  pushThemeHistory,
+  readThemeHistory,
+} from '../../theme-history'
+import {
+  BUILT_IN_THEMES,
+  builtInTheme,
+} from '../../themes/catalog'
+import type { SettingsCapabilities } from '../capabilities'
+import {
+  ThemeLibrary,
+  ThemeNotices,
+  ThemeOverview,
+} from './ThemePicker'
 
-function ThemeFileControls({
-  theme,
-  importInput,
-  onThemeChange,
-  onDraftChange,
-  onImport,
-  onExport,
-}: {
-  theme: AppearanceThemeFile
-  importInput: RefObject<HTMLInputElement | null>
-  onThemeChange: (theme: AppearanceThemeFile) => void
-  onDraftChange: (theme: AppearanceThemeFile) => void
-  onImport: (event: ChangeEvent<HTMLInputElement>) => void
-  onExport: () => void
-}): ReactElement {
-  return (
-    <SettingsItem
-      title="Custom theme"
-      divider={false}
-      description="Name the current theme and optionally choose one accent. Exported files use Maximal Theme JSON v1."
-      actions={
-        <div className="appearance-actions">
-          <Button size="sm" onClick={() => importInput.current?.click()}>
-            Import
-          </Button>
-          <Button size="sm" onClick={onExport}>Export</Button>
-          <input
-            ref={importInput}
-            className="appearance-file-input"
-            type="file"
-            accept=".json,.maximal-theme.json,application/json"
-            onChange={onImport}
-            aria-label="Import theme file"
-          />
-        </div>
-      }
-    >
-      <div className="appearance-editor">
-        <TextInput
-          value={theme.name}
-          onChange={(name) => onDraftChange({ ...theme, name })}
-          onBlur={() => onThemeChange(theme)}
-          aria-label="Theme name"
-        />
-        <label className="appearance-color">
-          <span>Accent</span>
-          <input
-            type="color"
-            value={appearanceAccent(theme)}
-            onChange={(event) =>
-              onThemeChange({
-                ...theme,
-                colors: {
-                  ...theme.colors,
-                  accent: event.target.value.toUpperCase(),
-                },
-              })}
-          />
-        </label>
-        <label className="appearance-color">
-          <span>Spatial canvas</span>
-          <input
-            type="color"
-            value={appearanceSpatialCanvasBackground(theme)}
-            aria-label="Spatial canvas background"
-            onChange={(event) =>
-              onThemeChange({
-                ...theme,
-                colors: {
-                  ...theme.colors,
-                  spatialCanvasBackground: event.target.value.toUpperCase(),
-                },
-              })}
-          />
-        </label>
-      </div>
-    </SettingsItem>
-  )
+function requiredBuiltInTheme(id: string): AppearanceThemeFile {
+  const theme = builtInTheme(id)
+  if (theme === undefined) {
+    throw new Error(`The built-in ${id} theme is required.`)
+  }
+  return theme
 }
 
-export function AppearanceSection(): ReactElement {
-  const [appearance, setAppearance] = useState(readAppearance)
-  const theme = appearance.theme
-  const importInput = useRef<HTMLInputElement>(null)
+const MAXIMIZED_THEME = requiredBuiltInTheme('maximized')
 
-  const updateTheme = (next: AppearanceThemeFile): void => {
+function filterThemes(
+  query: string,
+  category: ThemeCategory | 'all',
+): AppearanceThemeFile[] {
+  const needle = query.trim().toLocaleLowerCase()
+  return BUILT_IN_THEMES.filter((theme) => {
+    if (category !== 'all' && theme.category !== category) return false
+    if (needle === '') return true
+    return [
+      theme.name,
+      theme.description,
+      theme.source,
+      theme.category,
+      ...theme.tags,
+    ].some((value) => value.toLocaleLowerCase().includes(needle))
+  })
+}
+
+function downloadTheme(theme: AppearanceThemeFile): void {
+  const url = URL.createObjectURL(
+    new Blob([serializeAppearance(theme)], { type: 'application/json' }),
+  )
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = `${
+    theme.name.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-') || 'theme'
+  }.maximal-theme.json`
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
+export function AppearanceSection({
+  capabilities,
+}: {
+  capabilities: SettingsCapabilities
+}): ReactElement {
+  const [appearance, setAppearance] = useState(readAppearance)
+  const [history, setHistory] = useState(readThemeHistory)
+  const [query, setQuery] = useState('')
+  const [category, setCategory] = useState<ThemeCategory | 'all'>('all')
+  const [pendingTheme, setPendingTheme] = useState<AppearanceThemeFile | null>(null)
+  const [previewing, setPreviewing] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const importInput = useRef<HTMLInputElement>(null)
+  const theme = appearance.theme
+  const filteredThemes = useMemo(
+    () => filterThemes(query, category),
+    [category, query],
+  )
+
+  const applyTheme = async (next: AppearanceThemeFile): Promise<void> => {
+    setBusy(true)
+    setPendingTheme(null)
     try {
-      saveAppearance(next)
+      const previous = await previewTheme(capabilities, theme, next)
       setAppearance({ theme: next })
+      setHistory(pushThemeHistory(previous))
+      setPreviewing(true)
     } catch (error) {
       setAppearance({
         theme,
-        error: error instanceof Error ? error.message : 'The theme could not be saved.',
+        error: error instanceof Error
+          ? error.message
+          : 'The theme could not be previewed.',
       })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const requestTheme = (next: AppearanceThemeFile): void => {
+    if (next.shader !== undefined) {
+      setPendingTheme(next)
+    } else {
+      void applyTheme(next)
+    }
+  }
+
+  const restoreSnapshot = async (
+    snapshot: ThemeableSettingsSnapshot,
+  ): Promise<void> => {
+    setBusy(true)
+    setPendingTheme(null)
+    try {
+      const current = await restoreTheme(capabilities, theme, snapshot)
+      setAppearance({ theme: snapshot.theme })
+      setHistory(pushThemeHistory(current))
+      setPreviewing(true)
+    } catch (error) {
+      setAppearance({
+        theme,
+        error: error instanceof Error
+          ? error.message
+          : 'The earlier theme could not be restored.',
+      })
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -131,7 +148,7 @@ export function AppearanceSection(): ReactElement {
     event.target.value = ''
     if (file === undefined) return
     try {
-      updateTheme(parseAppearanceTheme(await file.text()))
+      requestTheme(parseAppearanceTheme(await file.text()))
     } catch (error) {
       setAppearance({
         theme,
@@ -140,83 +157,43 @@ export function AppearanceSection(): ReactElement {
     }
   }
 
-  const exportTheme = (): void => {
-    const url = URL.createObjectURL(
-      new Blob([serializeAppearance(theme)], { type: 'application/json' }),
-    )
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = `${
-      theme.name.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-') || 'theme'
-    }.maximal-theme.json`
-    anchor.click()
-    URL.revokeObjectURL(url)
-  }
-
   return (
     <>
-      {appearance.error ? (
-        <Note status="failed" live="assertive">
-          {appearance.error}
-        </Note>
-      ) : null}
-      <SettingsSection
-        title="Theme"
-        description="Quiet, legible palettes that follow the operating system or stay fixed."
-      >
-        <SettingsGroup>
-          <SettingsItem
-            title="Mode"
-            description="Auto follows the macOS, Windows, or Linux appearance setting."
-            control={
-              <Select<AppearanceMode>
-                value={theme.appearance}
-                options={[
-                  { value: 'system', label: 'Auto' },
-                  { value: 'light', label: 'Light' },
-                  { value: 'dark', label: 'Dark' },
-                ]}
-                onChange={(appearanceMode) =>
-                  updateTheme({ ...theme, appearance: appearanceMode })}
-                aria-label="Appearance mode"
-                testId="appearance-mode"
-              />
-            }
-          />
-          <SettingsItem
-            title="Palette"
-            divider={false}
-            description={
-              APPEARANCE_PRESETS.find(({ value }) => value === theme.preset)?.source
-            }
-            control={
-              <Select<AppearancePreset>
-                value={theme.preset}
-                options={APPEARANCE_PRESETS.map(({ value, label }) => ({ value, label }))}
-                onChange={(preset) =>
-                  updateTheme({
-                    ...theme,
-                    name:
-                      APPEARANCE_PRESETS.find(({ value }) => value === preset)?.label
-                      ?? theme.name,
-                    preset,
-                    colors: undefined,
-                  })}
-                aria-label="Color palette"
-                testId="appearance-preset"
-              />
-            }
-          />
-          <ThemeFileControls
-            theme={theme}
-            importInput={importInput}
-            onThemeChange={updateTheme}
-            onDraftChange={(draft) => setAppearance({ theme: draft })}
-            onImport={(event) => void importTheme(event)}
-            onExport={exportTheme}
-          />
-        </SettingsGroup>
-      </SettingsSection>
+      <ThemeNotices
+        appearanceError={appearance.error}
+        historyError={history.error}
+        pendingTheme={pendingTheme}
+        previewing={previewing}
+        theme={theme}
+        onApplyPending={() => {
+          if (pendingTheme !== null) void applyTheme(pendingTheme)
+        }}
+        onCancelPending={() => setPendingTheme(null)}
+        onKeep={() => setPreviewing(false)}
+      />
+      <ThemeOverview
+        theme={theme}
+        starterTheme={MAXIMIZED_THEME}
+        entries={history.entries}
+        busy={busy}
+        onThemeChange={(next) => void applyTheme(next)}
+        onSelectStarter={requestTheme}
+        onRestore={(entry) => void restoreSnapshot(entry)}
+      />
+      <ThemeLibrary
+        themes={filteredThemes}
+        totalCount={BUILT_IN_THEMES.length}
+        currentId={theme.id}
+        busy={busy}
+        query={query}
+        category={category}
+        importInput={importInput}
+        onQueryChange={setQuery}
+        onCategoryChange={setCategory}
+        onSelect={requestTheme}
+        onImport={(event) => void importTheme(event)}
+        onExport={() => downloadTheme(theme)}
+      />
     </>
   )
 }

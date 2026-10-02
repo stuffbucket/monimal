@@ -384,6 +384,9 @@ describe('preload bridge allowlist', () => {
       motion: 0.25,
       lighting: 'timezone',
       timezone: 'UTC',
+      solarFacingOffset: 25,
+      solarFollowStrength: 0.75,
+      solarEffect: 'rays',
     })
     await bridge.terminalTypography.get()
     await bridge.terminalTypography.update({
@@ -549,6 +552,9 @@ describe('preload bridge allowlist', () => {
           motion: 0.25,
           lighting: 'timezone',
           timezone: 'UTC',
+          solarFacingOffset: 25,
+          solarFollowStrength: 0.75,
+          solarEffect: 'rays',
         },
       ],
       [BRIDGE_CHANNELS.terminalTypographyGet],
@@ -718,6 +724,9 @@ describe('preload bridge allowlist', () => {
       motion: 0.25,
       lighting: 'timezone',
       timezone: 'UTC',
+      solarFacingOffset: 25,
+      solarFollowStrength: 0.75,
+      solarEffect: 'rays',
     }
 
     handler({ raw: 'electron-event' }, preference)

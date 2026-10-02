@@ -205,11 +205,13 @@ export const MATERIAL_PRESET_VALUES = [
   'halftone',
   'ink-wash',
   'stardust',
+  'candy-paint',
 ] as const
 
 export type MaterialPreset = (typeof MATERIAL_PRESET_VALUES)[number]
 export type MaterialQuality = 'battery' | 'balanced' | 'high'
 export type MaterialLighting = 'fixed' | 'timezone'
+export type MaterialSolarEffect = 'atmospheric' | 'rays'
 
 export interface PersistedMaterialPreference {
   preset: MaterialPreset
@@ -218,6 +220,9 @@ export interface PersistedMaterialPreference {
   motion: number
   lighting: MaterialLighting
   timezone: string
+  solarFacingOffset: number
+  solarFollowStrength: number
+  solarEffect: MaterialSolarEffect
 }
 
 export type TerminalTypographySettings = TerminalTypography

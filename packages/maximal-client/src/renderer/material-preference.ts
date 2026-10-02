@@ -8,6 +8,7 @@ export type {
   MaterialLighting,
   MaterialPreset,
   MaterialQuality,
+  MaterialSolarEffect,
   PersistedMaterialPreference,
 } from '../shared/host'
 
@@ -25,6 +26,7 @@ const MATERIAL_DETAILS: Record<
   halftone: { label: 'Manga halftone', cost: 'Low' },
   'ink-wash': { label: 'Ink wash', cost: 'Low' },
   stardust: { label: 'Animated stardust', cost: 'Medium' },
+  'candy-paint': { label: 'Maximal candy paint', cost: 'Medium' },
 }
 
 export const MATERIAL_PRESETS = MATERIAL_PRESET_VALUES.map((value) => ({
@@ -44,6 +46,9 @@ export const DEFAULT_MATERIAL_PREFERENCE: MaterialPreference = {
   motion: 0.5,
   lighting: 'fixed',
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+  solarFacingOffset: 0,
+  solarFollowStrength: 0.5,
+  solarEffect: 'atmospheric',
   latitude: 0,
   longitude: 0,
 }
@@ -55,7 +60,11 @@ export function materialPresetIndex(preset: MaterialPreset): number {
 export function solarLightDirection(
   preference: Pick<
     MaterialPreference,
-    'lighting' | 'timezone' | 'latitude' | 'longitude'
+    | 'lighting'
+    | 'timezone'
+    | 'latitude'
+    | 'longitude'
+    | 'solarFacingOffset'
   >,
   now = new Date(),
 ): Float32Array {
@@ -103,8 +112,15 @@ export function solarLightDirection(
       - Math.tan(declinationRadians) * Math.cos(latitude),
   )
   const daylight = Math.max(0.2, Math.sin(elevation))
-  return new Float32Array([
+  const direction = [
     Math.sin(azimuth) * daylight,
     -Math.cos(azimuth) * daylight,
+  ] as const
+  const offset = preference.solarFacingOffset * radians
+  const cosine = Math.cos(offset)
+  const sine = Math.sin(offset)
+  return new Float32Array([
+    direction[0] * cosine - direction[1] * sine,
+    direction[0] * sine + direction[1] * cosine,
   ])
 }

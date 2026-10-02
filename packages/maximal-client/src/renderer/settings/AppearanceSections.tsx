@@ -126,10 +126,14 @@ export function ShadersSection({
   )
 }
 
-export function ThemesSection(): ReactElement {
+export function ThemesSection({
+  capabilities,
+}: {
+  capabilities: SettingsCapabilities
+}): ReactElement {
   return (
     <section className="settings-section">
-      <AppearanceSection />
+      <AppearanceSection capabilities={capabilities} />
     </section>
   )
 }

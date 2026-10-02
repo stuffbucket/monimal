@@ -145,6 +145,9 @@ vi.mock('@maximal/maximal-client/renderer/settings/capabilities', () => ({
         motion: 0.5,
         lighting: 'fixed',
         timezone: 'UTC',
+        solarFacingOffset: 0,
+        solarFollowStrength: 0.5,
+        solarEffect: 'atmospheric',
       })),
       setMaterial: vi.fn(
         async (preference: PersistedMaterialPreference) => preference,

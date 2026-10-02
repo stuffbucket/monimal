@@ -13,6 +13,9 @@ describe('material preference', () => {
       lighting: 'fixed',
       latitude: 0,
       longitude: 0,
+      solarFacingOffset: 0,
+      solarFollowStrength: 0.5,
+      solarEffect: 'atmospheric',
     })
   })
 })
@@ -31,16 +34,39 @@ describe('solar material lighting', () => {
       timezone: 'America/Los_Angeles',
       latitude: 37.7749,
       longitude: -122.4194,
+      solarFacingOffset: 0,
     }, new Date('2026-06-21T15:00:00Z'))
     const evening = solarLightDirection({
       lighting: 'timezone',
       timezone: 'America/Los_Angeles',
       latitude: 37.7749,
       longitude: -122.4194,
+      solarFacingOffset: 0,
     }, new Date('2026-06-22T02:00:00Z'))
 
     expect([...morning].every(Number.isFinite)).toBe(true)
     expect([...evening].every(Number.isFinite)).toBe(true)
     expect([...morning]).not.toEqual([...evening])
+  })
+
+  it('rotates the calculated direction by the user facing offset', () => {
+    const base = solarLightDirection({
+      lighting: 'timezone',
+      timezone: 'America/Los_Angeles',
+      latitude: 37.7749,
+      longitude: -122.4194,
+      solarFacingOffset: 0,
+    }, new Date('2026-06-21T15:00:00Z'))
+    const rotated = solarLightDirection({
+      lighting: 'timezone',
+      timezone: 'America/Los_Angeles',
+      latitude: 37.7749,
+      longitude: -122.4194,
+      solarFacingOffset: 90,
+    }, new Date('2026-06-21T15:00:00Z'))
+
+    expect(rotated[0]).toBeCloseTo(-(base[1] ?? 0))
+    expect(rotated[1]).toBeCloseTo(base[0] ?? 0)
+    expect(Math.hypot(...rotated)).toBeCloseTo(Math.hypot(...base))
   })
 })

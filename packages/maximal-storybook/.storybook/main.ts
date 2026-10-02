@@ -22,6 +22,7 @@ const config: StorybookConfig = {
   stories: [
     '../../maximal-electron/src/renderer/**/*.stories.tsx',
     '../../maximal-harness/src/renderer/**/*.stories.tsx',
+    '../../maximal-client/src/renderer/**/*.stories.tsx',
   ],
   addons: [
     // A docs page per component, generated from the args and the docstring.

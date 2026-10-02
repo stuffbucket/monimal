@@ -11,6 +11,7 @@ import {
   solarLightDirection,
   type MaterialPreference,
 } from '@maximal/maximal-client/renderer/material-preference'
+import { MAXIMAL_PAINT_CANDY } from '@maximal/maximal-assets/brand'
 
 interface CozyBackgroundProps {
   enabled: boolean
@@ -28,6 +29,8 @@ type CozyUniforms = {
   uStrength: { value: number; type: 'f32' }
   uMotion: { value: number; type: 'f32' }
   uLight: { value: Float32Array; type: 'vec2<f32>' }
+  uSolarStrength: { value: number; type: 'f32' }
+  uSolarMode: { value: number; type: 'f32' }
 }
 
 const VERTEX_SHADER = `
@@ -52,9 +55,39 @@ uniform float uMaterial;
 uniform float uStrength;
 uniform float uMotion;
 uniform vec2 uLight;
+uniform float uSolarStrength;
+uniform float uSolarMode;
 
 float hash(vec2 point) {
   return fract(sin(dot(point, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+vec2 hash2(vec2 point) {
+  return fract(sin(vec2(
+    dot(point, vec2(127.1, 311.7)),
+    dot(point, vec2(269.5, 183.3))
+  )) * 43758.5);
+}
+
+float candyFlakes(vec2 point, float scale, float seed) {
+  vec2 grid = point * scale + seed;
+  vec2 cellId = floor(grid);
+  vec2 local = fract(grid);
+  float result = 0.0;
+  for (int y = -1; y <= 1; y++) {
+    for (int x = -1; x <= 1; x++) {
+      vec2 cell = vec2(float(x), float(y));
+      vec2 candidate = cellId + cell;
+      vec2 random = hash2(candidate);
+      float distanceToFlake = length(local - (cell + random));
+      float present = step(0.55, hash(candidate + 7.0));
+      float size = 0.18 + 0.22 * hash(candidate + 3.0);
+      result += present
+        * smoothstep(size, 0.0, distanceToFlake)
+        * pow(0.5 + 0.5 * sin(random.x * 6.28 + uTime * 1.6), 8.0);
+    }
+  }
+  return result;
 }
 
 float cloudBlob(vec2 point, vec2 center, vec2 radius, float aspect) {
@@ -205,7 +238,7 @@ void main(void) {
     color = mix(vec3(0.1, 0.11, 0.13), uColor2, wash);
     color = mix(color, uColor3, dryBrush * (1.0 - wash) * 0.34);
     alpha = (0.3 + wash * 0.42 + dryBrush * 0.08) * uStrength;
-  } else if (uMaterial > 8.5) {
+  } else if (uMaterial > 8.5 && uMaterial < 9.5) {
     vec2 cells = point * vec2(34.0, 22.0);
     vec2 cell = floor(cells);
     vec2 local = fract(cells) - 0.5;
@@ -220,7 +253,49 @@ void main(void) {
     color = mix(uColor1, uColor2, point.y);
     color += uColor3 * star * 1.4 + vec3(aura * 0.18);
     alpha = (0.28 + aura * 0.28 + star * 0.42) * uStrength;
+  } else if (uMaterial > 9.5) {
+    vec2 candyPoint = vec2(point.x * aspect, point.y);
+    float drift = sin(uTime * 0.12 * uMotion) * 0.5;
+    float candyLight = pow(
+      smoothstep(-0.15, 1.05, point.y + drift * (point.x - 0.5) * 0.12),
+      1.5
+    );
+    vec3 candyBase = vec3(${MAXIMAL_PAINT_CANDY.baseRgb.join(',')});
+    float flake =
+      candyFlakes(candyPoint, ${String(MAXIMAL_PAINT_CANDY.flakeScales[0])}.0, 0.0) * 0.6
+      + candyFlakes(candyPoint, ${String(MAXIMAL_PAINT_CANDY.flakeScales[1])}.0, 17.3) * 0.4;
+    color = mix(candyBase * 0.45, candyBase, smoothstep(-1.1, 1.3, point.y));
+    color += vec3(1.0, 0.96, 0.92) * flake * (0.3 + candyLight * 0.8);
+    color += vec3(1.0, 0.95, 0.9)
+      * candyLight
+      * ${String(MAXIMAL_PAINT_CANDY.sheen)};
+    alpha = (0.58 + candyLight * 0.24) * uStrength;
   }
+
+  vec2 lightDirection = normalize(uLight + vec2(0.0001));
+  vec2 centered = point - 0.5;
+  float sunward = max(0.0, dot(normalize(centered + vec2(0.0001)), lightDirection));
+  float atmospheric = pow(sunward, 2.2) * (0.12 + broadWisp * 0.08);
+  vec2 rayDirection = -lightDirection;
+  vec2 rayNormal = vec2(-rayDirection.y, rayDirection.x);
+  float rayDistance = dot(centered, rayDirection);
+  float rayCross = dot(centered, rayNormal);
+  float rayBands = pow(
+    max(0.0, sin(rayCross * 31.0 + broadWisp * 2.8)),
+    7.0
+  );
+  float brokenClouds = smoothstep(
+    0.24,
+    0.78,
+    broadWisp * 0.55 + fineWisp * 0.32 + hash(floor(point * 11.0)) * 0.2
+  );
+  float rays = rayBands
+    * brokenClouds
+    * smoothstep(-0.32, 0.48, rayDistance)
+    * (1.0 - smoothstep(0.34, 0.78, length(centered)));
+  float solarLight = mix(atmospheric, rays * 0.2, step(0.5, uSolarMode));
+  color += vec3(1.0, 0.91, 0.72) * solarLight * uSolarStrength;
+  alpha = min(0.92, alpha + solarLight * uSolarStrength * 0.38);
 
   gl_FragColor = vec4(color * alpha, alpha);
 }
@@ -349,6 +424,16 @@ export function CozyBackground({
           uLight: {
             value: solarLightDirection(material),
             type: 'vec2<f32>',
+          },
+          uSolarStrength: {
+            value: material.lighting === 'timezone'
+              ? material.solarFollowStrength
+              : 0,
+            type: 'f32',
+          },
+          uSolarMode: {
+            value: material.solarEffect === 'rays' ? 1 : 0,
+            type: 'f32',
           },
         })
         shader = Shader.from({
