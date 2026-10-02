@@ -20,6 +20,7 @@ import type {
   SettingsCapabilities,
   TerminalFontCatalog,
   TerminalTypographySettings,
+  WorkbarLayout,
 } from './capabilities'
 
 const OLLAMA_ENDPOINT = 'http://127.0.0.1:11434'
@@ -250,6 +251,11 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
   const typographyListeners = new Set<
     (settings: TerminalTypographySettings) => void
   >()
+  let workbarLayout: WorkbarLayout = {
+    order: ['home', 'projects', 'overview', 'traffic', 'terminals', 'browsers'],
+    visible: ['home', 'projects', 'overview', 'traffic', 'terminals', 'browsers'],
+  }
+  const workbarListeners = new Set<(layout: WorkbarLayout) => void>()
   const installedFontIds = new Set([
     'fira-code',
     'hack',
@@ -541,6 +547,18 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
       subscribe: (listener) => {
         typographyListeners.add(listener)
         return () => typographyListeners.delete(listener)
+      },
+    },
+    workbar: {
+      get: () => Promise.resolve(workbarLayout),
+      update: (layout) => {
+        workbarLayout = layout
+        workbarListeners.forEach((listener) => listener(layout))
+        return Promise.resolve(layout)
+      },
+      subscribe: (listener) => {
+        workbarListeners.add(listener)
+        return () => workbarListeners.delete(listener)
       },
     },
     connections: {

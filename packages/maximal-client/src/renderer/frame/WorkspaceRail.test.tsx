@@ -5,8 +5,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { WorkspaceRail } from './WorkspaceRail'
 import { createMaximalQueryClient } from '../query-client'
+import {
+  defaultWorkbarLayout,
+  type WorkbarLayout,
+} from './workbar-layout'
+import type { SettingsCapabilities } from '../settings/capabilities'
 
 let container: HTMLElement | null = null
+const workbar: SettingsCapabilities['workbar'] = {
+  get: vi.fn(async () => defaultWorkbarLayout()),
+  update: vi.fn(async (layout: WorkbarLayout) => layout),
+  subscribe: vi.fn(() => () => undefined),
+}
 
 afterEach(() => {
   container?.remove()
@@ -24,6 +34,7 @@ describe('WorkspaceRail', () => {
           <WorkspaceRail
             current="overview"
             onSelect={vi.fn()}
+            workbar={workbar}
           />
         </QueryClientProvider>,
       )
@@ -56,6 +67,7 @@ describe('WorkspaceRail', () => {
           <WorkspaceRail
             current="overview"
             onSelect={onSelect}
+            workbar={workbar}
           />
         </QueryClientProvider>,
       )
@@ -80,6 +92,7 @@ describe('WorkspaceRail', () => {
           <WorkspaceRail
             current="overview"
             onSelect={onSelect}
+            workbar={workbar}
           />
         </QueryClientProvider>,
       )

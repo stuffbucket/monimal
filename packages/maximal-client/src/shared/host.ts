@@ -215,6 +215,22 @@ export interface PersistedMaterialPreference {
 
 export type TerminalTypographySettings = TerminalTypography
 
+export const WORKBAR_ITEM_IDS = [
+  'home',
+  'projects',
+  'overview',
+  'traffic',
+  'terminals',
+  'browsers',
+] as const
+
+export type WorkbarItemId = (typeof WORKBAR_ITEM_IDS)[number]
+
+export interface WorkbarLayout {
+  order: WorkbarItemId[]
+  visible: WorkbarItemId[]
+}
+
 export interface TerminalFontDownload {
   id: string
   label: string
@@ -408,6 +424,11 @@ export interface MaximalHost {
     installFont: (fontId: string) => Promise<TerminalFontCatalog>
     openPreview: () => Promise<void>
     onChange: (listener: (settings: TerminalTypographySettings) => void) => Unsubscribe
+  }
+  workbar: {
+    get: () => Promise<WorkbarLayout>
+    update: (layout: WorkbarLayout) => Promise<WorkbarLayout>
+    onChange: (listener: (layout: WorkbarLayout) => void) => Unsubscribe
   }
   harness: {
     show: () => Promise<void>

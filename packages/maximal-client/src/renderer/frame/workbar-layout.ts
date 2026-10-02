@@ -1,6 +1,15 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import type { ShellIconName } from '@maximal/maximal-electron/renderer'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+
+import {
+  WORKBAR_ITEM_IDS,
+  type WorkbarItemId,
+  type WorkbarLayout,
+} from '../../shared/host'
+import type { SettingsCapabilities } from '../settings/capabilities'
+
+export type { WorkbarItemId, WorkbarLayout } from '../../shared/host'
 
 export const WORKBAR_ITEMS = [
   { id: 'home', label: 'Home', icon: 'map' },
@@ -10,42 +19,58 @@ export const WORKBAR_ITEMS = [
   { id: 'terminals', label: 'Terminals', icon: 'terminal' },
   { id: 'browsers', label: 'Browsers', icon: 'browser' },
 ] as const satisfies readonly {
-  id: string
+  id: WorkbarItemId
   label: string
   icon: ShellIconName
 }[]
 
-export type WorkbarItemId = (typeof WORKBAR_ITEMS)[number]['id']
-
-export interface WorkbarLayout {
-  order: WorkbarItemId[]
-  visible: WorkbarItemId[]
-}
-
-const WORKBAR_ITEM_IDS = WORKBAR_ITEMS.map(({ id }) => id)
 const workbarLayoutQueryKey = ['workbar', 'layout'] as const
 
 export function defaultWorkbarLayout(): WorkbarLayout {
-  return { order: [...WORKBAR_ITEM_IDS], visible: [...WORKBAR_ITEM_IDS] }
+  return {
+    order: [...WORKBAR_ITEM_IDS],
+    visible: [...WORKBAR_ITEM_IDS],
+  }
 }
 
-export function useWorkbarLayout(): {
+export function useWorkbarLayout(
+  capabilities: SettingsCapabilities['workbar'],
+): {
   layout: WorkbarLayout
   move: (id: WorkbarItemId, direction: -1 | 1) => void
   setVisible: (id: WorkbarItemId, visible: boolean) => void
+  busy: boolean
+  error: string | undefined
 } {
   const queryClient = useQueryClient()
-  const query = useQuery({
+  const query = useQuery<WorkbarLayout>({
     queryKey: workbarLayoutQueryKey,
-    queryFn: defaultWorkbarLayout,
-    initialData: defaultWorkbarLayout,
-    staleTime: Number.POSITIVE_INFINITY,
+    queryFn: () => capabilities.get(),
   })
-  const layout = query.data
+  const layout = query.data ?? defaultWorkbarLayout()
 
-  const update = useCallback((next: WorkbarLayout): void => {
-    queryClient.setQueryData(workbarLayoutQueryKey, next)
-  }, [queryClient])
+  useEffect(
+    () => capabilities.subscribe((next) => {
+      queryClient.setQueryData(workbarLayoutQueryKey, next)
+    }),
+    [capabilities, queryClient],
+  )
+
+  const mutation = useMutation({
+    mutationFn: (next: WorkbarLayout) => capabilities.update(next),
+    onMutate: async (next: WorkbarLayout) => {
+      await queryClient.cancelQueries({ queryKey: workbarLayoutQueryKey })
+      const previous = queryClient.getQueryData<WorkbarLayout>(workbarLayoutQueryKey)
+      queryClient.setQueryData(workbarLayoutQueryKey, next)
+      return previous
+    },
+    onError: (_error, _next, previous) => {
+      if (previous) queryClient.setQueryData(workbarLayoutQueryKey, previous)
+    },
+    onSuccess: (next) => {
+      queryClient.setQueryData(workbarLayoutQueryKey, next)
+    },
+  })
 
   const move = useCallback((id: WorkbarItemId, direction: -1 | 1): void => {
     const from = layout.order.indexOf(id)
@@ -53,17 +78,30 @@ export function useWorkbarLayout(): {
     if (from < 0 || to < 0 || to >= layout.order.length) return
     const order = [...layout.order]
     order.splice(to, 0, ...order.splice(from, 1))
-    update({ ...layout, order })
-  }, [layout, update])
+    mutation.mutate({ ...layout, order })
+  }, [layout, mutation])
 
   const setVisible = useCallback((id: WorkbarItemId, visible: boolean): void => {
-    update({
+    mutation.mutate({
       ...layout,
       visible: visible
         ? [...new Set([...layout.visible, id])]
         : layout.visible.filter((entry) => entry !== id),
     })
-  }, [layout, update])
+  }, [layout, mutation])
 
-  return { layout, move, setVisible }
+  const queryError = query.error
+  const mutationError = mutation.error
+
+  return {
+    layout,
+    move,
+    setVisible,
+    busy: query.isPending || mutation.isPending,
+    error: queryError
+      ? `Could not load workbar layout: ${queryError instanceof Error ? queryError.message : String(queryError)}`
+      : mutationError
+        ? `Could not save workbar layout: ${mutationError instanceof Error ? mutationError.message : String(mutationError)}`
+        : undefined,
+  }
 }

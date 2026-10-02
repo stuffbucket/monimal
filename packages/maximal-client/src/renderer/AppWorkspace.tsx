@@ -579,6 +579,7 @@ export function AppWorkspace({
               <WorkspaceRail
                 current={current.id}
                 onSelect={(id) => requestNavigation(() => terminalState.setActiveTab(id))}
+                workbar={settings.workbar}
                 account={account}
                 onOpenProfileSurface={openProfileSurface}
                 onSignIn={() => openSettings('settings-account-heading')}
