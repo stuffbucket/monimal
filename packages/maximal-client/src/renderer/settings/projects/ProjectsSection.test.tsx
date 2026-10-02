@@ -136,7 +136,9 @@ describe('ProjectsSection', () => {
     expect(button(container, 'Refresh all')).not.toBeNull()
 
     await settle(() => loading.resolve(snapshot()))
-    expect(container.textContent).not.toContain('Loading project folders…')
+    await vi.waitFor(() => {
+      expect(container.textContent).not.toContain('Loading project folders…')
+    })
     expect(container.textContent).toContain('No project folders have been added.')
   })
 
