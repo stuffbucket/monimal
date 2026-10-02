@@ -108,7 +108,7 @@ rejects a structural token that nothing reads.
 
 ## Required
 
-Define all thirteen. `ShellLayout` applies the `.sb-shell` root class; define them
+Define all seventeen. `ShellLayout` applies the `.sb-shell` root class; define them
 on that container or an ancestor. README.md carries the same table with the
 description of what each one draws.
 
@@ -119,6 +119,12 @@ description of what each one draws.
 | `--shell-active` |
 | `--shell-background` |
 | `--shell-border` |
+| `--shell-candy-background` |
+| `--shell-candy-border` |
+| `--shell-candy-icon-shadow` |
+| `--shell-candy-shadow` |
+| `--shell-candy-sheen` |
+| `--shell-candy-text` |
 | `--shell-canvas` |
 | `--shell-duration-fast` |
 | `--shell-ease-out` |

@@ -5,6 +5,7 @@ import type {
   AgentEnd,
   AgentModelOption,
   AgentToolEvent,
+  AssistantOverlayPreferences,
   ModelProgress,
   ProviderStatus,
 } from '../contracts.js';
@@ -48,6 +49,24 @@ const READY: ProviderStatus = {
   effort: 'medium',
 };
 
+const PREFERENCES: AssistantOverlayPreferences = {
+  candy: true,
+  approval: 'writes',
+  outputFont: 'auto',
+  hotkey: 'CommandOrControl+Shift+Space',
+};
+
+const CHAT = {
+  id: 'storybook-chat',
+  title: 'Storybook chat',
+  status: 'active' as const,
+  attention: 'read' as const,
+  pinned: false,
+  createdAt: 1,
+  updatedAt: 1,
+  lastOpenedAt: 1,
+};
+
 interface InitialEvents {
   approval?: AgentApprovalRequest;
   delta?: string;
@@ -87,10 +106,22 @@ function storyTransport(
     selectEffort: (effort) => Promise.resolve(
       status.state === 'ready' ? { ...status, effort } : status,
     ),
-    ask: () => Promise.resolve({ started: true }),
+    ask: () => Promise.resolve({ started: true, chatId: 'storybook-chat' }),
+    steer: () => Promise.resolve(true),
     abort: () => Promise.resolve(),
     approve: () => Promise.resolve(),
     ensureModel: () => Promise.resolve({ state: 'ready' }),
+    preferences: () => Promise.resolve(PREFERENCES),
+    updatePreferences: (update) => Promise.resolve({ ...PREFERENCES, ...update }),
+    chats: {
+      list: () => Promise.resolve({ chats: [CHAT], total: 1 }),
+      create: () => Promise.resolve(CHAT),
+      open: () => Promise.resolve(CHAT),
+      update: (_id, update) => Promise.resolve({ ...CHAT, ...update }),
+      remove: () => Promise.resolve(),
+      messages: () => Promise.resolve([]),
+      terminal: () => Promise.resolve({}),
+    },
     onDelta: subscription(events.delta ? [events.delta] : []),
     onTool: subscription(events.tools ?? []),
     onApproval: subscription(events.approval ? [events.approval] : []),
@@ -98,6 +129,8 @@ function storyTransport(
     onModelProgress: subscription(
       events.modelProgress ? [events.modelProgress] : [],
     ),
+    onPreferences: subscription<AssistantOverlayPreferences>([]),
+    onChatSelected: subscription<string>([]),
   };
 }
 

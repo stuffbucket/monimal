@@ -1,10 +1,15 @@
 import { join } from 'node:path'
 
 import { createElectronPanel, type ElectronPanel } from '@maximal/maximal-electron/electron-panel'
-import type { AgentEffort, AskAccepted } from '@maximal/maximal-harness'
+import type {
+  AgentEffort,
+  AskAccepted,
+  AssistantOverlayPreferences,
+} from '@maximal/maximal-harness'
 import {
   abortAgent,
   configureAgent,
+  createAssistantChatStore,
   discoverProvider,
   isAgentBusy,
   resolveApproval,
@@ -12,7 +17,10 @@ import {
   selectAgentEffort,
   selectAgentModel,
   setAgentEffortPreference,
+  steerAgent,
   shutdownAgent,
+  HARNESS_SYSTEM_PROMPT,
+  type AssistantChatStore,
 } from '@maximal/maximal-harness/host'
 import { LLAMA_WORKER_FILENAME } from '@maximal/maximal-llama-cpp'
 import {
@@ -34,20 +42,43 @@ import { z } from 'zod'
 
 import { BRIDGE_CHANNELS } from '../../shared/bridge-channels.js'
 import { loadHarnessOptions } from './harness-options.js'
+import { launchAssistantTerminal } from './terminal.js'
 import { mainLogger } from '../main-logger.js'
 import { DoubleControlShortcut } from '../native/double-control-shortcut.js'
 import {
   readUserPreferences,
   updateUserPreferences,
 } from '../preferences/user-preferences.js'
+import {
+  loadApplicationSettings,
+  setAssistantOverlayPreferences,
+} from '../preferences/application-settings.js'
 
-const PANEL_MAX_WIDTH = 640
-const PANEL_MAX_HEIGHT = 480
+const HOTKEY = 'CommandOrControl+Shift+Space'
+const PANEL_MAX_WIDTH = 880
+const PANEL_MAX_HEIGHT = 640
 const PANEL_HORIZONTAL_MARGIN = 24
 const PANEL_VERTICAL_MARGIN = 32
-const askRequest = z.object({ prompt: z.string().trim().min(1) })
+const CHAT_DATABASE_FILENAME = 'assistant-chats.sqlite'
+const ASSISTANT_CLI_FILENAME = 'assistant-cli.cjs'
+const MAIN_CHAT_OWNER = `electron:${String(process.pid)}`
+const CHAT_LEASE_TTL_MS = 30_000
+const CHAT_LEASE_RENEW_MS = 10_000
+const askRequest = z.object({
+  prompt: z.string().trim().min(1),
+  chatId: z.string().min(1).optional(),
+  attachments: z.array(z.object({
+    name: z.string().trim().min(1).max(255),
+    mimeType: z.string().trim().min(1).max(100),
+    data: z.string().max(14_000_000),
+  })).max(8).optional(),
+})
+const steerRequest = z.object({
+  prompt: z.string().trim().min(1).max(100_000),
+  chatId: z.string().min(1).optional(),
+})
 const modelSelection = z.string().trim().min(1).max(1_000)
-const effortSelection = z.enum(['low', 'medium', 'high'])
+const effortSelection = z.enum(['low', 'medium', 'high', 'xhigh', 'max'])
 const rectangle = z.object({
   x: z.number().int(),
   y: z.number().int(),
@@ -67,13 +98,34 @@ const approvalRequest = z.object({
   allow: z.boolean(),
   remember: z.boolean(),
 })
-
-const SYSTEM_PROMPT = [
-  'You are a concise coding assistant in the Maximal desktop application.',
-  'You have read, write, edit, and bash tools for the working directory.',
-  'Use a tool only when it is needed to answer or act.',
-  'Answer general questions directly and never run a destructive command unless asked.',
-].join(' ')
+const overlayPreferencesUpdate = z.object({
+  candy: z.boolean().optional(),
+  approval: z.enum(['all', 'read-only', 'writes', 'none']).optional(),
+  outputFont: z.enum(['auto', 'default', 'terminal', 'open-dyslexic', 'serif']).optional(),
+}).refine((update) => Object.keys(update).length > 0)
+const chatId = z.string().min(1)
+const chatListQuery = z.object({
+  search: z.string().optional(),
+  status: z.enum(['active', 'archived', 'all']).optional(),
+  sort: z.enum(['activity', 'created', 'title']).optional(),
+  direction: z.enum(['asc', 'desc']).optional(),
+  limit: z.number().int().positive().max(100).optional(),
+  offset: z.number().int().nonnegative().optional(),
+})
+const chatUpdate = z.object({
+  id: chatId,
+  update: z.object({
+    title: z.string().trim().min(1).max(200).optional(),
+    status: z.enum(['active', 'archived']).optional(),
+    attention: z.enum(['read', 'unread', 'notification']).optional(),
+    pinned: z.boolean().optional(),
+  }).refine((update) => Object.keys(update).length > 0),
+})
+const chatTerminal = z.object({
+  id: chatId,
+  cols: z.number().int().positive().max(1_000),
+  rows: z.number().int().positive().max(1_000),
+})
 
 let panel: ElectronPanel | undefined
 let registered = false
@@ -83,13 +135,40 @@ let overlayAnchor: OverlayAnchor | undefined
 let anchorMoved = false
 let preferenceLoadGeneration = 0
 let summonOnStart = false
+let chats: AssistantChatStore | undefined
 
-export function assistantPanelBounds(display: Rectangle): Rectangle {
-  const width = Math.min(PANEL_MAX_WIDTH, Math.max(1, display.width - PANEL_HORIZONTAL_MARGIN * 2))
-  const height = Math.min(PANEL_MAX_HEIGHT, Math.max(1, display.height - PANEL_VERTICAL_MARGIN * 2))
+function chatStore(): AssistantChatStore {
+  if (!chats) throw new Error('Assistant chat storage is not available.')
+  return chats
+}
+
+function chatDatabasePath(): string {
+  return join(app.getPath('userData'), CHAT_DATABASE_FILENAME)
+}
+
+function overlayPreferences(): AssistantOverlayPreferences {
+  const settings = loadApplicationSettings(app.getPath('userData')).settings
   return {
-    x: display.x + Math.floor((display.width - width) / 2),
-    y: display.y + Math.floor((display.height - height) / 2),
+    candy: settings.assistantOverlayCandy,
+    approval: settings.agentApproval,
+    outputFont: settings.assistantOutputFont,
+    hotkey: HOTKEY,
+  }
+}
+
+function configureHarnessAgent(): void {
+  configureAgent({
+    systemPrompt: HARNESS_SYSTEM_PROMPT,
+    ...loadHarnessOptions(app.getPath('userData')),
+  })
+}
+
+export function assistantPanelBounds(workArea: Rectangle): Rectangle {
+  const width = Math.min(PANEL_MAX_WIDTH, Math.max(1, workArea.width - PANEL_HORIZONTAL_MARGIN * 2))
+  const height = Math.min(PANEL_MAX_HEIGHT, Math.max(1, workArea.height - PANEL_VERTICAL_MARGIN * 2))
+  return {
+    x: workArea.x + Math.floor((workArea.width - width) / 2),
+    y: workArea.y + workArea.height - height - PANEL_VERTICAL_MARGIN,
     width,
     height,
   }
@@ -151,6 +230,14 @@ function send(channel: string, payload: unknown): void {
   window.webContents.send(channel, payload)
 }
 
+function broadcastChatsChanged(): void {
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed()) {
+      window.webContents.send(BRIDGE_CHANNELS.harnessChatsChanged)
+    }
+  }
+}
+
 function loadRenderer(window: BrowserWindow): void {
   if (typeof MAIN_WINDOW_VITE_DEV_SERVER_URL !== 'undefined' && MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     void window.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}/overlay.html`)
@@ -159,11 +246,22 @@ function loadRenderer(window: BrowserWindow): void {
   }
 }
 
-function registerIpc(): void {
+function registerIpc(applicationWindow?: () => BrowserWindow | null): void {
   if (registered) return
   registered = true
 
-  ipcMain.handle(BRIDGE_CHANNELS.harnessShow, showHarnessHost)
+  ipcMain.handle(BRIDGE_CHANNELS.harnessShow, () => {
+    showHarnessHost()
+  })
+  ipcMain.handle(BRIDGE_CHANNELS.harnessToggle, () => {
+    toggleHarnessHost()
+  })
+  ipcMain.handle(BRIDGE_CHANNELS.harnessOpenChat, (_event, input: unknown) => {
+    const id = chatId.parse(input)
+    chatStore().open(id)
+    panel?.show()
+    send(BRIDGE_CHANNELS.harnessChatSelected, { id })
+  })
   ipcMain.handle(BRIDGE_CHANNELS.harnessHide, (event) => {
     owner(event)
     panel?.hide()
@@ -196,17 +294,71 @@ function registerIpc(): void {
   )
   ipcMain.handle(BRIDGE_CHANNELS.harnessAsk, (event, input: unknown): AskAccepted => {
     owner(event)
-    const { prompt } = askRequest.parse(input)
+    const { prompt, chatId: requestedChatId, attachments = [] } = askRequest.parse(input)
     if (isAgentBusy()) return { started: false, reason: 'Already working on the previous request.' }
+    const conversation = requestedChatId
+      ? chatStore().open(requestedChatId)
+      : chatStore().create(prompt.slice(0, 80))
+    if (!chatStore().acquire(conversation.id, MAIN_CHAT_OWNER, CHAT_LEASE_TTL_MS)) {
+      return {
+        started: false,
+        reason: 'This chat is active in a terminal. Close it or wait for it to finish.',
+      }
+    }
+    const initialMessages = chatStore().agentMessages(conversation.id)
+    chatStore().append(conversation.id, 'user', prompt)
+    broadcastChatsChanged()
+    let answer = ''
+    const leaseTimer = setInterval(() => {
+      chatStore().renew(conversation.id, MAIN_CHAT_OWNER, CHAT_LEASE_TTL_MS)
+    }, CHAT_LEASE_RENEW_MS)
+    leaseTimer.unref()
 
     void runAgent(prompt, {
-      onDelta: (text) => send(BRIDGE_CHANNELS.harnessDelta, { text }),
+      onDelta: (text) => {
+        answer += text
+        send(BRIDGE_CHANNELS.harnessDelta, { text })
+      },
       onTool: (id, name, phase, isError) =>
         send(BRIDGE_CHANNELS.harnessTool, { id, name, phase, isError }),
       onApproval: (request) => send(BRIDGE_CHANNELS.harnessApproval, request),
-      onEnd: (result) => send(BRIDGE_CHANNELS.harnessEnd, result),
+      onEnd: (result) => {
+        clearInterval(leaseTimer)
+        chatStore().release(conversation.id, MAIN_CHAT_OWNER)
+        if (answer) chatStore().append(conversation.id, 'assistant', answer)
+        if (!result.ok) {
+          chatStore().update(conversation.id, { attention: 'notification' })
+        } else if (panel?.window()?.isVisible() === false) {
+          chatStore().update(conversation.id, { attention: 'unread' })
+        }
+        broadcastChatsChanged()
+        send(BRIDGE_CHANNELS.harnessEnd, result)
+      },
+    }, {
+      initialMessages,
+      images: attachments
+        .filter((attachment) => attachment.mimeType.startsWith('image/'))
+        .map((attachment) => ({
+          type: 'image' as const,
+          data: attachment.data,
+          mimeType: attachment.mimeType,
+        })),
+    }).then((messages) => {
+      if (messages) {
+        chatStore().saveAgentState(conversation.id, { version: 1, messages })
+      }
     })
-    return { started: true }
+    return { started: true, chatId: conversation.id }
+  })
+  ipcMain.handle(BRIDGE_CHANNELS.harnessSteer, (event, input: unknown) => {
+    owner(event)
+    const request = steerRequest.parse(input)
+    const accepted = steerAgent(request.prompt)
+    if (accepted && request.chatId) {
+      chatStore().append(request.chatId, 'user', request.prompt)
+      broadcastChatsChanged()
+    }
+    return accepted
   })
   ipcMain.handle(BRIDGE_CHANNELS.harnessAbort, (event) => {
     owner(event)
@@ -232,20 +384,99 @@ function registerIpc(): void {
     }
     return progress
   })
+  ipcMain.handle(BRIDGE_CHANNELS.harnessPreferences, () =>
+    overlayPreferences(),
+  )
+  ipcMain.handle(
+    BRIDGE_CHANNELS.harnessUpdatePreferences,
+    async (_event, input: unknown) => {
+      const update = overlayPreferencesUpdate.parse(input)
+      await setAssistantOverlayPreferences(app.getPath('userData'), update)
+      configureHarnessAgent()
+      const preferences = overlayPreferences()
+      send(BRIDGE_CHANNELS.harnessPreferencesChanged, preferences)
+      return preferences
+    },
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.harnessChatsList, (_event, input: unknown) =>
+    chatStore().list(chatListQuery.parse(input ?? {})),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.harnessChatCreate, (_event, input: unknown) =>
+    Promise.resolve(chatStore().create(
+      input === undefined ? undefined : z.string().trim().min(1).max(200).parse(input),
+    )).then((created) => {
+      broadcastChatsChanged()
+      return created
+    }),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.harnessChatOpen, (_event, input: unknown) =>
+    chatStore().open(chatId.parse(input)),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.harnessChatUpdate, (_event, input: unknown) => {
+    const parsed = chatUpdate.parse(input)
+    const updated = chatStore().update(parsed.id, parsed.update)
+    broadcastChatsChanged()
+    return updated
+  })
+  ipcMain.handle(BRIDGE_CHANNELS.harnessChatRemove, (_event, input: unknown) => {
+    chatStore().remove(chatId.parse(input))
+    broadcastChatsChanged()
+  })
+  ipcMain.handle(BRIDGE_CHANNELS.harnessChatMessages, (_event, input: unknown) =>
+    chatStore().messages(chatId.parse(input)),
+  )
+  ipcMain.handle(BRIDGE_CHANNELS.harnessChatTerminal, (event, input: unknown) => {
+    const request = chatTerminal.parse(input)
+    const conversation = chatStore().open(request.id)
+    const options = loadHarnessOptions(app.getPath('userData'))
+    const args = [
+      join(__dirname, ASSISTANT_CLI_FILENAME),
+      '--chat', conversation.id,
+      '--database', chatDatabasePath(),
+      '--cwd', options.cwd,
+      '--approval', options.approval,
+      options.codingTools ? '--coding-tools' : '--no-coding-tools',
+      ...options.toolsetIds.flatMap((id) => ['--toolset', id]),
+      ...(options.preferredModel ? ['--model', options.preferredModel] : []),
+    ]
+    broadcastChatsChanged()
+    const result = launchAssistantTerminal(
+      BrowserWindow.fromWebContents(event.sender) ?? undefined,
+      {
+        command: process.execPath,
+        args,
+        cwd: options.cwd,
+        env: { ELECTRON_RUN_AS_NODE: '1' },
+        cols: request.cols,
+        rows: request.rows,
+        label: conversation.title,
+      },
+    )
+    if (event.sender === panel?.window()?.webContents) {
+      const window = applicationWindow?.()
+      if (window && !window.isDestroyed()) {
+        window.show()
+        window.focus()
+        window.webContents.send(BRIDGE_CHANNELS.harnessTerminalOpened, {
+          chatId: conversation.id,
+          result,
+        })
+      }
+    }
+    return result
+  })
 }
 
 export async function startHarnessHost(options: {
   modelDirectory: string
   canActivate?: () => boolean
+  applicationWindow?: () => BrowserWindow | null
 }): Promise<void> {
   activationAllowed = options.canActivate ?? (() => true)
   configureLlamaHost({ workerPath: join(__dirname, LLAMA_WORKER_FILENAME) })
   configureModel({ directory: options.modelDirectory })
-  const agentOptions = {
-    systemPrompt: SYSTEM_PROMPT,
-    ...loadHarnessOptions(app.getPath('userData')),
-  }
-  configureAgent(agentOptions)
+  chats = createAssistantChatStore(chatDatabasePath())
+  configureHarnessAgent()
   anchorMoved = false
   const loadGeneration = ++preferenceLoadGeneration
   void readUserPreferences().then((preferences) => {
@@ -271,7 +502,7 @@ export async function startHarnessHost(options: {
     summonOnStart = false
     panel.show()
   }
-  registerIpc()
+  registerIpc(options.applicationWindow)
 
   if (process.env['MAXIMAL_DISABLE_GLOBAL_KEYBOARD_HOOK'] !== '1') {
     const { uIOhook } = await import('uiohook-napi')
@@ -318,15 +549,29 @@ export async function stopHarnessHost(): Promise<void> {
   if (registered) {
     for (const channel of [
       BRIDGE_CHANNELS.harnessShow,
+      BRIDGE_CHANNELS.harnessToggle,
+      BRIDGE_CHANNELS.harnessOpenChat,
       BRIDGE_CHANNELS.harnessHide,
       BRIDGE_CHANNELS.harnessProvider,
       BRIDGE_CHANNELS.harnessSelectModel,
       BRIDGE_CHANNELS.harnessSelectEffort,
       BRIDGE_CHANNELS.harnessAsk,
+      BRIDGE_CHANNELS.harnessSteer,
       BRIDGE_CHANNELS.harnessAbort,
       BRIDGE_CHANNELS.harnessApprove,
       BRIDGE_CHANNELS.harnessEnsureModel,
+      BRIDGE_CHANNELS.harnessPreferences,
+      BRIDGE_CHANNELS.harnessUpdatePreferences,
+      BRIDGE_CHANNELS.harnessChatsList,
+      BRIDGE_CHANNELS.harnessChatCreate,
+      BRIDGE_CHANNELS.harnessChatOpen,
+      BRIDGE_CHANNELS.harnessChatUpdate,
+      BRIDGE_CHANNELS.harnessChatRemove,
+      BRIDGE_CHANNELS.harnessChatMessages,
+      BRIDGE_CHANNELS.harnessChatTerminal,
     ]) ipcMain.removeHandler(channel)
     registered = false
   }
+  chats?.close()
+  chats = undefined
 }

@@ -148,7 +148,9 @@ function PreviewFrame(): ReactElement {
       ? { id: 'settings-account-heading' as const }
       : section === 'models'
         ? { id: 'settings-models-heading' as const }
-        : { id: 'settings-search-heading' as const }
+        : section === 'appearance'
+          ? { id: 'settings-typography-heading' as const }
+          : { id: 'settings-search-heading' as const }
   const current = tabs.find((tab) => tab.id === activeTab) ?? PRODUCT_TABS[0]
   const settingsOpen = tabs.some((tab) => tab.kind === 'settings')
 
@@ -177,8 +179,14 @@ function PreviewFrame(): ReactElement {
       onCloseTab={(id) => {
         if (id === SETTINGS_TAB.id) requestNavigation(closeSettings)
       }}
-      onOpenAssistant={() => undefined}
       onOpenProjects={() => setProjectBrowserOpen(true)}
+      assistant={{
+        recent: [],
+        hotkey: 'CommandOrControl+Shift+Space',
+        onToggle: () => undefined,
+        onOpenChat: () => undefined,
+        onShowMore: () => undefined,
+      }}
     >
       {!projectBrowserOpen && current.kind === 'overview' ? <ProductPreview title="Overview" /> : null}
       {!projectBrowserOpen && current.kind === 'traffic' ? <ProductPreview title="Traffic" /> : null}

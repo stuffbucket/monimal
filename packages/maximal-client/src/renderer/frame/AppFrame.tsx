@@ -1,11 +1,21 @@
 import { type ReactElement, type ReactNode } from 'react'
-import { FolderSearch, Globe, Sparkles } from 'lucide-react'
+import {
+  Circle,
+  CircleDot,
+  FolderSearch,
+  Globe,
+  History,
+  Sparkles,
+  TriangleAlert,
+} from 'lucide-react'
 import {
   AppFrame as PackageAppFrame,
   IconButton,
+  Menu,
   type Tab,
   type TabTransferOptions,
 } from '@maximal/maximal-electron/renderer'
+import type { AssistantChat } from '@maximal/maximal-harness'
 
 import { WORKBAR_ITEMS, type WorkbarItemId } from './workbar-layout'
 import { ensureAppFrameStyles } from './app-frame-styles'
@@ -34,7 +44,7 @@ const COLLAPSED_LAYOUTS = {
 }
 
 export type View = WorkbarItemId | 'settings'
-export type Surface = View | 'browser' | 'projects' | 'terminal'
+export type Surface = View | 'assistant' | 'browser' | 'terminal'
 
 export interface AppTab extends Tab {
   kind: Surface
@@ -46,6 +56,7 @@ export interface AppTab extends Tab {
   terminalSessionIds?: string[]
   customTitle?: boolean
   canRunInBackground?: boolean
+  assistantChatId?: string
 }
 
 export const PRODUCT_TABS: AppTab[] = WORKBAR_ITEMS.map((item) => ({
@@ -64,6 +75,14 @@ export const SETTINGS_TAB: AppTab = {
   closable: true,
 }
 
+export const ASSISTANT_TAB: AppTab = {
+  id: 'assistant',
+  title: 'Assistant',
+  icon: 'document',
+  kind: 'assistant',
+  closable: true,
+}
+
 export function AppFrame({
   tabs,
   activeTab,
@@ -72,7 +91,7 @@ export function AppFrame({
   onCloseTab,
   onNewTab,
   tabTransfer,
-  onOpenAssistant,
+  assistant,
   onOpenBrowser,
   onOpenProjects,
   children,
@@ -84,7 +103,13 @@ export function AppFrame({
   onCloseTab?: (id: string) => void
   onNewTab?: () => void
   tabTransfer?: TabTransferOptions<AppTab>
-  onOpenAssistant?: () => void
+  assistant?: {
+    recent: AssistantChat[]
+    hotkey: string
+    onToggle: () => void
+    onOpenChat: (id: string) => void
+    onShowMore: () => void
+  }
   onOpenBrowser?: () => void
   onOpenProjects?: () => void
   children: ReactNode
@@ -111,7 +136,7 @@ export function AppFrame({
       tabTransfer={tabTransfer}
       tabsLabel="Views"
       newTabLabel="New terminal"
-      titleBarActions={onOpenProjects || onOpenAssistant || onOpenBrowser ? (
+      titleBarActions={onOpenProjects || assistant || onOpenBrowser ? (
         <>
           {onOpenProjects ? (
             <IconButton
@@ -122,14 +147,44 @@ export function AppFrame({
               <FolderSearch size={16} />
             </IconButton>
           ) : null}
-          {onOpenAssistant ? (
-            <IconButton
-              label="Open Assistant"
-              onClick={onOpenAssistant}
-              testId="open-assistant"
-            >
-              <Sparkles size={16} />
-            </IconButton>
+          {assistant ? (
+            <Menu
+              align="end"
+              testId="assistant-menu"
+              header="Recent chats"
+              trigger={(
+                <IconButton
+                  label="Assistant"
+                  testId="open-assistant"
+                >
+                  <Sparkles size={16} />
+                </IconButton>
+              )}
+              items={[
+                {
+                  id: 'toggle',
+                  label: `Open or close Assistant · ${assistant.hotkey}`,
+                  icon: Sparkles,
+                  onSelect: assistant.onToggle,
+                },
+                ...assistant.recent.map((chat) => ({
+                  id: `chat-${chat.id}`,
+                  label: chat.title,
+                  icon: chat.attention === 'notification'
+                    ? TriangleAlert
+                    : chat.attention === 'unread'
+                      ? CircleDot
+                      : Circle,
+                  onSelect: () => assistant.onOpenChat(chat.id),
+                })),
+                {
+                  id: 'show-more',
+                  label: 'Show more…',
+                  icon: History,
+                  onSelect: assistant.onShowMore,
+                },
+              ]}
+            />
           ) : null}
           {onOpenBrowser ? (
             <IconButton

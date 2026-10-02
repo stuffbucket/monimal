@@ -17,6 +17,7 @@ export interface CloudModelProvider {
   enabled: boolean
   configurable: boolean
   description: string
+  account?: string
 }
 
 export interface ProviderAccess {
@@ -93,7 +94,11 @@ function knownProviders(
 ): CloudModelProvider[] {
   const githubAvailable = access.accounts.accounts.length > 0
   const githubAccount =
-    access.accounts.accounts.find((account) => account.active)
+    access.accounts.accounts.find(
+      (account) => account.key === access.accounts.active_key,
+    )
+    ?? access.accounts.accounts.find((account) => account.active)
+    ?? access.accounts.accounts.find((account) => account.enabled)
     ?? access.accounts.accounts[0]
   const githubActive = githubAccount?.active ?? false
   const githubEnabled = access.accounts.accounts.some((account) => account.enabled)
@@ -128,6 +133,7 @@ function knownProviders(
           ? 'Sign in with a GitHub account'
           : `Signed in as ${githubAccount.login}`,
       ),
+      account: githubAccount?.login || githubAccount?.key,
     },
     {
       id: 'ollama',

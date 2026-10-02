@@ -1,23 +1,18 @@
 import { randomUUID } from 'node:crypto';
 import {
-  EMBEDDED_MODEL_LABEL,
-  EMBEDDED_MODEL_MB,
-  listEmbeddedModels,
-  selectEmbeddedModel,
-} from '@maximal/maximal-llama-cpp';
-
-import {
   Agent,
   createBashTool,
   createEditTool,
   createReadTool,
   createWriteTool,
   type AgentTool,
+  type AgentMessage,
   type AgentToolResult,
   type AgentToolUpdateCallback,
 } from '@earendil-works/pi-agent-core';
 import { NodeExecutionEnv } from '@earendil-works/pi-agent-core/node';
 import { streamSimple } from '@earendil-works/pi-ai/compat';
+import type { ImageContent } from '@earendil-works/pi-ai';
 import type { TSchema } from 'typebox';
 
 import type {
@@ -31,8 +26,13 @@ import type {
 } from '../contracts.js';
 import { HARNESS_CONFIG, HARNESS_COPY } from '../constants.js';
 
-import { describeToolCall, needsApproval, riskOf, type ToolRisk } from './approval.js';
-import { runEmbedded } from './embedded.js';
+import {
+  describeToolCall,
+  needsApproval,
+  permitsTool,
+  riskOf,
+  type ToolRisk,
+} from './approval.js';
 import {
   resolveEndpoints,
   type Endpoints,
@@ -49,6 +49,7 @@ import { buildToolsetTools, type RiskyTool } from './toolsets.js';
  */
 
 type Backend = keyof typeof HARNESS_CONFIG.discovery.defaultEndpoints | 'embedded';
+const AGENT_EFFORTS = new Set<AgentEffort>(['low', 'medium', 'high', 'xhigh', 'max']);
 
 const PINS: readonly Backend[] = HARNESS_CONFIG.discovery.providerPins;
 
@@ -96,6 +97,8 @@ export interface AgentOptions {
   preferredModel?: string;
   preferredEffort?: AgentEffort;
   toolsetIds?: readonly string[];
+  providers?: readonly AgentProvider[];
+  autoSelectModel?: boolean;
 }
 
 let configured: AgentOptions | undefined;
@@ -168,13 +171,23 @@ function maximalModels(payload: unknown): AgentModelOption[] {
       id?: unknown;
       display_name?: unknown;
       max_input_tokens?: unknown;
-      capabilities?: { thinking?: { supported?: unknown } };
+      capabilities?: {
+        thinking?: {
+          supported?: unknown;
+          efforts?: unknown;
+        };
+      };
     }>;
   } | undefined)?.data;
   if (!Array.isArray(data)) return [];
   return data.flatMap((entry) => {
     if (typeof entry.id !== 'string' || entry.id.length === 0) return [];
     const reasoning = entry.capabilities?.thinking?.supported === true;
+    const efforts = entry.capabilities?.thinking?.efforts;
+    const supportedEfforts = Array.isArray(efforts)
+      ? efforts.filter((effort): effort is AgentEffort =>
+          typeof effort === 'string' && AGENT_EFFORTS.has(effort as AgentEffort))
+      : [];
     const context =
       typeof entry.max_input_tokens === 'number' && entry.max_input_tokens > 0
         ? `${Math.round(entry.max_input_tokens / 1000)}K context`
@@ -188,7 +201,7 @@ function maximalModels(payload: unknown): AgentModelOption[] {
       [reasoning ? 'Extended reasoning' : undefined, context]
         .filter((part): part is string => part !== undefined)
         .join(' · ') || 'Available through Maximal',
-      reasoning ? ['low', 'medium', 'high'] : [],
+      reasoning ? supportedEfforts : [],
     )];
   });
 }
@@ -208,38 +221,41 @@ async function modelCatalogue(
   base: Endpoints<keyof typeof HARNESS_CONFIG.discovery.defaultEndpoints>,
   maximalApiKey: string,
 ): Promise<AgentModelOption[]> {
+  const permits = (provider: AgentProvider): boolean =>
+    configured?.providers === undefined || configured.providers.includes(provider);
   const [maximal, ollama] = await Promise.all([
-    pin === undefined || pin === 'maximal'
+    permits('maximal') && (pin === undefined || pin === 'maximal')
       ? fetchJson(`${base.maximal}/v1/models`, {
           'anthropic-version': '2023-06-01',
           authorization: `Bearer ${maximalApiKey}`,
         }).then(maximalModels)
       : [],
-    pin === undefined || pin === 'ollama'
+    permits('ollama') && (pin === undefined || pin === 'ollama')
       ? fetchJson(`${base.ollama}/api/tags`).then(ollamaModels)
       : [],
   ]);
   const embedded =
-    pin === undefined || pin === 'embedded'
-      ? listEmbeddedModels().map((model) =>
-          option('embedded', model.fileName, model.label),
+    permits('embedded') && (pin === undefined || pin === 'embedded')
+      ? (await import('@maximal/maximal-llama-cpp')).listEmbeddedModels().map(
+          (model) => option('embedded', model.fileName, model.label),
         )
       : [];
   return [...maximal, ...ollama, ...embedded];
 }
 
-function ready(
+async function ready(
   selected: AgentModelOption,
   models: AgentModelOption[],
-): ProviderStatus {
-  if (selected.provider === 'embedded') selectEmbeddedModel(selected.model);
+): Promise<ProviderStatus> {
+  if (selected.provider === 'embedded') {
+    const { selectEmbeddedModel } = await import('@maximal/maximal-llama-cpp');
+    selectEmbeddedModel(selected.model);
+  }
   const preferredEffort = configured?.preferredEffort;
   const effort =
     preferredEffort !== undefined && selected.efforts.includes(preferredEffort)
       ? preferredEffort
-      : selected.efforts.includes('high')
-        ? 'high'
-        : selected.efforts[0];
+      : selected.efforts.at(-1);
   return {
     state: 'ready',
     provider: selected.provider,
@@ -263,6 +279,8 @@ export async function discoverProvider(): Promise<ProviderStatus> {
   // is unreachable on any machine that has a proxy running, which is every
   // machine that develops this.
   const { pin, base, maximalApiKey } = environment();
+  const embeddedAllowed =
+    configured?.providers === undefined || configured.providers.includes('embedded');
   const models = await modelCatalogue(pin, base, maximalApiKey);
   if (pin !== undefined) {
     if (models.length > 0) {
@@ -271,12 +289,12 @@ export async function discoverProvider(): Promise<ProviderStatus> {
       );
       return ready(preferred ?? models[0]!, models);
     }
-    return pin === 'embedded'
-      ? {
+    return pin === 'embedded' && embeddedAllowed
+      ? await import('@maximal/maximal-llama-cpp').then((embedded) => ({
           state: 'needs-model',
-          model: EMBEDDED_MODEL_LABEL,
-          approxMb: EMBEDDED_MODEL_MB,
-        }
+          model: embedded.EMBEDDED_MODEL_LABEL,
+          approxMb: embedded.EMBEDDED_MODEL_MB,
+        } as const))
       : {
           state: 'unavailable',
           reason: HARNESS_COPY.agent.noProviderAnswer(pin),
@@ -284,17 +302,21 @@ export async function discoverProvider(): Promise<ProviderStatus> {
   }
 
   if (models.length === 0) {
-    return {
-      state: 'needs-model',
-      model: EMBEDDED_MODEL_LABEL,
-      approxMb: EMBEDDED_MODEL_MB,
-    };
+    if (!embeddedAllowed) {
+      return { state: 'unavailable', reason: HARNESS_COPY.agent.noBackend };
+    }
+    return import('@maximal/maximal-llama-cpp').then((embedded) => ({
+        state: 'needs-model' as const,
+        model: embedded.EMBEDDED_MODEL_LABEL,
+        approxMb: embedded.EMBEDDED_MODEL_MB,
+    }));
   }
 
   const preferred = models.find(
     (model) => model.key === configured?.preferredModel,
   );
   if (preferred) return ready(preferred, models);
+  if (configured?.autoSelectModel) return ready(models[0]!, models);
   return {
     state: 'select-model',
     ...(configured?.preferredModel === undefined
@@ -477,6 +499,21 @@ export interface AgentSink {
   onEnd: (result: { ok: true } | { ok: false; error: string }) => void;
 }
 
+export interface AgentRunOptions {
+  initialMessages?: AgentMessage[];
+  images?: ImageContent[];
+}
+
+export function steerAgent(prompt: string): boolean {
+  if (!active?.agent) return false;
+  active.agent.steer({
+    role: 'user',
+    content: prompt,
+    timestamp: Date.now(),
+  });
+  return true;
+}
+
 /**
  * How long a tool call waits for a decision before it denies itself.
  *
@@ -602,35 +639,45 @@ function requestApproval(
  * One run at a time. A second prompt while the first is in flight would
  * interleave two transcripts in one overlay card.
  */
-export async function runAgent(prompt: string, sink: AgentSink): Promise<void> {
+export async function runAgent(
+  prompt: string,
+  sink: AgentSink,
+  options: AgentRunOptions = {},
+): Promise<AgentMessage[] | undefined> {
   if (inFlight) {
     sink.onEnd({ ok: false, error: HARNESS_COPY.agent.alreadyWorking });
-    return;
+    return undefined;
   }
 
-  const run = execute(prompt, sink).catch((error: unknown) => {
+  const run = execute(prompt, sink, options).catch((error: unknown) => {
     sink.onEnd({
       ok: false,
       error: error instanceof Error ? error.message : String(error),
     });
+    return undefined;
   });
-  inFlight = run.finally(() => {
+  const settled = run.finally(() => {
     inFlight = undefined;
   });
-  return inFlight;
+  inFlight = settled.then(() => undefined);
+  return settled;
 }
 
-async function execute(prompt: string, sink: AgentSink): Promise<void> {
+async function execute(
+  prompt: string,
+  sink: AgentSink,
+  runOptions: AgentRunOptions,
+): Promise<AgentMessage[] | undefined> {
   const status = await discoverProvider();
   if (status.state !== 'ready') {
     sink.onEnd({ ok: false, error: describeNotReady(status) });
-    return;
+    return undefined;
   }
 
   const options = configured;
   if (!options) {
     sink.onEnd({ ok: false, error: HARNESS_COPY.agent.notConfigured });
-    return;
+    return undefined;
   }
 
   const controller = new AbortController();
@@ -649,12 +696,14 @@ async function execute(prompt: string, sink: AgentSink): Promise<void> {
     risk: ToolRisk,
     summary: string,
   ): Promise<boolean> => {
+    if (!permitsTool(options.approval, risk)) return false;
     if (!needsApproval(options.approval, risk)) return true;
     if (allowed.has(tool)) return true;
     return requestApproval(pending, tool, summary, sink);
   };
 
   if (status.provider === 'embedded') {
+    const { runEmbedded } = await import('./embedded.js');
     active = { controller, allowed, pending };
     try {
       await runEmbedded({
@@ -676,7 +725,7 @@ async function execute(prompt: string, sink: AgentSink): Promise<void> {
       for (const entry of [...pending.values()]) entry.settle(false);
       active = undefined;
     }
-    return;
+    return undefined;
   }
 
   const agent = new Agent({
@@ -695,7 +744,12 @@ async function execute(prompt: string, sink: AgentSink): Promise<void> {
       const tool = toolCall.name;
       const risk = riskOf(tool, built.risk.get(tool));
       const ok = await gate(tool, risk, describeToolCall(tool, args));
-      return ok ? undefined : { block: true, reason: HARNESS_COPY.common.denied };
+      return ok ? undefined : {
+        block: true,
+        reason: options.approval === 'read-only'
+          ? HARNESS_COPY.agent.readOnlyDenied
+          : HARNESS_COPY.common.denied,
+      };
     },
 
     initialState: {
@@ -708,6 +762,7 @@ async function execute(prompt: string, sink: AgentSink): Promise<void> {
       systemPrompt: options.systemPrompt,
       tools: built.tools,
       thinkingLevel: status.effort ?? 'off',
+      messages: runOptions.initialMessages ?? [],
     },
   });
 
@@ -731,7 +786,7 @@ async function execute(prompt: string, sink: AgentSink): Promise<void> {
   });
 
   try {
-    await agent.prompt(prompt);
+    await agent.prompt(prompt, runOptions.images);
     sink.onEnd({ ok: true });
   } catch (error) {
     sink.onEnd({
@@ -745,4 +800,5 @@ async function execute(prompt: string, sink: AgentSink): Promise<void> {
     for (const entry of [...pending.values()]) entry.settle(false);
     active = undefined;
   }
+  return agent.state.messages;
 }
