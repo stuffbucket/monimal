@@ -436,12 +436,12 @@ describe('harness host IPC boundary', () => {
 
   it('publishes an overlay-launched terminal after the session is ready', async () => {
     const applicationWebContents = { send: vi.fn() }
-    const applicationWindow = {
+    const applicationWindow = Object.assign({} as BrowserWindow, {
       isDestroyed: () => false,
       webContents: applicationWebContents,
       show: vi.fn(),
       focus: vi.fn(),
-    } as unknown as BrowserWindow
+    })
     await startHost(() => applicationWindow)
 
     const result = handler(BRIDGE_CHANNELS.harnessChatTerminal)(

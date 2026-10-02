@@ -15,7 +15,7 @@ afterEach(() => {
 it('redraws the splash shader with advancing time', () => {
   const drawArrays = vi.fn();
   const uniform1f = vi.fn();
-  const gl = {
+  const gl = Object.assign({} as WebGLRenderingContext, {
     ARRAY_BUFFER: 0x8892,
     COMPILE_STATUS: 0x8b81,
     FLOAT: 0x1406,
@@ -47,9 +47,9 @@ it('redraws the splash shader with advancing time', () => {
     useProgram: vi.fn(),
     vertexAttribPointer: vi.fn(),
     viewport: vi.fn(),
-  };
+  });
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext')
-    .mockImplementation(() => gl as unknown as WebGLRenderingContext);
+    .mockImplementation(() => gl);
   const frames: FrameRequestCallback[] = [];
   vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((callback) => {
     frames.push(callback);

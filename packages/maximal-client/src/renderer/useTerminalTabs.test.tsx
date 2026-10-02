@@ -38,6 +38,29 @@ let focusFromMenu: (request: TerminalMenuFocusRequest) => void
 let terminalOpened: Parameters<MaximalHost['harness']['onTerminalOpened']>[0]
 let openAssistantChat: (chatId: string) => void
 let browserListener: ((event: BrowserEvent) => void) | undefined
+interface RenderedTerminalTabsState {
+  tabs: Array<{
+    id: string
+    title: string
+    canRunInBackground?: boolean
+    assistantChatId?: string
+  }>
+  allTabs: Array<{ id: string; kind: string; browserOwner?: string }>
+  panes: Array<[string, unknown]>
+  revisions: Array<[string, number]>
+  activeTab: string
+  paneFocusRequest?: {
+    tabId: string
+    sessionId: string
+    generation: number
+  }
+}
+let renderedState: RenderedTerminalTabsState | undefined
+
+function currentState(): RenderedTerminalTabsState {
+  if (!renderedState) throw new Error('terminal state did not render')
+  return renderedState
+}
 
 beforeEach(() => {
   ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -99,33 +122,18 @@ async function restore(detachedWindow?: DetachedTerminal) {
   function Harness() {
     const state = useTerminalTabs(detachedWindow)
     openAssistantChat = state.openAssistantChat
-    return <pre>{JSON.stringify({
+    renderedState = {
       tabs: state.tabs.filter((tab) => tab.kind === 'terminal'),
       allTabs: state.tabs,
       activeTab: state.activeTab,
       panes: [...state.panes],
       revisions: [...state.paneRevisions],
       paneFocusRequest: state.paneFocusRequest,
-    })}</pre>
+    }
+    return null
   }
   await act(async () => { root.render(<Harness />) })
-  return JSON.parse(container.textContent ?? '') as {
-    tabs: Array<{
-      id: string
-      title: string
-      canRunInBackground?: boolean
-      assistantChatId?: string
-    }>
-    allTabs: Array<{ id: string; kind: string; browserOwner?: string }>
-    panes: Array<[string, unknown]>
-    revisions: Array<[string, number]>
-    activeTab: string
-    paneFocusRequest?: {
-      tabId: string
-      sessionId: string
-      generation: number
-    }
-  }
+  return currentState()
 }
 
 describe('terminal reconstruction', () => {
@@ -185,10 +193,7 @@ describe('terminal reconstruction', () => {
       focusFromMenu({ id: 'primary' })
     })
 
-    const state = JSON.parse(container.textContent ?? '') as {
-      activeTab: string
-      paneFocusRequest?: unknown
-    }
+    const state = currentState()
     expect(state.activeTab).toBe('terminal:primary')
     expect(state.paneFocusRequest).toBeUndefined()
   })
@@ -203,14 +208,7 @@ describe('terminal reconstruction', () => {
       focusFromMenu({ id: 'primary', paneSessionId: 'split' })
     })
 
-    const state = JSON.parse(container.textContent ?? '') as {
-      activeTab: string
-      paneFocusRequest?: {
-        tabId: string
-        sessionId: string
-        generation: number
-      }
-    }
+    const state = currentState()
     expect(state.activeTab).toBe('terminal:primary')
     expect(state.paneFocusRequest).toEqual({
       tabId: 'terminal:primary',
@@ -230,10 +228,7 @@ describe('terminal reconstruction', () => {
       openAssistantChat('chat-1')
     })
 
-    const state = JSON.parse(container.textContent ?? '') as {
-      tabs: Array<{ assistantChatId?: string }>
-      activeTab: string
-    }
+    const state = currentState()
     expect(chatTerminal).toHaveBeenCalledOnce()
     expect(chatTerminal).toHaveBeenCalledWith('chat-1', 80, 24)
     expect(state.tabs).toContainEqual(expect.objectContaining({
@@ -254,10 +249,7 @@ describe('terminal reconstruction', () => {
       },
     }))
 
-    const state = JSON.parse(container.textContent ?? '') as {
-      tabs: Array<{ assistantChatId?: string }>
-      activeTab: string
-    }
+    const state = currentState()
     expect(state.tabs).toContainEqual(expect.objectContaining({
       assistantChatId: 'chat-2',
     }))
@@ -279,7 +271,7 @@ describe('terminal reconstruction', () => {
         },
       })
     })
-    const state = JSON.parse(container.textContent ?? '') as Awaited<ReturnType<typeof restore>>
+    const state = currentState()
     expect(state.allTabs.slice(-2).map(({ kind }) => kind)).toEqual(['terminal', 'browser'])
     expect(state.activeTab).toBe('browser:browser-1')
   })

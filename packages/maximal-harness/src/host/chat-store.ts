@@ -19,8 +19,8 @@ const { DatabaseSync } = createRequire(moduleLocation)('node:sqlite') as
 interface ChatRow {
   id: string
   title: string
-  status: string
-  attention: string
+  status: AssistantChat['status']
+  attention: AssistantChat['attention']
   pinned: number
   created_at: number
   updated_at: number
@@ -30,9 +30,67 @@ interface ChatRow {
 interface MessageRow {
   id: number
   chat_id: string
-  role: string
+  role: AssistantChatMessage['role']
   content: string
   created_at: number
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function parseChatRow(value: unknown): ChatRow {
+  if (
+    !isRecord(value)
+    || typeof value.id !== 'string'
+    || typeof value.title !== 'string'
+    || (value.status !== 'active' && value.status !== 'archived')
+    || (
+      value.attention !== 'read'
+      && value.attention !== 'unread'
+      && value.attention !== 'notification'
+    )
+    || typeof value.pinned !== 'number'
+    || typeof value.created_at !== 'number'
+    || typeof value.updated_at !== 'number'
+    || typeof value.last_opened_at !== 'number'
+  ) {
+    throw new Error('Assistant chat row is invalid.')
+  }
+  return {
+    id: value.id,
+    title: value.title,
+    status: value.status,
+    attention: value.attention,
+    pinned: value.pinned,
+    created_at: value.created_at,
+    updated_at: value.updated_at,
+    last_opened_at: value.last_opened_at,
+  }
+}
+
+function parseMessageRow(value: unknown): MessageRow {
+  if (
+    !isRecord(value)
+    || typeof value.id !== 'number'
+    || typeof value.chat_id !== 'string'
+    || (
+      value.role !== 'user'
+      && value.role !== 'assistant'
+      && value.role !== 'system'
+    )
+    || typeof value.content !== 'string'
+    || typeof value.created_at !== 'number'
+  ) {
+    throw new Error('Assistant chat message row is invalid.')
+  }
+  return {
+    id: value.id,
+    chat_id: value.chat_id,
+    role: value.role,
+    content: value.content,
+    created_at: value.created_at,
+  }
 }
 
 export interface AssistantAgentState {
@@ -44,8 +102,8 @@ function chat(row: ChatRow): AssistantChat {
   return {
     id: row.id,
     title: row.title,
-    status: row.status as AssistantChat['status'],
-    attention: row.attention as AssistantChat['attention'],
+    status: row.status,
+    attention: row.attention,
     pinned: row.pinned === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -57,7 +115,7 @@ function message(row: MessageRow): AssistantChatMessage {
   return {
     id: row.id,
     chatId: row.chat_id,
-    role: row.role as AssistantChatMessage['role'],
+    role: row.role,
     content: row.content,
     createdAt: row.created_at,
   }
@@ -131,9 +189,9 @@ export function createAssistantChatStore(filePath: string): AssistantChatStore {
   )
 
   const requireChat = (id: string): AssistantChat => {
-    const row = byId.get(id) as unknown as ChatRow | undefined
+    const row = byId.get(id)
     if (!row) throw new Error('Assistant chat does not exist.')
-    return chat(row)
+    return chat(parseChatRow(row))
   }
   const validateLease = (owner: string, ttlMs: number): void => {
     if (owner.trim() === '') throw new Error('Assistant chat lease owner is required.')
@@ -199,10 +257,13 @@ export function createAssistantChatStore(filePath: string): AssistantChatStore {
         ${where}
         ORDER BY pinned DESC, ${orderColumn} ${direction}, updated_at DESC
         LIMIT ? OFFSET ?
-      `).all(...parameters, limit, offset) as unknown as ChatRow[]
+      `).all(...parameters, limit, offset).map(parseChatRow)
       const count = database.prepare(`
         SELECT COUNT(*) AS total FROM assistant_chats ${where}
-      `).get(...parameters) as unknown as { total: number }
+      `).get(...parameters)
+      if (!isRecord(count) || typeof count.total !== 'number') {
+        throw new Error('Assistant chat count row is invalid.')
+      }
       return { chats: rows.map(chat), total: count.total }
     },
     update(id, update) {
@@ -258,14 +319,17 @@ export function createAssistantChatStore(filePath: string): AssistantChatStore {
         SELECT * FROM assistant_chat_messages
         WHERE chat_id = ?
         ORDER BY id
-      `).all(chatId) as unknown as MessageRow[]).map(message)
+      `).all(chatId)).map(parseMessageRow).map(message)
     },
     loadAgentState(chatId) {
       requireChat(chatId)
       const row = database.prepare(`
         SELECT state_json FROM assistant_chat_agent_state WHERE chat_id = ?
-      `).get(chatId) as unknown as { state_json: string } | undefined
+      `).get(chatId)
       if (!row) return undefined
+      if (!isRecord(row) || typeof row.state_json !== 'string') {
+        throw new Error('Assistant chat agent state row is invalid.')
+      }
       const value: unknown = JSON.parse(row.state_json)
       if (
         typeof value !== 'object'

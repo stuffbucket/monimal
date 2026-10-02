@@ -132,7 +132,7 @@ function fakeBrowserWindow({
 } = {}) {
   const listeners = new Map<string, Array<() => void>>()
   const state = { destroyed: false, minimized, visible }
-  const win = {
+  const win = Object.assign({} as BrowserWindow, {
     isDestroyed: vi.fn(() => state.destroyed),
     isMinimized: vi.fn(() => state.minimized),
     isVisible: vi.fn(() => state.visible),
@@ -143,7 +143,7 @@ function fakeBrowserWindow({
     on: vi.fn((event: string, listener: () => void) => {
       listeners.set(event, [...(listeners.get(event) ?? []), listener])
     }),
-  }
+  })
   return {
     win,
     state,
@@ -322,7 +322,7 @@ describe('MenuBarModeController', () => {
     const controller = new MenuBarModeController(vi.fn(), onTerminalActivate)
     controller.beginEnable()
 
-    controller.syncTerminalMenu(window.win as unknown as BrowserWindow, [{
+    controller.syncTerminalMenu(window.win, [{
       id: 'primary',
       title: 'Build workspace',
       paneSessionIds: ['primary', 'split'],
@@ -362,7 +362,7 @@ describe('MenuBarModeController', () => {
     browserWindows.push(window.win)
     const controller = new MenuBarModeController(vi.fn())
     controller.beginEnable()
-    controller.syncTerminalMenu(window.win as unknown as BrowserWindow, [{
+    controller.syncTerminalMenu(window.win, [{
       id: 'primary',
       title: 'Build workspace',
       paneSessionIds: ['primary'],
