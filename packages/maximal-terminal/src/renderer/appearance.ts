@@ -30,28 +30,15 @@ export type TerminalBlendMode =
   | 'darken'
   | 'lighten';
 
-export interface TerminalPalette {
-  background: string;
-  foreground: string;
-  cursor: string;
-  selectionBackground: string;
-  black: string;
-  red: string;
-  green: string;
-  yellow: string;
-  blue: string;
-  magenta: string;
-  cyan: string;
-  white: string;
-  brightBlack: string;
-  brightRed: string;
-  brightGreen: string;
-  brightYellow: string;
-  brightBlue: string;
-  brightMagenta: string;
-  brightCyan: string;
-  brightWhite: string;
-}
+export const TERMINAL_PALETTE_COLOURS = [
+  'background', 'foreground', 'cursor', 'selectionBackground',
+  'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white',
+  'brightBlack', 'brightRed', 'brightGreen', 'brightYellow',
+  'brightBlue', 'brightMagenta', 'brightCyan', 'brightWhite',
+] as const;
+
+export type TerminalPaletteColour = (typeof TERMINAL_PALETTE_COLOURS)[number];
+export type TerminalPalette = Record<TerminalPaletteColour, string>;
 
 export interface TerminalWindowEffects {
   opacity: number;
@@ -137,13 +124,7 @@ interface Rgb {
   b: number;
 }
 
-const THEME_COLOURS: Array<keyof TerminalPalette> = [
-  'background', 'foreground', 'cursor', 'selectionBackground',
-  'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white',
-  'brightBlack', 'brightRed', 'brightGreen', 'brightYellow',
-  'brightBlue', 'brightMagenta', 'brightCyan', 'brightWhite',
-];
-const TEXT_COLOURS = THEME_COLOURS.filter((key) =>
+const TEXT_COLOURS = TERMINAL_PALETTE_COLOURS.filter((key) =>
   key !== 'background' && key !== 'selectionBackground');
 
 function parseHex(value: string): Rgb {
@@ -244,7 +225,7 @@ export function resolveTerminalAppearance(
   const source = dark ? settings.dark : settings.light;
   const palette = { ...source };
   if (settings.effects.stamp) {
-    for (const key of THEME_COLOURS) {
+    for (const key of TERMINAL_PALETTE_COLOURS) {
       palette[key] = applyEffects(palette[key], settings.effects);
     }
   }
