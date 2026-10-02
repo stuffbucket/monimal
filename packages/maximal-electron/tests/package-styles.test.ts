@@ -89,6 +89,17 @@ describe('the package token namespace', () => {
   });
 });
 
+describe('the shell interaction boundary', () => {
+  it('keeps chrome inert while preserving intentional text surfaces', () => {
+    expect(packageRules).toMatch(
+      /\.sb-shell\.app\s*\{[^}]*user-select:\s*none;/su,
+    );
+    expect(packageRules).toMatch(
+      /\.sb-shell\.app\s+:is\([^{}]*\[data-shell-selectable='true'\][^{}]*\.terminal \*[^{}]*\)\s*\{[^}]*user-select:\s*text;/su,
+    );
+  });
+});
+
 describe('the exported components', () => {
   const modules = exportedModules();
   /*
