@@ -300,6 +300,13 @@ function passiveHandle(
         // Best-effort telemetry only.
       }
     },
+    recordSession(value) {
+      try {
+        handle?.recordSession?.(value)
+      } catch {
+        // Best-effort telemetry only.
+      }
+    },
     recordTokens(value) {
       try {
         handle?.recordTokens(value)

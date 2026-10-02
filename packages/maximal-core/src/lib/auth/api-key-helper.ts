@@ -21,6 +21,10 @@ import {
 } from "~/lib/auth/api-key-helper-tokens"
 import { normalizeApiKeys } from "~/lib/auth/request-auth"
 import { getConfig, updateConfig, writeConfig } from "~/lib/config/config"
+import {
+  isRuntimeExecPath,
+  resolveMainScript,
+} from "~/lib/platform/self-invocation"
 
 export type ApiKeyHelperResult =
   | { ok: true; key: string; source: "app" | "default" }
@@ -65,32 +69,6 @@ export function apiKeyHelperCommand(
   return trimmed ?
       `${bin} ${HELPER_SUBCOMMAND} ${trimmed}`
     : `${bin} ${HELPER_SUBCOMMAND}`
-}
-
-/** True when `execPath` is a bare JS runtime (bun/node) rather than a compiled
- *  maximal binary. Basename check, tolerant of a Windows `.exe` suffix and
- *  either path separator (so it's correct regardless of the host platform); the
- *  compiled sidecar's basename is `maximal` / `maximal-<triple>`, never these. */
-function isRuntimeExecPath(execPath: string): boolean {
-  const base =
-    execPath
-      .split(/[/\\]/u)
-      .pop()
-      ?.toLowerCase()
-      .replace(/\.exe$/u, "") ?? ""
-  return base === "bun" || base === "node"
-}
-
-/** The entry script maximal was launched with, so a runtime invocation can be
- *  reconstructed as `"<runtime>" "<entry>" …`. `Bun.main` is set under bun
- *  (including `bun run src/main.ts`); `process.argv[1]` covers node. Only
- *  consulted when {@link isRuntimeExecPath} is true, so the compiled binary's
- *  `$bunfs` `Bun.main` is never written to disk. */
-function resolveMainScript(): string | undefined {
-  // casts-keep: `Bun.main` is an optional runtime global (absent under node).
-  const bunMain = (globalThis as { Bun?: { main?: string } }).Bun?.main
-  if (typeof bunMain === "string" && bunMain.length > 0) return bunMain
-  return process.argv[1]
 }
 
 /**

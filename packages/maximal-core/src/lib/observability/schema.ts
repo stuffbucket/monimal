@@ -105,6 +105,8 @@ export function initializeTrafficDb(
       ON traffic_requests(completed_at_ms, accepted_at_ms, id);
     CREATE INDEX IF NOT EXISTS idx_traffic_requests_state
       ON traffic_requests(state);
+    CREATE INDEX IF NOT EXISTS idx_traffic_requests_session
+      ON traffic_requests(session_id);
     CREATE INDEX IF NOT EXISTS idx_traffic_requests_dimensions
       ON traffic_requests(operation, provider, model, client);
   `)

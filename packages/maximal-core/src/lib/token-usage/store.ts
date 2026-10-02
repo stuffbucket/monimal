@@ -164,13 +164,44 @@ export interface TokenUsageEventsPage {
 
 const DEFAULT_DB_FILENAME = "copilot-api.sqlite"
 
+export interface TokenUsageStoreDelegate {
+  enqueueTokenUsageWrite(event: PersistedTokenUsageEvent): void
+  flushTokenUsageEvents(): Promise<void>
+  getTokenUsageEventsPage(input: {
+    page: number
+    pageSize: number
+    period: TokenUsagePeriod
+  }): Promise<TokenUsageEventsPage>
+  getTokenUsageSeries(input: {
+    period: TokenUsagePeriod
+    bucketMs?: number
+  }): Promise<TokenUsageSeries>
+  getTokenUsageSummary(period: TokenUsagePeriod): Promise<TokenUsageSummary>
+  pruneTokenUsageEvents(beforeMs: number): Promise<number>
+}
+
+let tokenUsageStoreDelegate: TokenUsageStoreDelegate | undefined
+let tokenUsageDbPathOverride: string | undefined
 let writeQueue: Promise<void> = Promise.resolve()
+
+export function setTokenUsageStoreDelegate(
+  delegate: TokenUsageStoreDelegate | undefined,
+): void {
+  tokenUsageStoreDelegate = delegate
+}
 
 function getDbPath(): string {
   return (
-    loadRuntimeSettings().apiSqliteDbPath
+    tokenUsageDbPathOverride
+    ?? loadRuntimeSettings().apiSqliteDbPath
     ?? path.join(PATHS.APP_DIR, DEFAULT_DB_FILENAME)
   )
+}
+
+export function setTokenUsageDatabasePathLocal(
+  databasePath: string | undefined,
+): void {
+  tokenUsageDbPathOverride = databasePath
 }
 
 const tokenUsageDbStore = new SqliteDbStore({
@@ -406,7 +437,9 @@ async function writeTokenUsageEvent(
   )
 }
 
-export function enqueueTokenUsageWrite(event: PersistedTokenUsageEvent): void {
+export function enqueueTokenUsageWriteLocal(
+  event: PersistedTokenUsageEvent,
+): void {
   if (!isTokenUsageStorageEnabled()) {
     return
   }
@@ -419,7 +452,7 @@ export function enqueueTokenUsageWrite(event: PersistedTokenUsageEvent): void {
 }
 
 /** @internal Synchronize the traffic backfill bridge with queued usage writes. */
-export async function flushTokenUsageEvents(): Promise<void> {
+export async function flushTokenUsageEventsLocal(): Promise<void> {
   let currentQueue = writeQueue
   while (true) {
     await currentQueue
@@ -432,9 +465,11 @@ export async function flushTokenUsageEvents(): Promise<void> {
 
 /** Delete rows older than `beforeMs`, flushing pending writes first so every
  *  committed row is visible. Returns the number of rows removed. */
-export async function pruneTokenUsageEvents(beforeMs: number): Promise<number> {
+export async function pruneTokenUsageEventsLocal(
+  beforeMs: number,
+): Promise<number> {
   if (!isTokenUsageStorageEnabled()) return 0
-  await flushTokenUsageEvents()
+  await flushTokenUsageEventsLocal()
   const db = await getDb()
   const sql = "DELETE FROM token_usage_events WHERE created_at_ms < ?"
   // casts-keep: bun:sqlite run() returns a trusted { changes } shape.
@@ -638,14 +673,14 @@ function usageEventFromRow(
   }
 }
 
-export async function getTokenUsageSummary(
+export async function getTokenUsageSummaryLocal(
   period: TokenUsagePeriod,
 ): Promise<TokenUsageSummary> {
   if (!isTokenUsageStorageEnabled()) {
     return createEmptySummary(period)
   }
 
-  await flushTokenUsageEvents()
+  await flushTokenUsageEventsLocal()
   const range = getPeriodRange(period)
   const db = await getDb()
   const totalsRow = db
@@ -741,7 +776,7 @@ export async function getTokenUsageSummary(
   }
 }
 
-export async function getTokenUsageEventsPage(input: {
+export async function getTokenUsageEventsPageLocal(input: {
   page: number
   pageSize: number
   period: TokenUsagePeriod
@@ -750,7 +785,7 @@ export async function getTokenUsageEventsPage(input: {
     return createEmptyEventsPage(input)
   }
 
-  await flushTokenUsageEvents()
+  await flushTokenUsageEventsLocal()
   const range = getPeriodRange(input.period)
   const page = Math.max(1, Math.floor(input.page))
   const pageSize = Math.min(100, Math.max(1, Math.floor(input.pageSize)))
@@ -892,7 +927,7 @@ function createEmptySeries(period: TokenUsagePeriod): TokenUsageSeries {
  * bounded by SERIES_MAX_BUCKETS). For "all", the range is tightened to the real
  * min/max event time so the buckets track the data, not the epoch.
  */
-export async function getTokenUsageSeries(input: {
+export async function getTokenUsageSeriesLocal(input: {
   period: TokenUsagePeriod
   bucketMs?: number
 }): Promise<TokenUsageSeries> {
@@ -901,7 +936,7 @@ export async function getTokenUsageSeries(input: {
     return createEmptySeries(period)
   }
 
-  await flushTokenUsageEvents()
+  await flushTokenUsageEventsLocal()
   const db = await getDb()
 
   let { startMs, endMs } = getPeriodRange(period)
@@ -974,8 +1009,8 @@ export async function getTokenUsageSeries(input: {
   }
 }
 
-export async function closeUsageStore(): Promise<void> {
-  await flushTokenUsageEvents()
+export async function closeUsageStoreLocal(): Promise<void> {
+  await flushTokenUsageEventsLocal()
   await tokenUsageDbStore.close({
     beforeClose: (db) => {
       try {
@@ -986,6 +1021,55 @@ export async function closeUsageStore(): Promise<void> {
     },
   })
   writeQueue = Promise.resolve()
+}
+
+export function enqueueTokenUsageWrite(event: PersistedTokenUsageEvent): void {
+  if (tokenUsageStoreDelegate) {
+    tokenUsageStoreDelegate.enqueueTokenUsageWrite(event)
+    return
+  }
+  enqueueTokenUsageWriteLocal(event)
+}
+
+export async function pruneTokenUsageEvents(beforeMs: number): Promise<number> {
+  return tokenUsageStoreDelegate ?
+      tokenUsageStoreDelegate.pruneTokenUsageEvents(beforeMs)
+    : pruneTokenUsageEventsLocal(beforeMs)
+}
+
+export async function getTokenUsageSummary(
+  period: TokenUsagePeriod,
+): Promise<TokenUsageSummary> {
+  return tokenUsageStoreDelegate ?
+      tokenUsageStoreDelegate.getTokenUsageSummary(period)
+    : getTokenUsageSummaryLocal(period)
+}
+
+export async function getTokenUsageEventsPage(input: {
+  page: number
+  pageSize: number
+  period: TokenUsagePeriod
+}): Promise<TokenUsageEventsPage> {
+  return tokenUsageStoreDelegate ?
+      tokenUsageStoreDelegate.getTokenUsageEventsPage(input)
+    : getTokenUsageEventsPageLocal(input)
+}
+
+export async function getTokenUsageSeries(input: {
+  period: TokenUsagePeriod
+  bucketMs?: number
+}): Promise<TokenUsageSeries> {
+  return tokenUsageStoreDelegate ?
+      tokenUsageStoreDelegate.getTokenUsageSeries(input)
+    : getTokenUsageSeriesLocal(input)
+}
+
+export async function closeUsageStore(): Promise<void> {
+  if (tokenUsageStoreDelegate) {
+    await tokenUsageStoreDelegate.flushTokenUsageEvents()
+    return
+  }
+  await closeUsageStoreLocal()
 }
 
 registerProcessCleanup(closeUsageStore)

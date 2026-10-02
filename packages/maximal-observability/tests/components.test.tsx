@@ -14,6 +14,7 @@ import {
   OverviewStatus,
   TrafficExplorerInspector,
   TrafficExplorerMain,
+  TrafficExplorerRail,
   TrafficExplorerStatus,
 } from "../src/index.ts"
 import { FakeSource, REQUEST } from "./fixtures.ts"
@@ -105,6 +106,7 @@ describe("observability components", () => {
           source={source}
           now={() => new Date("2026-09-07T20:01:00.000Z")}
         >
+          <TrafficExplorerRail />
           <TrafficExplorerMain />
           <TrafficExplorerInspector />
           <TrafficExplorerStatus />
@@ -115,6 +117,7 @@ describe("observability components", () => {
     await settle()
     expect(source.detailReads).toBe(1)
     expect(container.textContent).toContain("trace-1")
+    expect(container.textContent).toContain("All sessions")
     expect(container.textContent).toContain("Lifecycle")
     expect(container.textContent).toContain("Context window")
     expect(container.textContent).toContain("session-1")

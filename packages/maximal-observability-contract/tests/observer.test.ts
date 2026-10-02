@@ -8,6 +8,7 @@ import type {
   TrafficObservationHandle,
   TrafficObservationStart,
   TrafficObserver,
+  TrafficSessionObservation,
   TrafficTokenObservation,
 } from "../src/index.ts"
 
@@ -16,6 +17,7 @@ import {
   TrafficDispatchObservationSchema,
   TrafficFirstResponseObservationSchema,
   TrafficObservationStartSchema,
+  TrafficSessionObservationSchema,
   TrafficTokenObservationSchema,
 } from "../src/index.ts"
 import { completedRequest, timestamp } from "./fixtures.ts"
@@ -28,6 +30,10 @@ class RecordingHandle implements TrafficObservationHandle {
   }
 
   recordFirstResponse(observation: TrafficFirstResponseObservation): void {
+    this.events.push(observation)
+  }
+
+  recordSession(observation: TrafficSessionObservation): void {
     this.events.push(observation)
   }
 
@@ -77,6 +83,10 @@ void test("observer boundary uses synchronous passive notifications", () => {
     at: request.timing.completedAt,
     tokens: request.tokens,
   })
+  const sessionObservation = TrafficSessionObservationSchema.parse({
+    at: request.timing.dispatchStartedAt,
+    sessionId: "session-1",
+  })
   const completion = TrafficCompletionObservationSchema.parse({
     at: request.timing.completedAt,
     outcome: request.outcome,
@@ -90,6 +100,7 @@ void test("observer boundary uses synchronous passive notifications", () => {
   const handle = observer.beginRequest(start)
   handle.recordDispatch(dispatch)
   handle.recordFirstResponse(firstResponse)
+  handle.recordSession?.(sessionObservation)
   handle.recordTokens(tokenObservation)
   handle.complete(completion)
 
@@ -97,6 +108,7 @@ void test("observer boundary uses synchronous passive notifications", () => {
   assert.deepEqual(observer.handles[0]?.events, [
     dispatch,
     firstResponse,
+    sessionObservation,
     tokenObservation,
     completion,
   ])

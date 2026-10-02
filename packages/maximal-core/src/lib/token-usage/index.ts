@@ -223,7 +223,11 @@ function annotateTrafficObservation(input: TokenUsageEventInput): void {
   const at = new Date().toISOString()
   const model = boundedTrafficIdentifier(input.model)
   const parentSessionId = boundedTrafficIdentifier(store.parentSessionId)
+  const sessionId = boundedTrafficIdentifier(
+    resolveTokenUsageSessionId(input.sessionId, input.fallbackSessionId),
+  )
   try {
+    if (sessionId) observation.recordSession?.({ at, sessionId })
     observation.recordDispatch({
       at,
       attribution: {
