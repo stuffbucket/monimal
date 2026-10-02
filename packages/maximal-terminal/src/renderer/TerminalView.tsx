@@ -5,6 +5,7 @@ import type { TerminalSplitDirection } from '../pane.js';
 import {
   createTerminalEmulator,
   type GhosttyWindowAdjustment,
+  type TerminalTypography,
   type TerminalEmulator,
   type TerminalEmulatorKind,
   type TerminalTheme,
@@ -23,12 +24,8 @@ import {
 /**
  * A real terminal, driven by an injected transport.
  *
- * **The theme is fixed for a session.** The emulator draws to a canvas, so it
- * inherits nothing from CSS and is handed literal colours at construction.
- * `options.theme` after `open()` is a no-op that logs a warning, and the
- * supported route, `reset()`, wipes the screen and the scrollback. Losing a
- * build log to a theme toggle is the worse trade, so a terminal keeps the
- * scheme it opened in and a new tab picks up the current one.
+ * Theme and window effects update through the emulator adapter without
+ * replacing terminal state or scrollback.
  *
  * **Unmounting terminates the session, unless the caller says otherwise.** See
  * `disposition`.
@@ -42,6 +39,7 @@ interface TerminalViewCommonProps extends TerminalDescriptor {
   emulator?: TerminalEmulatorKind;
   /** Window geometry and background effects applied only by the Ghostty adapter. */
   ghosttyWindow?: GhosttyWindowAdjustment;
+  typography?: TerminalTypography;
   /** Literal colours. Resolve with `readTerminalTheme`. */
   theme?: TerminalTheme;
   testId?: string;
@@ -93,6 +91,7 @@ export function TerminalView({
   disposition = 'terminate',
   emulator = 'xterm',
   ghosttyWindow,
+  typography,
   theme,
   testId = 'terminal',
   focusRequest = 0,
@@ -122,6 +121,14 @@ export function TerminalView({
   callbacks.current = { onSplit, onNavigateSplit, onExit, onError, onTitleChange };
   pendingFocusRequest.current = focusRequest;
   requestedFocus.current = focused;
+
+  useEffect(() => {
+    if (typography) terminal.current?.setTypography(typography);
+  }, [typography]);
+
+  useEffect(() => {
+    terminal.current?.setAppearance(theme, ghosttyWindow);
+  }, [ghosttyWindow, theme]);
 
   // The disposition is read at cleanup rather than at mount, so a caller that
   // changes it while a session runs gets the current answer.
@@ -210,7 +217,12 @@ export function TerminalView({
     void Promise.resolve().then(async () => {
       if (disposed || !host.current) return;
 
-      term = await createTerminalEmulator(emulator, theme, ghosttyWindow);
+      term = await createTerminalEmulator(
+        emulator,
+        theme,
+        ghosttyWindow,
+        typography,
+      );
       if (disposed || !host.current) {
         term.dispose();
         return;

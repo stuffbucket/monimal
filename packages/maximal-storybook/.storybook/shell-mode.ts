@@ -116,6 +116,6 @@ export function applyShellRoot(_mode: ShellMode, element: HTMLElement): void {
  * still switches a single story either way.
  */
 export function initialShellMode(): ShellMode {
-  const requested = import.meta.env['STORYBOOK_SHELL_MODE'] as string | undefined;
+  const requested: unknown = import.meta.env['STORYBOOK_SHELL_MODE'];
   return requested === 'package' ? 'package' : 'app';
 }

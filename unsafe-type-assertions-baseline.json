@@ -750,11 +750,6 @@
     "count": 1
   },
   {
-    "path": "packages/maximal-electron/.storybook/shell-mode.ts",
-    "kind": "unvalidated-environment",
-    "count": 1
-  },
-  {
     "path": "packages/maximal-electron/src/renderer/lib/tab-transfer.ts",
     "kind": "unvalidated-json-parse",
     "count": 1

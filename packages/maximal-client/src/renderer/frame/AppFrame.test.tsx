@@ -6,9 +6,9 @@ import {
   AppFrame,
   PRODUCT_TABS,
   SETTINGS_TAB,
+  Status,
   SurfaceRail,
   SurfaceRight,
-  SurfaceStatus,
   SurfaceTop,
   useTabPanelId,
   useTabTriggerId,
@@ -171,8 +171,12 @@ describe('AppFrame', () => {
     expect(onOpenAssistant).toHaveBeenCalledOnce()
   })
 
-  it('keeps the status bar available in Settings', () => {
-    const settings = renderFrame('settings', vi.fn(), <p>settings</p>)
+  it('shows the status bar only while a status is registered', () => {
+    const settings = renderFrame(
+      'settings',
+      vi.fn(),
+      <Status id="settings-status">Settings status</Status>,
+    )
     expect(settings.querySelector('.statusbar')).not.toBeNull()
 
     act(() => {
@@ -187,32 +191,27 @@ describe('AppFrame', () => {
         </AppFrame>,
       )
     })
-    expect(settings.querySelector('.statusbar')).not.toBeNull()
+    expect(settings.querySelector('.statusbar')).toBeNull()
   })
 
-  it('lists the product views as tabs, with the current view marked selected', () => {
+  it('keeps product views on the workbar rather than document tabs', () => {
     const shell = renderFrame('traffic', vi.fn(), <p>content</p>)
     const tabs = [...shell.querySelectorAll('[role="tab"]')]
 
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Overview', 'Traffic', 'Settings'])
-
-    const selected = tabs.filter((tab) => tab.getAttribute('aria-selected') === 'true')
-    expect(selected).toHaveLength(1)
-    expect(selected[0]?.textContent).toBe('Traffic')
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Settings'])
+    expect(tabs[0]?.getAttribute('aria-selected')).toBe('false')
+    expect(shell.querySelector('[role="tabpanel"]')?.getAttribute('aria-label'))
+      .toBe('Traffic')
   })
 
-  it('gives every view a stable tab id and its identifying icon', () => {
+  it('gives document tabs stable ids and identifying icons', () => {
     const shell = renderFrame('overview', vi.fn(), <p>content</p>)
     const tabs = [...shell.querySelectorAll('[role="tab"]')]
 
     expect(tabs.map((tab) => tab.id)).toEqual([
-      'maximal-documents-tab-overview',
-      'maximal-documents-tab-traffic',
       'maximal-documents-tab-settings',
     ])
-    expect(tabs[0]?.querySelector('svg.lucide-file-text')).not.toBeNull()
-    expect(tabs[1]?.querySelector('svg.lucide-folder')).not.toBeNull()
-    expect(tabs[2]?.querySelector('svg.lucide-settings')).not.toBeNull()
+    expect(tabs[0]?.querySelector('svg.lucide-settings')).not.toBeNull()
   })
 
   it('renders a terminal session with a closable document and right inspector', () => {
@@ -397,9 +396,9 @@ describe('AppFrame', () => {
         <SurfaceRight>
           <p data-testid="right-content">right</p>
         </SurfaceRight>
-        <SurfaceStatus>
+        <Status id="status-content">
           <p data-testid="status-content">status</p>
-        </SurfaceStatus>
+        </Status>
         <p data-testid="main-content">main</p>
       </>,
     )

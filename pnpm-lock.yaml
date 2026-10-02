@@ -15,6 +15,9 @@ overrides:
 
 pnpmfileChecksum: sha256-c+AMCI7sgMcePT9QVtWjbEvQm0PUu/woz6wvvVqIEEU=
 
+patchedDependencies:
+  '@wterm/dom@0.4.1': 526bb087ac48bac1a1aadf80da6ebadd1e606837b6f7f88993d88e68f4757162
+
 importers:
 
   .:
@@ -465,7 +468,7 @@ importers:
         version: 5.103.2(react@19.2.8)
       '@wterm/dom':
         specifier: 0.4.1
-        version: 0.4.1
+        version: 0.4.1(patch_hash=526bb087ac48bac1a1aadf80da6ebadd1e606837b6f7f88993d88e68f4757162)
       '@wterm/ghostty':
         specifier: 0.4.1
         version: 0.4.1
@@ -866,7 +869,7 @@ importers:
         version: typescript@7.0.2
       '@wterm/dom':
         specifier: 0.4.1
-        version: 0.4.1
+        version: 0.4.1(patch_hash=526bb087ac48bac1a1aadf80da6ebadd1e606837b6f7f88993d88e68f4757162)
       '@wterm/ghostty':
         specifier: 0.4.1
         version: 0.4.1
@@ -1551,7 +1554,7 @@ importers:
         version: typescript@7.0.2
       '@wterm/dom':
         specifier: 0.4.1
-        version: 0.4.1
+        version: 0.4.1(patch_hash=526bb087ac48bac1a1aadf80da6ebadd1e606837b6f7f88993d88e68f4757162)
       '@wterm/ghostty':
         specifier: 0.4.1
         version: 0.4.1
@@ -13540,7 +13543,7 @@ snapshots:
 
   '@wterm/core@0.4.1': {}
 
-  '@wterm/dom@0.4.1':
+  '@wterm/dom@0.4.1(patch_hash=526bb087ac48bac1a1aadf80da6ebadd1e606837b6f7f88993d88e68f4757162)':
     dependencies:
       '@wterm/core': 0.4.1
 

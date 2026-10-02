@@ -76,7 +76,9 @@ describe('ThirdPartyLicensesDialog', () => {
 
     expect(getLicenseText).toHaveBeenCalledOnce()
     expect(mountedContainer.querySelector('.license-dialog__reader')).not.toBeNull()
-    expect(mountedContainer.querySelector('.license-dialog__text')?.tagName).toBe('PRE')
+    const licenseText = mountedContainer.querySelector('.license-dialog__text')
+    expect(licenseText?.tagName).toBe('PRE')
+    expect(licenseText?.getAttribute('data-shell-selectable')).toBe('true')
 
     const close = [...mountedContainer.querySelectorAll('button')].find(
       (button) => button.textContent === 'Close',

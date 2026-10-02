@@ -29,7 +29,7 @@ import {
   type AppTab,
 } from './frame/AppFrame'
 import { WorkspaceRail } from './frame/WorkspaceRail'
-import { WorkspaceMap } from './workspace-map/WorkspaceMap'
+import { WorkspaceMap } from './home/WorkspaceMap'
 import { Overview } from './overview/Overview'
 import { Settings, type SettingsSectionRequest } from './settings/Settings'
 import type { SettingsCapabilities } from './settings/capabilities'
@@ -70,7 +70,6 @@ const TAB_COLOR_LABELS: Record<TabColor, string> = {
 
 interface ActiveSurfaceProps {
   current: AppTab | undefined
-  browserVisible: boolean
   terminalTabs: Array<{ id: string; sessionId: string; title: string }>
   settings: SettingsCapabilities
   sectionRequest: SettingsSectionRequest | null
@@ -79,9 +78,49 @@ interface ActiveSurfaceProps {
   projectBrowser?: ReactElement
 }
 
+const WORKSPACE_SURFACE_COPY = {
+  projects: {
+    title: 'Projects',
+    description: 'Browse and manage your Maximal projects.',
+  },
+  terminals: {
+    title: 'Terminals',
+    description: 'Manage terminal sessions and reopen background terminals.',
+  },
+  browsers: {
+    title: 'Browsers',
+    description: 'Manage browser sessions connected to your workspaces.',
+  },
+} as const
+
+function WorkspaceSurface({
+  surface,
+}: {
+  surface: keyof typeof WORKSPACE_SURFACE_COPY
+}): ReactElement {
+  const copy = WORKSPACE_SURFACE_COPY[surface]
+  return (
+    <main className="workspace-surface">
+      <header className="workspace-surface__header">
+        <h1>{copy.title}</h1>
+        <p>{copy.description}</p>
+      </header>
+    </main>
+  )
+}
+
+function workspaceSurfaceFrom(
+  kind: AppTab['kind'] | undefined,
+): keyof typeof WORKSPACE_SURFACE_COPY | null {
+  return kind === 'projects'
+    || kind === 'terminals'
+    || kind === 'browsers'
+    ? kind
+    : null
+}
+
 function ActiveSurface({
   current,
-  browserVisible,
   terminalTabs,
   settings,
   sectionRequest,
@@ -91,11 +130,14 @@ function ActiveSurface({
 }: ActiveSurfaceProps): ReactElement {
   if (projectBrowser) return projectBrowser
 
+  const workspaceSurface = workspaceSurfaceFrom(current?.kind)
   return (
     <>
+      {current?.kind === 'home' ? <WorkspaceMap /> : null}
+      {workspaceSurface ? <WorkspaceSurface surface={workspaceSurface} /> : null}
       {current?.kind === 'overview' ? <Overview /> : null}
       {current?.kind === 'traffic' ? <Traffic /> : null}
-      {browserVisible && current?.kind === 'browser' && current.browserId && current.url ? (
+      {current?.kind === 'browser' && current.browserId && current.url ? (
         <BrowserSurface
           session={{
             id: current.browserId,
@@ -119,6 +161,7 @@ function ActiveSurface({
           initialPane={terminalState.detachedWindow?.pane}
           initialPanes={terminalState.panes}
           paneRevisions={terminalState.paneRevisions}
+          typography={settings.terminalTypography}
         />
       ) : null}
       {current?.kind === 'settings' ? (
@@ -277,7 +320,6 @@ export function AppWorkspace({
 }: AppWorkspaceProps): ReactElement {
   const [profileError, setProfileError] = useState<string>()
   const [browserAddress, setBrowserAddress] = useState<string>()
-  const [mapOpen, setMapOpen] = useState(false)
   const [projectBrowserOpen, setProjectBrowserOpen] = useState(false)
   const [focusedTerminalSessions, setFocusedTerminalSessions] = useState<
     Record<string, string>
@@ -489,7 +531,6 @@ export function AppWorkspace({
       >
         <ActiveSurface
           current={current}
-          browserVisible={!mapOpen}
           terminalTabs={terminalTabs}
           settings={settings}
           sectionRequest={sectionRequest}
@@ -536,10 +577,9 @@ export function AppWorkspace({
           <>
             <SurfaceActivity>
               <WorkspaceRail
-                tabs={terminalState.tabs}
                 current={current.id}
                 onSelect={(id) => requestNavigation(() => terminalState.setActiveTab(id))}
-                onOpenMap={() => setMapOpen(true)}
+                workbar={settings.workbar}
                 account={account}
                 onOpenProfileSurface={openProfileSurface}
                 onSignIn={() => openSettings('settings-account-heading')}
@@ -582,13 +622,6 @@ export function AppWorkspace({
         </Button>
       </Dialog>
       <TerminalDialogs terminalState={terminalState} />
-      <WorkspaceMap
-        open={mapOpen}
-        tabs={terminalState.tabs}
-        panes={terminalState.panes}
-        onOpenChange={setMapOpen}
-        onFocus={(id) => requestNavigation(() => terminalState.setActiveTab(id))}
-      />
     </>
   )
 }

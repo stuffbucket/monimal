@@ -29,6 +29,9 @@ graph and package contents.
 
 The renderer export provides reusable shell layout, navigation, controls,
 settings surfaces, terminal tabs, and renderer-safe helpers.
+`TypefaceControls` composes compact family, style, weight, and metric fields;
+`UnitValueInput` keeps presentation units in the UI while committing normalized
+canonical values and restoring an automatic value when cleared.
 
 Consumers MUST import
 `@maximal/maximal-electron/renderer/styles.css` and define their own

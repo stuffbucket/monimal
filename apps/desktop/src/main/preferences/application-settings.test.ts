@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
+import { DEFAULT_TERMINAL_PALETTE_SETTINGS } from '@maximal/maximal-terminal/renderer'
 
 import {
   loadApplicationSettings,
@@ -10,6 +11,9 @@ import {
   setMaterialPreference,
   setReducedMotionEnabled,
   setVibrancyEnabled,
+  setTerminalTypography,
+  setWorkbarLayout,
+  workbarLayoutSchema,
 } from './application-settings'
 
 const directories: string[] = []
@@ -162,6 +166,69 @@ describe('loadApplicationSettings', () => {
       .toBe(false)
   })
 
+  it('validates terminal typography from legacy preferences', async () => {
+    const directory = await fixture()
+    await writeFile(
+      join(directory, 'preferences.json'),
+      JSON.stringify({
+        terminalTypography: {
+          fontFamily: 'JetBrainsMono Nerd Font',
+          fontSize: 14.25,
+          fontWeight: 550,
+          fontVariations: {},
+          cellHeight: 10,
+          tracking: 0,
+          baseline: 0,
+          thicken: false,
+          thickenStrength: 50,
+          ligatures: false,
+        },
+      }),
+    )
+    const context = {
+      homeDirectory: directory,
+      cwd: directory,
+      environment: {},
+      argv: [],
+    }
+
+    expect(loadApplicationSettings(directory, context).settings.terminalTypography)
+      .toEqual({
+        fontFamily: 'JetBrainsMono Nerd Font',
+        fontSize: 14.25,
+        fontWeight: 550,
+        fontVariations: {},
+        cellHeight: 10,
+        tracking: 0,
+        baseline: 0,
+        thicken: false,
+        thickenStrength: 0,
+        ligatures: false,
+        fontFeatures: {},
+        palette: DEFAULT_TERMINAL_PALETTE_SETTINGS,
+      })
+
+    await writeFile(
+      join(directory, 'preferences.json'),
+      JSON.stringify({ terminalTypography: { fontSize: 0 } }),
+    )
+    expect(loadApplicationSettings(directory, context).settings.terminalTypography)
+      .toEqual({
+        fontFamily: 'ui-monospace',
+        fontSize: 13,
+        fontWeight: 400,
+        fontVariations: {},
+        cellHeight: 0,
+        tracking: 0,
+        baseline: 0,
+        thicken: false,
+        thickenStrength: 0,
+        ligatures: true,
+        fontFeatures: {},
+        palette: DEFAULT_TERMINAL_PALETTE_SETTINGS,
+      })
+  })
+
   it('rejects tmux shell text instead of treating it as a status policy', async () => {
     const directory = await fixture()
 
@@ -171,5 +238,99 @@ describe('loadApplicationSettings', () => {
       environment: { MAXIMAL_TERMINAL_TMUX_STATUS: 'off; run-shell bad' },
       argv: [],
     })).toThrow(/MAXIMAL_TERMINAL_TMUX_STATUS/)
+  })
+
+  it('persists terminal typography through the application settings store', async () => {
+    const directory = await fixture()
+    const settings = {
+      fontFamily: 'Hack Nerd Font Mono',
+      fontSize: 15,
+      fontWeight: 525,
+      fontVariations: { GRAD: 50 },
+      cellHeight: 10.1,
+      tracking: 5.2,
+      baseline: -10.3,
+      thicken: true,
+      thickenStrength: 75,
+      ligatures: false,
+      fontFeatures: { calt: false, liga: false, zero: true },
+      palette: DEFAULT_TERMINAL_PALETTE_SETTINGS,
+    }
+
+    await expect(setTerminalTypography(directory, settings)).resolves.toEqual(settings)
+    await expect(setTerminalTypography(directory, {
+      ...settings,
+      fontSize: 16.25,
+    })).resolves.toMatchObject({ fontSize: 16.25 })
+    await expect(setTerminalTypography(directory, {
+      ...settings,
+      fontWeight: 50,
+    })).resolves.toMatchObject({ fontWeight: 50 })
+    await expect(setTerminalTypography(directory, {
+      ...settings,
+      fontWeight: 1000,
+    })).resolves.toMatchObject({ fontWeight: 1000 })
+    await expect(setTerminalTypography(directory, {
+      ...settings,
+      fontWeight: 512,
+    })).rejects.toThrow()
+    await expect(setTerminalTypography(directory, {
+      ...settings,
+      fontWeight: 25,
+    })).rejects.toThrow()
+    await expect(setTerminalTypography(directory, {
+      ...settings,
+      fontWeight: 1025,
+    })).rejects.toThrow()
+    await expect(setTerminalTypography(directory, {
+      ...settings,
+      fontVariations: { invalid: 1 },
+    })).rejects.toThrow()
+    await expect(setTerminalTypography(directory, {
+      ...settings,
+      tracking: 5.25,
+    })).rejects.toThrow()
+    await expect(setTerminalTypography(directory, {
+      ...settings,
+      palette: {
+        ...settings.palette,
+        dark: { ...settings.palette.dark, background: 'black' },
+      },
+    })).rejects.toThrow()
+    await expect(setTerminalTypography(directory, {
+      ...settings,
+      palette: {
+        ...settings.palette,
+        effects: { ...settings.palette.effects, opacity: 1.1 },
+      },
+    })).rejects.toThrow()
+  })
+
+  it('persists and validates workbar layout through the application settings store', async () => {
+    const directory = await fixture()
+    const layout = {
+      order: ['projects', 'home', 'overview', 'traffic', 'terminals', 'browsers'] as const,
+      visible: ['projects', 'home', 'terminals'] as const,
+    }
+
+    await expect(setWorkbarLayout(directory, {
+      order: [...layout.order],
+      visible: [...layout.visible],
+    })).resolves.toEqual(layout)
+    expect(loadApplicationSettings(directory).settings.workbarLayout).toEqual(layout)
+    await expect(setWorkbarLayout(directory, {
+      order: ['home', 'home', 'overview', 'traffic', 'terminals', 'browsers'],
+      visible: ['home'],
+    })).rejects.toThrow()
+  })
+
+  it('normalizes stale persisted workbar layouts without losing user order', () => {
+    expect(workbarLayoutSchema.parse({
+      order: ['projects', 'removed', 'projects', 'home'],
+      visible: ['projects', 'removed', 'projects'],
+    })).toEqual({
+      order: ['projects', 'home', 'overview', 'traffic', 'terminals', 'browsers'],
+      visible: ['projects'],
+    })
   })
 })

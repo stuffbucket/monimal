@@ -19,9 +19,15 @@ describe('the renderer', () => {
 
     expect(named.length).toBeGreaterThan(0);
     expect([...new Set(named.filter((entry) => !entry.includes(': --shell-')))].sort()).toEqual([
+      'emulator.ts: --maximal-term-baseline',
       'emulator.ts: --term-bg',
       'emulator.ts: --term-cursor',
       'emulator.ts: --term-fg',
+      'emulator.ts: --term-font-family',
+      'emulator.ts: --term-font-size',
+      'emulator.ts: --term-line-height',
+      'emulator.ts: --term-row-height',
+      'emulator.ts: --term-selection',
     ]);
   });
 });

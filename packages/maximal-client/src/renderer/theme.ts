@@ -103,8 +103,9 @@ const THEME_CSS = `
      overlay, and being fixed is what frees it from depending on a height
      chain through html/body/#root. */
    --shell-font:
-      400 1rem/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui,
-      sans-serif;
+       400 0.8125rem/var(--shell-leading-base, 1.35)
+      -apple-system, BlinkMacSystemFont, 'Segoe UI Variable', 'Segoe UI',
+      'Helvetica Neue', system-ui, sans-serif;
 
   /* Status colours, centralized here so surfaces do not each hardcode them.
      The first two are the package's names, supplied as any consumer supplies

@@ -5,22 +5,61 @@ import { WTerm } from '@wterm/dom';
 import { GhosttyCore } from '@wterm/ghostty';
 import ghosttyWasmUrl from '@wterm/ghostty/ghostty-vt.wasm?url&inline';
 
+import type {
+  GhosttyWindowAdjustment,
+  TerminalPaletteSettings,
+} from './appearance.js';
 import { OscTitleObserver } from './osc-title.js';
 
+export type { GhosttyWindowAdjustment } from './appearance.js';
 export type TerminalTheme = ITheme;
 export type TerminalEmulatorKind = 'xterm' | 'ghostty';
 
-export interface GhosttyWindowAdjustment {
-  /** Horizontal content padding in CSS pixels. */
-  paddingX?: number;
-  /** Vertical content padding in CSS pixels. */
-  paddingY?: number;
-  /** Keep the configured padding equal on opposing edges. */
-  balance?: boolean;
-  /** Terminal background opacity from 0 through 1. Text remains opaque. */
-  opacity?: number;
-  /** Backdrop blur radius in CSS pixels. Zero disables blur. */
-  blur?: number;
+export interface TerminalTypography {
+  fontFamily: string;
+  fontSize: number;
+  fontWeight: number;
+  fontVariations: Record<string, number>;
+  cellHeight: number;
+  tracking: number;
+  baseline: number;
+  thicken: boolean;
+  thickenStrength: number;
+  ligatures: boolean;
+  fontFeatures?: Record<string, boolean>;
+  palette?: TerminalPaletteSettings;
+}
+
+export function terminalFontVariationSettings(
+  typography: Pick<TerminalTypography, 'fontVariations' | 'fontWeight'>,
+): string {
+  const variations = new Map(Object.entries(typography.fontVariations));
+  variations.set('wght', typography.fontWeight);
+  return [...variations]
+    .filter(([tag, value]) =>
+      /^[\x20-\x7e]{4}$/u.test(tag) && Number.isFinite(value))
+    .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+    .map(([tag, value]) => `${JSON.stringify(tag)} ${String(value)}`)
+    .join(', ');
+}
+
+export function terminalFontFeatureSettings(
+  typography: Pick<TerminalTypography, 'fontFeatures' | 'ligatures'>,
+): string {
+  const features = {
+    calt: typography.ligatures,
+    liga: typography.ligatures,
+    ...typography.fontFeatures,
+  };
+  return Object.entries(features)
+    .filter(([tag]) => /^[\x20-\x7e]{4}$/u.test(tag))
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([tag, enabled]) => `${JSON.stringify(tag)} ${enabled ? '1' : '0'}`)
+    .join(', ');
+}
+
+export function terminalThickenStrokeEm(strength: number): number {
+  return 0.018 + (strength / 255) * 0.045;
 }
 
 interface TerminalDisposable {
@@ -55,6 +94,8 @@ export interface TerminalEmulator {
   selectAll(): void;
   scrollToTop(): void;
   scrollToBottom(): void;
+  setTypography(typography: TerminalTypography): void;
+  setAppearance(theme?: TerminalTheme, adjustment?: GhosttyWindowAdjustment): void;
   dispose(): void;
 }
 
@@ -105,6 +146,10 @@ function createXtermEmulator(theme?: TerminalTheme): TerminalEmulator {
     selectAll: () => terminal.selectAll(),
     scrollToTop: () => terminal.scrollToTop(),
     scrollToBottom: () => terminal.scrollToBottom(),
+    setTypography: () => undefined,
+    setAppearance: (nextTheme) => {
+      if (nextTheme) terminal.options.theme = nextTheme;
+    },
     dispose: () => terminal.dispose(),
   };
 }
@@ -129,6 +174,10 @@ function applyGhosttyWindow(
   const paddingY = bounded(adjustment.paddingY, 0, 64);
   const opacity = bounded(adjustment.opacity, 1, 1);
   const blur = bounded(adjustment.blur, 0, 64);
+  const tintAmount = bounded(adjustment.tintAmount, 0, 1);
+  const tone = Number.isFinite(adjustment.tone)
+    ? Math.min(1, Math.max(-1, adjustment.tone!))
+    : 0;
   const background = theme?.background ?? '#1e1e1e';
 
   host.style.boxSizing = 'border-box';
@@ -140,7 +189,48 @@ function applyGhosttyWindow(
       : `color-mix(in srgb, ${background} ${String(opacity * 100)}%, transparent)`,
   );
   host.style.backdropFilter = blur === 0 ? 'none' : `blur(${String(blur)}px)`;
+  const layers: string[] = [];
+  const blendModes: string[] = [];
+  if (adjustment.tint && tintAmount > 0) {
+    layers.push(`linear-gradient(rgb(from ${adjustment.tint} r g b / ${String(tintAmount)}), rgb(from ${adjustment.tint} r g b / ${String(tintAmount)}))`);
+    blendModes.push(adjustment.blendMode ?? 'normal');
+  }
+  if (tone !== 0) {
+    const toneColour = tone < 0 ? '0 0 0' : '255 255 255';
+    layers.push(`linear-gradient(rgb(${toneColour} / ${String(Math.abs(tone))}), rgb(${toneColour} / ${String(Math.abs(tone))}))`);
+    blendModes.push('normal');
+  }
+  host.style.backgroundImage = layers.join(', ');
+  host.style.backgroundBlendMode = blendModes.join(', ');
   host.dataset.ghosttyPaddingBalance = String(adjustment.balance ?? false);
+}
+
+const ANSI_THEME_KEYS: Array<[keyof TerminalTheme, number]> = [
+  ['black', 0], ['red', 1], ['green', 2], ['yellow', 3],
+  ['blue', 4], ['magenta', 5], ['cyan', 6], ['white', 7],
+  ['brightBlack', 8], ['brightRed', 9], ['brightGreen', 10],
+  ['brightYellow', 11], ['brightBlue', 12], ['brightMagenta', 13],
+  ['brightCyan', 14], ['brightWhite', 15],
+];
+
+function applyGhosttyAppearance(
+  host: HTMLElement,
+  theme: TerminalTheme | undefined,
+  adjustment: GhosttyWindowAdjustment | undefined,
+): void {
+  if (theme?.foreground) host.style.setProperty('--term-fg', theme.foreground);
+  if (theme?.background) host.style.setProperty('--term-bg', theme.background);
+  if (theme?.cursor) host.style.setProperty('--term-cursor', theme.cursor);
+  if (theme?.selectionBackground) {
+    host.style.setProperty('--term-selection', theme.selectionBackground);
+  }
+  for (const [key, index] of ANSI_THEME_KEYS) {
+    const colour = theme?.[key];
+    if (typeof colour === 'string') {
+      host.style.setProperty(`--term-color-${String(index)}`, colour);
+    }
+  }
+  if (adjustment) applyGhosttyWindow(host, theme, adjustment);
 }
 
 function fitGhosttyTerminal(host: HTMLElement, terminal: WTerm): void {
@@ -170,9 +260,48 @@ function fitGhosttyTerminal(host: HTMLElement, terminal: WTerm): void {
   if (cols !== terminal.cols || rows !== terminal.rows) terminal.resize(cols, rows);
 }
 
+const SYSTEM_MONOSPACE =
+  'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace';
+
+function applyTerminalTypography(
+  host: HTMLElement,
+  typography: TerminalTypography,
+): void {
+  const fontSizePixels = typography.fontSize * (96 / 72);
+  const lineHeight = 1.2 * (1 + typography.cellHeight / 100);
+  const fontFamily = typography.fontFamily === 'ui-monospace'
+    ? SYSTEM_MONOSPACE
+    : JSON.stringify(typography.fontFamily);
+
+  host.style.setProperty('--term-font-family', fontFamily);
+  host.style.setProperty('--term-font-size', `${String(fontSizePixels)}px`);
+  host.style.setProperty(
+    '--term-row-height',
+    `${String(fontSizePixels * lineHeight)}px`,
+  );
+  host.style.setProperty('--term-line-height', String(lineHeight));
+  host.style.fontWeight = String(typography.fontWeight);
+  host.style.fontOpticalSizing = 'auto';
+  host.style.fontVariationSettings = terminalFontVariationSettings(typography);
+  host.style.letterSpacing = `${String(typography.tracking / 100)}em`;
+  host.style.setProperty(
+    '--maximal-term-baseline',
+    `${String(-typography.baseline / 100)}em`,
+  );
+  const stroke = Number(terminalThickenStrokeEm(
+    typography.thickenStrength,
+  ).toFixed(4));
+  host.style.webkitTextStroke = typography.thicken && typography.thickenStrength > 0
+    ? `${String(stroke)}em currentColor`
+    : '0 currentColor';
+  host.style.fontVariantLigatures = typography.ligatures ? 'normal' : 'none';
+  host.style.fontFeatureSettings = terminalFontFeatureSettings(typography);
+}
+
 async function createGhosttyEmulator(
   theme?: TerminalTheme,
   windowAdjustment?: GhosttyWindowAdjustment,
+  typography?: TerminalTypography,
 ): Promise<TerminalEmulator> {
   const core = await GhosttyCore.load({
     wasmPath: ghosttyWasmUrl,
@@ -249,10 +378,21 @@ async function createGhosttyEmulator(
     open: async (host) => {
       element = host;
       const initialHeight = host.style.height;
-      if (theme?.foreground) host.style.setProperty('--term-fg', theme.foreground);
-      if (theme?.background && !windowAdjustment) host.style.setProperty('--term-bg', theme.background);
-      if (theme?.cursor) host.style.setProperty('--term-cursor', theme.cursor);
-      applyGhosttyWindow(host, theme, windowAdjustment);
+      const style = document.createElement('style');
+      style.dataset.maximalTerminalTypography = 'true';
+      style.textContent = `
+        .wterm .term-row > span,
+        .wterm .term-row > .term-link,
+        .wterm .term-link > span {
+          transform: translateY(var(--maximal-term-baseline, 0));
+        }
+        .wterm ::selection {
+          background: var(--term-selection, rgb(86 156 214 / 0.3));
+        }
+      `;
+      host.appendChild(style);
+      if (typography) applyTerminalTypography(host, typography);
+      applyGhosttyAppearance(host, theme, windowAdjustment);
       host.addEventListener('keydown', handleKeyEvent, { capture: true });
       host.addEventListener('keyup', handleKeyUp, { capture: true });
       host.addEventListener('input', handleInput, { capture: true });
@@ -305,6 +445,15 @@ async function createGhosttyEmulator(
     },
     scrollToTop: () => { if (element) element.scrollTop = 0; },
     scrollToBottom: () => { if (element) element.scrollTop = element.scrollHeight; },
+    setTypography: (next) => {
+      if (!element) return;
+      applyTerminalTypography(element, next);
+      if (terminal) fitGhosttyTerminal(element, terminal);
+    },
+    setAppearance: (nextTheme, nextAdjustment) => {
+      if (!element) return;
+      applyGhosttyAppearance(element, nextTheme, nextAdjustment);
+    },
     dispose: () => {
       element?.removeEventListener('keydown', handleKeyEvent, { capture: true });
       element?.removeEventListener('keyup', handleKeyUp, { capture: true });
@@ -319,8 +468,9 @@ export async function createTerminalEmulator(
   kind: TerminalEmulatorKind = 'xterm',
   theme?: TerminalTheme,
   ghosttyWindow?: GhosttyWindowAdjustment,
+  typography?: TerminalTypography,
 ): Promise<TerminalEmulator> {
   return kind === 'ghostty'
-    ? createGhosttyEmulator(theme, ghosttyWindow)
+    ? createGhosttyEmulator(theme, ghosttyWindow, typography)
     : createXtermEmulator(theme);
 }

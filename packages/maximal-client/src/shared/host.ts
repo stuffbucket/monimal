@@ -71,7 +71,10 @@ import type {
   TerminalDataMessage,
   TerminalExitMessage,
   TerminalSession,
+  TerminalTypography,
 } from '@maximal/maximal-terminal/renderer'
+
+export const TERMINAL_THICKEN_DEFAULT = 5
 import type { ShutdownSnapshot } from '@maximal/maximal-electron/main'
 import type {
   DiscoveryRoot,
@@ -209,6 +212,58 @@ export interface PersistedMaterialPreference {
   lighting: MaterialLighting
   timezone: string
 }
+
+export type TerminalTypographySettings = TerminalTypography
+
+export const WORKBAR_ITEM_IDS = [
+  'home',
+  'projects',
+  'overview',
+  'traffic',
+  'terminals',
+  'browsers',
+] as const
+
+export type WorkbarItemId = (typeof WORKBAR_ITEM_IDS)[number]
+
+export interface WorkbarLayout {
+  order: WorkbarItemId[]
+  visible: WorkbarItemId[]
+}
+
+export interface TerminalFontDownload {
+  id: string
+  label: string
+  family: string
+  installed: boolean
+  downloadSize: number
+  license: string
+  sourceUrl: string
+}
+
+export interface TerminalFontAxis {
+  tag: string
+  minimum: number
+  default: number
+  maximum: number
+}
+
+export type TerminalFontCatalog =
+  | {
+      status: 'available'
+      fonts: string[]
+      fontWeights?: Record<string, number[]>
+      fontAxes?: Record<string, TerminalFontAxis[]>
+      fontAxesMessage?: string
+      downloads: TerminalFontDownload[]
+      ghosttyPath: string
+    }
+  | {
+      status: 'unavailable'
+      fonts: []
+      downloads: TerminalFontDownload[]
+      message: string
+    }
 
 export interface OllamaRuntimePreferences {
   start_on_maximal_launch: boolean
@@ -361,6 +416,19 @@ export interface MaximalHost {
     refresh: (rootId?: string) => Promise<ProjectCatalogSnapshot>
     opened: (projectId: string) => Promise<void>
     onChange: (listener: () => void) => Unsubscribe
+  }
+  terminalTypography: {
+    get: () => Promise<TerminalTypographySettings>
+    update: (settings: TerminalTypographySettings) => Promise<TerminalTypographySettings>
+    fonts: () => Promise<TerminalFontCatalog>
+    installFont: (fontId: string) => Promise<TerminalFontCatalog>
+    openPreview: () => Promise<void>
+    onChange: (listener: (settings: TerminalTypographySettings) => void) => Unsubscribe
+  }
+  workbar: {
+    get: () => Promise<WorkbarLayout>
+    update: (layout: WorkbarLayout) => Promise<WorkbarLayout>
+    onChange: (listener: (layout: WorkbarLayout) => void) => Unsubscribe
   }
   harness: {
     show: () => Promise<void>

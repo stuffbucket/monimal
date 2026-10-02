@@ -8,7 +8,7 @@ import {
 import {
   SurfaceRail,
   SurfaceRight,
-  SurfaceStatus,
+  Status,
 } from '../frame/AppFrame'
 
 export function Traffic() {
@@ -20,9 +20,9 @@ export function Traffic() {
       <SurfaceRight>
         <TrafficExplorerInspector />
       </SurfaceRight>
-      <SurfaceStatus>
+      <Status id="traffic" order={100}>
         <TrafficExplorerStatus />
-      </SurfaceStatus>
+      </Status>
       <TrafficExplorerMain />
     </>
   )

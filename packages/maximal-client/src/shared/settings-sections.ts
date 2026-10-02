@@ -37,12 +37,17 @@
  */
 export const SETTINGS_SECTION_IDS = [
   'settings-account-heading',
-  'settings-general-heading',
+  'settings-models-heading',
+  'settings-local-models-heading',
+  'settings-typography-heading',
+  'settings-color-palettes-heading',
+  'settings-shaders-heading',
+  'settings-themes-heading',
+  'settings-interaction-heading',
+  'settings-workbar-heading',
   'settings-projects-heading',
   'settings-connections-heading',
   'settings-search-heading',
-  'settings-models-heading',
-  'settings-local-models-heading',
   'settings-usage-heading',
   'settings-logs-heading',
   'settings-diagnostics-heading',
@@ -67,12 +72,17 @@ export interface SettingsSectionSpec {
  *  between independently-registered contributors, and there is one list. */
 export const SETTINGS_SECTIONS: readonly SettingsSectionSpec[] = [
   { id: 'settings-account-heading', label: 'Accounts' },
-  { id: 'settings-general-heading', label: 'General' },
+  { id: 'settings-models-heading', label: 'Cloud Models' },
+  { id: 'settings-local-models-heading', label: 'Local models' },
+  { id: 'settings-typography-heading', label: 'Typography' },
+  { id: 'settings-color-palettes-heading', label: 'Color Palettes' },
+  { id: 'settings-shaders-heading', label: 'Shaders' },
+  { id: 'settings-themes-heading', label: 'Themes' },
+  { id: 'settings-interaction-heading', label: 'Interaction' },
+  { id: 'settings-workbar-heading', label: 'Workbar' },
   { id: 'settings-projects-heading', label: 'Projects' },
   { id: 'settings-connections-heading', label: 'Connections' },
   { id: 'settings-search-heading', label: 'Search' },
-  { id: 'settings-models-heading', label: 'Cloud Models' },
-  { id: 'settings-local-models-heading', label: 'Local models' },
   { id: 'settings-usage-heading', label: 'Usage' },
   { id: 'settings-logs-heading', label: 'Logs' },
   { id: 'settings-diagnostics-heading', label: 'Diagnostics' },
@@ -101,6 +111,7 @@ const LEGACY_CONNECTION_SECTION_IDS = new Set([
 
 /** Map one-cycle legacy section requests onto their consolidated destination. */
 export function settingsSectionIdFrom(value: unknown): SettingsSectionId | null {
+  if (value === 'settings-general-heading') return 'settings-typography-heading'
   if (typeof value === 'string' && LEGACY_CONNECTION_SECTION_IDS.has(value)) {
     return 'settings-connections-heading'
   }

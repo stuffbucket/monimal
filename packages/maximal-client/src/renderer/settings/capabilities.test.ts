@@ -13,6 +13,8 @@ import type {
   LifecycleStatus,
   MaximalHost,
   PersistedMaterialPreference,
+  TerminalTypographySettings,
+  WorkbarLayout,
 } from '../../shared/host'
 import { ControlCallError } from '../shared/control-error'
 import {
@@ -238,6 +240,38 @@ function fakeBridge(): MaximalHost {
       removeRoot: vi.fn(async () => {}),
       refresh: vi.fn(async () => ({ roots: [], projects: [], refreshing: false })),
       opened: vi.fn(async () => {}),
+      onChange: vi.fn(() => () => {}),
+    },
+    terminalTypography: {
+      get: vi.fn(async () => ({
+        fontFamily: 'ui-monospace',
+        fontSize: 13,
+        fontWeight: 400 as const,
+        fontVariations: {},
+        cellHeight: 0,
+        tracking: 0,
+        baseline: 0,
+        thicken: false,
+        thickenStrength: 50,
+        ligatures: true,
+      })),
+      update: vi.fn(async (settings: TerminalTypographySettings) => settings),
+      fonts: vi.fn(async () => ({
+        status: 'available' as const,
+        fonts: ['JetBrainsMono Nerd Font'],
+        downloads: [],
+        ghosttyPath: '/Applications/Ghostty.app/Contents/MacOS/ghostty',
+      })),
+      installFont: vi.fn(),
+      openPreview: vi.fn(async () => {}),
+      onChange: vi.fn(() => () => {}),
+    },
+    workbar: {
+      get: vi.fn(async (): Promise<WorkbarLayout> => ({
+        order: ['home', 'projects', 'overview', 'traffic', 'terminals', 'browsers'],
+        visible: ['home', 'projects', 'overview', 'traffic', 'terminals', 'browsers'],
+      })),
+      update: vi.fn(async (layout: WorkbarLayout) => layout),
       onChange: vi.fn(() => () => {}),
     },
     harness: {

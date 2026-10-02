@@ -13,12 +13,17 @@ export {
   SurfaceActivity,
   SurfaceRail,
   SurfaceRight,
-  SurfaceStatus,
   SurfaceTop,
   useTabPanelId,
   useTabTriggerId,
   type AppFrameProps,
 } from './components/AppFrame.js';
+export {
+  Status,
+  StatusProvider,
+  StatusViewport,
+  type StatusProps,
+} from './components/Status.js';
 export {
   PartitionedSortableList,
   type PartitionedSortableItem,
@@ -157,6 +162,7 @@ export {
   InspectorPanel,
   Menu,
   Note,
+  NumberInput,
   RadioGroup,
   Row,
   ScrollArea,
@@ -168,7 +174,9 @@ export {
   TextInput,
   Textarea,
   TooltipProvider,
+  TypefaceControls,
   Toolbar,
+  UnitValueInput,
   UnsavedChangesDialog,
   ViewModeSwitch,
   type ButtonSize,
@@ -178,6 +186,11 @@ export {
   type Option,
   type SliderOption,
   type TileProps,
+  type MeasurementUnit,
+  type TypefaceMetric,
+  type TypefaceSelectField,
+  type TypefaceWeightField,
+  type UnitValueInputProps,
   type ViewMode,
 } from './components/controls/index.js';
 export {

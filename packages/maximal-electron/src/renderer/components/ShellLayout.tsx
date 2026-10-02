@@ -115,6 +115,8 @@ export type ShellLayoutProps<T extends Tab> = {
   titleBarLeading?: ReactNode;
   /** Caller-owned actions before the inspector toggle. */
   titleBarActions?: ReactNode;
+  /** Accessible name for a surface that is not represented by a document tab. */
+  documentLabel?: string;
   /** Optional host event adapter, such as an Electron menu subscription. */
   subscribeToPanelToggles?: PanelToggleSubscription;
   top?: ReactNode;
@@ -145,6 +147,7 @@ export function ShellLayout<T extends Tab>({
   tabTransfer,
   titleBarLeading,
   titleBarActions,
+  documentLabel,
   subscribeToPanelToggles,
   top,
   activity,
@@ -256,7 +259,12 @@ export function ShellLayout<T extends Tab>({
       className="tabpanel"
       role="tabpanel"
       id={getTabPanelId(tabIdBase, activeTab)}
-      aria-labelledby={getTabTriggerId(tabIdBase, activeTab)}
+      aria-labelledby={tabs.some(({ id }) => id === activeTab)
+        ? getTabTriggerId(tabIdBase, activeTab)
+        : undefined}
+      aria-label={tabs.some(({ id }) => id === activeTab)
+        ? undefined
+        : documentLabel}
     >
       {main}
     </div>

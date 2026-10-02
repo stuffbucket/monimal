@@ -24,6 +24,16 @@ export function formatTimestamp(value: string): string {
   }).format(new Date(value))
 }
 
+export function formatStatusTimestamp(value: string): string {
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value))
+}
+
 export function displayValue(value: string | number | null): string {
   return value === null ? "Not available" : String(value)
 }

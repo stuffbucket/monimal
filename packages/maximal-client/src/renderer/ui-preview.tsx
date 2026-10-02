@@ -14,7 +14,7 @@ import {
   SurfaceActivity,
   SurfaceRail,
   SurfaceRight,
-  SurfaceStatus,
+  Status,
   type AppTab,
 } from './frame/AppFrame'
 import { WorkspaceRail } from './frame/WorkspaceRail'
@@ -126,7 +126,7 @@ function ProductPreview({ title }: { title: string }): ReactElement {
       <SurfaceRight>
         <aside aria-label={`${title} details`}>{title} details</aside>
       </SurfaceRight>
-      <SurfaceStatus>{title} preview</SurfaceStatus>
+      <Status id={`${title.toLowerCase()}-preview`}>{title} preview</Status>
       <main>
         <h1>{title}</h1>
       </main>
@@ -187,10 +187,9 @@ function PreviewFrame(): ReactElement {
       ) : null}
       <SurfaceActivity>
         <WorkspaceRail
-          tabs={tabs}
           current={current.id}
           onSelect={(id) => setActiveTab(id)}
-          onOpenMap={() => undefined}
+          workbar={capabilities.workbar}
           account={{
             id: 'octocat',
             displayName: 'Octocat',

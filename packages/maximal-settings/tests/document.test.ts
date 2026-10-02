@@ -1,8 +1,12 @@
-import { getJsonDocumentStore } from "@maximal/maximal-settings"
+import {
+  getJsonDocumentStore,
+  getNamedJsonDocumentStore,
+} from "@maximal/maximal-settings"
 import assert from "node:assert/strict"
 import { spawn } from "node:child_process"
 import {
   mkdtempSync,
+  realpathSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -11,6 +15,29 @@ import {
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
+
+void test("named documents keep JSON path construction in settings", () => {
+  const root = mkdtempSync(join(tmpdir(), "settings-named-document-"))
+  try {
+    const store = getNamedJsonDocumentStore({
+      namespace: "legacy-preferences",
+      directoryPath: root,
+      documentName: "preferences",
+    })
+    assert.equal(store.filePath, join(realpathSync(root), "preferences.json"))
+    assert.throws(
+      () =>
+        getNamedJsonDocumentStore({
+          namespace: "invalid",
+          directoryPath: root,
+          documentName: "preferences.json",
+        }),
+      /simple document name/,
+    )
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
 
 void test("document CRUD is singleton, serialized, atomic, private, and recovers after rejection", async () => {
   const root = mkdtempSync(join(tmpdir(), "settings-document-"))

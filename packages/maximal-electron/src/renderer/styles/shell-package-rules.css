@@ -39,7 +39,14 @@
  * drawn at.
  */
 .sb-shell svg.lucide {
+  width: var(--shell-icon-size);
+  height: var(--shell-icon-size);
   stroke-width: var(--shell-icon-stroke);
+}
+
+.sb-shell .icon-button svg.lucide {
+  width: var(--shell-icon-size);
+  height: var(--shell-icon-size);
 }
 
 /*
@@ -83,6 +90,18 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  user-select: none;
+}
+
+.sb-shell.app :is(
+  input,
+  textarea,
+  [contenteditable]:not([contenteditable='false']),
+  [data-shell-selectable='true'],
+  .terminal,
+  .terminal *
+) {
+  user-select: text;
 }
 
 .sb-shell .titlebar {
@@ -1046,6 +1065,61 @@
   font-size: 11px;
 }
 
+.sb-shell .status-viewport {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  gap: var(--shell-space-2);
+  align-items: center;
+}
+
+.sb-shell .status-viewport__content {
+  min-width: 0;
+  flex: 1;
+}
+
+.sb-shell .status-viewport__controls {
+  display: flex;
+  flex: none;
+  gap: var(--shell-space-1);
+  align-items: center;
+}
+
+.sb-shell .status-viewport__position {
+  min-width: 3em;
+  color: var(--shell-text-muted);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.sb-shell .status-viewport__action {
+  display: inline-grid;
+  width: var(--shell-control-sm);
+  height: var(--shell-control-sm);
+  padding: 0;
+  border: 0;
+  border-radius: var(--shell-radius);
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  place-items: center;
+}
+
+.sb-shell .status-viewport__action:hover {
+  color: var(--shell-text);
+  background: var(--shell-hover);
+}
+
+.sb-shell .status-viewport__action:focus-visible {
+  outline: var(--shell-focus-ring-width) solid var(--shell-focus, var(--shell-accent));
+  outline-offset: calc(-1 * var(--shell-focus-ring-width));
+}
+
+.sb-shell .status-viewport__action > svg {
+  width: var(--shell-icon-size);
+  height: var(--shell-icon-size);
+}
+
 .sb-shell .dot {
   width: 7px;
   height: 7px;
@@ -1276,7 +1350,7 @@
   padding: var(--shell-space-4);
   background: var(--shell-raised);
   border: 1px solid var(--shell-border-strong, var(--shell-border));
-  border-radius: var(--shell-radius-dialog, 14px);
+  border-radius: var(--shell-radius-dialog);
   box-shadow: var(--shell-elevation, none);
   transform: translate(-50%, -50%);
 }

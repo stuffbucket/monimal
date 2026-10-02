@@ -41,6 +41,9 @@ body {
   color: var(--text-primary);
   font:
     var(--weight-base) var(--text-base) / var(--leading-base) var(--font-body);
+  font-optical-sizing: auto;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -56,6 +59,18 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
+  user-select: none;
+}
+
+.app :is(
+  input,
+  textarea,
+  [contenteditable]:not([contenteditable='false']),
+  [data-shell-selectable='true'],
+  .terminal,
+  .terminal *
+) {
+  user-select: text;
 }
 
 /* ---------------------------------------------------------------- titlebar */

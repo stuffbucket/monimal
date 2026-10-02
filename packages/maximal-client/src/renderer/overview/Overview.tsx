@@ -8,7 +8,7 @@ import {
 import {
   SurfaceRail,
   SurfaceRight,
-  SurfaceStatus,
+  Status,
 } from '../frame/AppFrame'
 
 export function Overview() {
@@ -18,9 +18,9 @@ export function Overview() {
       <SurfaceRight>
         <OverviewInspector />
       </SurfaceRight>
-      <SurfaceStatus>
+      <Status id="overview" order={100}>
         <OverviewStatus />
-      </SurfaceStatus>
+      </Status>
       <OverviewMain />
     </>
   )
