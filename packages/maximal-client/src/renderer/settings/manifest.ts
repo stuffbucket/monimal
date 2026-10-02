@@ -26,7 +26,7 @@ import { AccountSection } from './AccountSection'
 import {
   ShadersSection,
   ThemesSection,
-} from './AppearancePlaceholderSections'
+} from './AppearanceSections'
 import type { SettingsCapabilities } from './capabilities'
 import { ConnectionsSection } from './ConnectionsSection'
 import { DiagnosticsSection } from './DiagnosticsSection'

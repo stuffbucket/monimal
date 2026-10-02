@@ -9,10 +9,15 @@ import type {
   SettingsCapabilities,
   TerminalTypographySettings,
 } from './capabilities'
+import {
+  ShadersSection,
+  ThemesSection,
+} from './AppearanceSections'
 import { GeneralSection } from './GeneralSection'
 import { TerminalTypographySettings as TerminalAppearanceSettings } from './general/TerminalTypographySettings'
 import { appearancePreferenceQueryKey } from './general/useAppearancePreference'
 import { menuBarModeQueryKey } from './general/useMenuBarPresence'
+import { materialPreferenceQueryKey } from '../useMaterialPreference'
 
 vi.mock('./general/TerminalTypographyPreview', () => ({
   TerminalTypographyPreview: () => (
@@ -225,6 +230,8 @@ async function renderGeneral(
   optionsOrSurface:
     | { seedMenuBar?: boolean }
     | 'interaction'
+    | 'shaders'
+    | 'themes'
     | 'typography'
     | 'palette' = 'interaction',
 ): Promise<HTMLElement> {
@@ -234,6 +241,10 @@ async function renderGeneral(
   client.setQueryData(
     appearancePreferenceQueryKey,
     await capabilities.general.appearance(),
+  )
+  client.setQueryData(
+    materialPreferenceQueryKey,
+    await capabilities.general.material(),
   )
   const surface = typeof optionsOrSurface === 'string'
     ? optionsOrSurface
@@ -252,12 +263,16 @@ async function renderGeneral(
       <QueryClientProvider client={client}>
         {surface === 'interaction'
           ? <GeneralSection capabilities={capabilities} />
-          : (
+          : surface === 'shaders'
+            ? <ShadersSection capabilities={capabilities} />
+            : surface === 'themes'
+              ? <ThemesSection />
+              : (
               <TerminalAppearanceSettings
                 capabilities={capabilities.terminalTypography}
                 surface={surface}
               />
-            )}
+                )}
       </QueryClientProvider>,
     )
     await Promise.resolve()
@@ -330,7 +345,7 @@ function button(label: string): HTMLButtonElement {
 describe('GeneralSection', () => {
   it('offers auto, light, dark, sourced palettes, and portable theme actions', async () => {
     const { capabilities } = fakeCapabilities()
-    const surface = await renderGeneral(capabilities)
+    const surface = await renderGeneral(capabilities, 'themes')
 
     expect(surface.querySelector('[data-testid="appearance-mode"]')).not.toBeNull()
     expect(surface.querySelector('[data-testid="appearance-preset"]')?.textContent).toContain(
@@ -360,7 +375,7 @@ describe('GeneralSection', () => {
 
   it('enables native vibrancy from Appearance settings', async () => {
     const { capabilities, general } = fakeCapabilities()
-    const surface = await renderGeneral(capabilities)
+    const surface = await renderGeneral(capabilities, 'shaders')
 
     expect(surface.textContent).toContain('Window materials')
     expect(surface.textContent).toContain(
@@ -385,7 +400,7 @@ describe('GeneralSection', () => {
       backgroundEffectsEnabled: false,
       reducedMotionEnabled: false,
     })
-    const surface = await renderGeneral(capabilities)
+    const surface = await renderGeneral(capabilities, 'shaders')
 
     expect(surface.textContent).toContain('Native vibrancy is available on macOS.')
     expect(vibrancyControl(surface).disabled).toBe(true)
@@ -393,7 +408,7 @@ describe('GeneralSection', () => {
 
   it('updates background and reduced-motion preferences', async () => {
     const { capabilities, general } = fakeCapabilities()
-    const surface = await renderGeneral(capabilities)
+    const surface = await renderGeneral(capabilities, 'shaders')
 
     await act(async () => {
       effectControl(surface, 'background-effects-switch').click()
@@ -409,7 +424,7 @@ describe('GeneralSection', () => {
 
   it('persists bounded material, quality, motion, and solar controls', async () => {
     const { capabilities, general } = fakeCapabilities()
-    const surface = await renderGeneral(capabilities)
+    const surface = await renderGeneral(capabilities, 'shaders')
 
     expect(
       surface.querySelector<HTMLSelectElement>('[data-testid="material-preset"]')
@@ -457,7 +472,7 @@ describe('GeneralSection', () => {
         finish = resolve
       }),
     )
-    const surface = await renderGeneral(capabilities)
+    const surface = await renderGeneral(capabilities, 'shaders')
 
     await act(async () => {
       effectControl(surface, 'background-effects-switch').click()
@@ -479,19 +494,16 @@ describe('GeneralSection', () => {
     expect(effectControl(surface, 'background-effects-switch').disabled).toBe(false)
   })
 
-  it('groups appearance and desktop behavior as General settings', async () => {
+  it('keeps desktop behavior in Interaction settings', async () => {
     const { capabilities } = fakeCapabilities()
     const surface = await renderGeneral(capabilities)
 
     expect(surface.querySelector('h1')).toBeNull()
     expect([...surface.querySelectorAll('h2')].map(({ textContent }) => textContent)).toEqual([
-      'Theme',
-      'Window materials',
-      'Visual effects',
       'Desktop app',
       'Notifications',
     ])
-    expect(surface.querySelectorAll('.settings__group')).toHaveLength(5)
+    expect(surface.querySelectorAll('.settings__group')).toHaveLength(2)
     expect([
       ...surface.querySelectorAll(
         '.settings__group .settings__item + .settings__item',
