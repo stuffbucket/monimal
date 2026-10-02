@@ -1,0 +1,43 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Portable spatial-canvas theme parsing and application must retain a complete mutation score.",
+  "packageManager": "npm",
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "pnpm exec vitest run src/renderer/appearance.test.ts"
+  },
+  "mutate": [
+    "src/renderer/appearance.ts:157:0-163:1",
+    "src/renderer/appearance.ts:166:0-170:1",
+    "src/renderer/appearance.ts:175:0-176:1",
+    "src/renderer/appearance.ts:262:0-274:1",
+    "src/renderer/appearance.ts:283:0-288:1"
+  ],
+  "reporters": ["progress", "clear-text", "html", "json"],
+  "tempDirName": ".stryker-tmp/appearance",
+  "cleanTempDir": "always",
+  "htmlReporter": {
+    "fileName": "reports/mutation/appearance/index.html"
+  },
+  "jsonReporter": {
+    "fileName": "reports/mutation/appearance/mutation.json"
+  },
+  "concurrency": 4,
+  "timeoutMS": 30000,
+  "coverageAnalysis": "off",
+  "thresholds": {
+    "high": 100,
+    "low": 100,
+    "break": 100
+  },
+  "ignorePatterns": [
+    "out",
+    ".vite",
+    "node_modules",
+    "dist",
+    "reports",
+    "test-results",
+    "playwright-report",
+    "e2e"
+  ]
+}

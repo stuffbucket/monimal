@@ -38,6 +38,7 @@
     "lint:inner": "eslint .",
     "lint:fix": "eslint . --fix",
     "mutate": "stryker run",
+    "mutate:appearance": "stryker run stryker.appearance.conf.json",
     "test:mutation": "vitest run --config vitest.mutation.config.mts",
     "mutate:projects": "stryker run stryker.projects.conf.json",
     "test": "vitest run",

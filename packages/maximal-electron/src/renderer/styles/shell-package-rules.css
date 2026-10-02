@@ -6,6 +6,13 @@
  */
 
 @layer sb-shell.base {
+.sb-shell .spatial-canvas-surface__overlay,
+.sb-shell .spatial-canvas-surface,
+.sb-shell .spatial-canvas,
+.sb-shell .spatial-canvas__viewport {
+  background-color: var(--shell-spatial-canvas-background, var(--shell-canvas));
+}
+
 .sb-shell .app-frame__slot,
 .sb-shell .app-frame__slot--contents {
   display: contents;

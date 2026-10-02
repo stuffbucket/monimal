@@ -17,7 +17,6 @@ export const SPATIAL_CANVAS_STYLES = `
 .sb-shell .spatial-canvas-surface__overlay {
   position: fixed;
   inset: 0;
-  background: var(--shell-canvas);
 }
 
 .sb-shell .spatial-canvas-surface {
@@ -28,7 +27,6 @@ export const SPATIAL_CANVAS_STYLES = `
   height: 100%;
   padding: 0;
   overflow: hidden;
-  background: var(--shell-canvas);
   border: 0;
   border-radius: 0;
   box-shadow: none;
@@ -55,7 +53,6 @@ export const SPATIAL_CANVAS_STYLES = `
   height: min(78vh, 56rem);
   overflow: hidden;
   color: var(--shell-text);
-  background: var(--shell-canvas);
   border: 0;
   border-radius: var(--shell-radius);
   font-size: var(--shell-text-base);
@@ -97,6 +94,7 @@ export const SPATIAL_CANVAS_STYLES = `
 }
 
 .sb-shell .spatial-canvas__corner {
+  gap: 0;
   padding: var(--shell-space-2);
   background: var(--shell-raised);
   border: 0;
@@ -109,18 +107,115 @@ export const SPATIAL_CANVAS_STYLES = `
   position: relative;
   min-width: 0;
   padding: 0;
+  gap: 0;
   overflow: visible;
   background: transparent;
 }
 
+.sb-shell .spatial-canvas__project-trigger,
+.sb-shell .spatial-canvas__page-trigger,
+.sb-shell .spatial-canvas__navigation-row {
+  min-width: 0;
+  height: var(--shell-control-sm);
+  margin: 0;
+  padding: 0 var(--shell-space-2);
+  color: var(--shell-text);
+  background: transparent;
+  border: 0;
+  border-radius: var(--shell-radius);
+  font: inherit;
+  outline: none;
+  text-align: left;
+}
+
+.sb-shell .spatial-canvas__project-trigger,
+.sb-shell .spatial-canvas__page-trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2);
+}
+
+.sb-shell .spatial-canvas__project-trigger:hover,
+.sb-shell .spatial-canvas__project-trigger[aria-expanded="true"],
+.sb-shell .spatial-canvas__page-trigger:hover,
+.sb-shell .spatial-canvas__page-trigger[aria-expanded="true"],
+.sb-shell .spatial-canvas__navigation-row:hover {
+  background: var(--shell-hover);
+}
+
+.sb-shell .spatial-canvas__project-trigger[data-focused="true"],
+.sb-shell .spatial-canvas__page-trigger[data-focused="true"] {
+  box-shadow: inset 0 0 0 var(--shell-focus-ring-width) var(--shell-focus, var(--shell-accent));
+}
+
+.sb-shell .spatial-canvas__project-title,
 .sb-shell .spatial-canvas__page-title {
   max-width: calc(var(--shell-row-height) * 4);
-  padding-inline: var(--shell-space-2);
   overflow: hidden;
   font-size: var(--shell-text-sm);
   font-weight: var(--shell-weight-md);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sb-shell .spatial-canvas__pages-divider {
+  width: var(--shell-icon-stroke);
+  height: var(--shell-control-sm);
+  background: var(--shell-border);
+}
+
+.sb-shell .spatial-canvas__page-count {
+  position: relative;
+  display: grid;
+  width: var(--shell-control-sm);
+  height: var(--shell-control-sm);
+  flex: 0 0 var(--shell-control-sm);
+  place-items: center;
+  color: var(--shell-text-muted);
+}
+
+.sb-shell .spatial-canvas__page-count > svg {
+  width: calc(var(--shell-control-sm) - var(--shell-space-2));
+  height: calc(var(--shell-control-sm) - var(--shell-space-2));
+  overflow: visible;
+}
+
+.sb-shell .spatial-canvas__page-count rect {
+  fill: var(--shell-raised);
+  stroke: currentColor;
+  stroke-width: var(--shell-icon-stroke);
+  vector-effect: non-scaling-stroke;
+}
+
+.sb-shell .spatial-canvas__page-count-value {
+  fill: currentColor;
+  font-size: var(--shell-text-xs);
+  font-weight: var(--shell-weight-md);
+  stroke: none;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.sb-shell .spatial-canvas__name-input {
+  min-width: 0;
+  height: var(--shell-control-sm);
+  padding: 0 var(--shell-space-2);
+  color: var(--shell-text);
+  background: var(--shell-canvas);
+  border: var(--shell-icon-stroke) solid var(--shell-focus, var(--shell-accent));
+  border-radius: var(--shell-radius);
+  font: inherit;
+  outline: none;
+}
+
+.sb-shell .spatial-canvas__name-input--trigger {
+  width: calc(var(--shell-row-height) * 4);
+  max-width: calc(var(--shell-row-height) * 4);
+}
+
+.sb-shell .spatial-canvas__name-input--popover {
+  width: 100%;
+  max-width: none;
 }
 
 .sb-shell .spatial-canvas__pages-popover {
@@ -139,7 +234,8 @@ export const SPATIAL_CANVAS_STYLES = `
 }
 
 .sb-shell .spatial-canvas__pages-popover > header,
-.sb-shell .spatial-canvas__pages-popover > [role="tablist"] {
+.sb-shell .spatial-canvas__pages-popover > [role="tablist"],
+.sb-shell .spatial-canvas__pages-popover > [role="listbox"] {
   display: flex;
   align-items: center;
   gap: var(--shell-space-1);
@@ -149,7 +245,8 @@ export const SPATIAL_CANVAS_STYLES = `
   justify-content: space-between;
 }
 
-.sb-shell .spatial-canvas__pages-popover > [role="tablist"] {
+.sb-shell .spatial-canvas__pages-popover > [role="tablist"],
+.sb-shell .spatial-canvas__pages-popover > [role="listbox"] {
   display: grid;
 }
 
@@ -160,15 +257,25 @@ export const SPATIAL_CANVAS_STYLES = `
   height: var(--shell-control-sm);
 }
 
-.sb-shell .spatial-canvas__pages-popover .btn {
+.sb-shell .spatial-canvas__pages-popover .spatial-canvas__navigation-row {
+  display: flex;
+  align-items: center;
   justify-content: flex-start;
   width: 100%;
-  border-color: transparent;
-  background: transparent;
+  gap: var(--shell-space-2);
 }
 
-.sb-shell .spatial-canvas__pages-popover .btn[aria-selected="true"] {
+.sb-shell .spatial-canvas__pages-popover .spatial-canvas__navigation-row > span:last-child:not(:first-child) {
+  margin-left: auto;
+  color: var(--shell-text-muted);
+}
+
+.sb-shell .spatial-canvas__pages-popover .spatial-canvas__navigation-row[aria-selected="true"] {
   background: var(--shell-active);
+}
+
+.sb-shell .spatial-canvas__pages-popover .spatial-canvas__navigation-row[data-dragging="true"] {
+  opacity: var(--shell-disabled-opacity, 0.5);
 }
 
 .sb-shell .spatial-canvas__avatar {
@@ -213,13 +320,12 @@ export const SPATIAL_CANVAS_STYLES = `
   inset: 0;
   overflow: hidden;
   outline: none;
-  background-color: var(--shell-canvas);
   cursor: ${SPATIAL_CANVAS_CURSORS.select};
   touch-action: none;
   user-select: none;
 }
 
-.sb-shell .spatial-canvas__viewport::before {
+.sb-shell .spatial-canvas__grid {
   position: absolute;
   inset: 0;
   background-image: radial-gradient(
@@ -231,7 +337,6 @@ export const SPATIAL_CANVAS_STYLES = `
     calc(-1 * var(--shell-icon-stroke))
     calc(-1 * var(--shell-icon-stroke));
   background-size: var(--shell-space-4) var(--shell-space-4);
-  content: "";
   opacity: var(--shell-disabled-opacity, 0.5);
   pointer-events: none;
 }

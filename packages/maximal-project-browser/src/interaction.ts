@@ -1,4 +1,20 @@
 import type { ProjectMapTool } from "./model.ts"
+import type { Camera, Point } from "./view.ts"
+
+export interface ProjectMapDragState {
+  mode: "pan" | "move" | "marquee"
+  pointerId: number
+  origin: Point
+  camera: Camera
+  worldOrigin: Point
+  itemOrigins: Map<string, Point>
+}
+
+export interface ProjectMapPendingMove {
+  itemOrigins: Map<string, Point>
+  dx: number
+  dy: number
+}
 
 export const PROJECT_MAP_TOOLS: ReadonlyArray<{
   tool: ProjectMapTool

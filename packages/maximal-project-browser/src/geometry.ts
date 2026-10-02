@@ -1,8 +1,16 @@
+import type { SceneItem } from "./model.ts"
+
 export interface Rectangle {
   x: number
   y: number
   width: number
   height: number
+}
+
+export function itemRectangle(item: SceneItem): Rectangle | undefined {
+  return "x" in item ?
+      { x: item.x, y: item.y, width: item.width, height: item.height }
+    : undefined
 }
 
 export interface ConnectorSegment {

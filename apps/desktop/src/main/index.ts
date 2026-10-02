@@ -757,7 +757,14 @@ function installRendererRecovery(win: BrowserWindow): void {
 
   win.webContents.on('console-message', (details) => {
     if (details.level !== 'error') return
-    mainLogger.error({ lineNumber: details.lineNumber }, 'Renderer console error')
+    mainLogger.error(
+      {
+        lineNumber: details.lineNumber,
+        sourceId: details.sourceId,
+        rendererMessage: details.message,
+      },
+      'Renderer console error',
+    )
   })
 }
 

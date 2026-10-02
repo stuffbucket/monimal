@@ -13,7 +13,7 @@ import {
   ShadersSection,
   ThemesSection,
 } from './AppearanceSections'
-import { GeneralSection } from './GeneralSection'
+import { ColorPalettesSection, GeneralSection } from './GeneralSection'
 import {
   terminalFontCatalogQueryKey,
   TerminalTypographySettings as TerminalAppearanceSettings,
@@ -299,6 +299,8 @@ async function renderGeneral(
             ? <ShadersSection capabilities={capabilities} />
             : surface === 'themes'
               ? <ThemesSection />
+              : surface === 'palette'
+                ? <ColorPalettesSection capabilities={capabilities} />
               : (
               <TerminalAppearanceSettings
                 capabilities={capabilities.terminalTypography}
@@ -403,6 +405,30 @@ describe('GeneralSection', () => {
     expect(surface.textContent).toContain('PANTONE 17-1230')
     expect(surface.textContent).toContain('Import')
     expect(surface.textContent).toContain('Export')
+    expect(
+      surface.querySelector('[aria-label="Spatial canvas background"]'),
+    ).not.toBeNull()
+  })
+
+  it('edits the spatial canvas background from color palettes', async () => {
+    const { capabilities } = fakeCapabilities()
+    const surface = await renderGeneral(capabilities, 'palette')
+    const color = surface.querySelector<HTMLInputElement>(
+      '[data-testid="spatial-canvas-background"]',
+    )
+    if (color === null) {
+      throw new Error('spatial canvas background picker was not rendered')
+    }
+
+    await act(async () => {
+      setInputValue(color, '#123456')
+    })
+
+    expect(
+      document.documentElement.style.getPropertyValue(
+        '--shell-spatial-canvas-background',
+      ),
+    ).toBe('#123456')
   })
 
   it('enables native vibrancy from Appearance settings', async () => {

@@ -89,12 +89,16 @@ describe('SpatialCanvas', () => {
     root = createRoot(container);
     const onPageChange = vi.fn();
     const onAddPage = vi.fn();
+    const onProjectRename = vi.fn();
+    const onPageRename = vi.fn();
+    const onPageMove = vi.fn();
 
     act(() => {
       root?.render(
         <TooltipProvider>
           <SpatialCanvas testId="board">
             <SpatialCanvasPages
+              projectName="Repository"
               pages={[
                 { id: 'projects', name: 'Projects' },
                 { id: 'planning', name: 'Planning' },
@@ -103,6 +107,9 @@ describe('SpatialCanvas', () => {
               panelId="board-panel"
               onPageChange={onPageChange}
               onAddPage={onAddPage}
+              onProjectRename={onProjectRename}
+              onPageRename={onPageRename}
+              onPageMove={onPageMove}
             />
             <SpatialCanvasPresence>
               <SpatialCanvasAvatar
@@ -122,6 +129,7 @@ describe('SpatialCanvas', () => {
               tool="sticky"
               role="tabpanel"
               aria-label="Board"
+              gridCamera={{ x: 40, y: 60, zoom: 1.25 }}
             >
               <SpatialCanvasScene x={40} y={60} zoom={1.25}>
                 <SpatialCanvasConnectorLayer
@@ -173,6 +181,8 @@ describe('SpatialCanvas', () => {
       .toBe('spatial-canvas');
     expect(container.querySelector('[aria-label="Board"]')?.getAttribute('data-tool'))
       .toBe('sticky');
+    expect(container.querySelector('.spatial-canvas__grid')?.getAttribute('style'))
+      .toContain('background-size:');
     expect(container.querySelector('.spatial-canvas__scene')?.getAttribute('style'))
       .toContain('translate3d(40px, 60px, 0) scale(1.25)');
     expect(container.querySelector('.spatial-canvas__project')?.getAttribute('style'))
@@ -210,6 +220,9 @@ describe('SpatialCanvas', () => {
     expect(container.querySelector('[aria-label="People in this project map"]')
       ?.getAttribute('role')).toBe('group');
     expect(container.querySelector('[aria-label="Map agent · agent"]')).not.toBeNull();
+    expect(container.querySelector('.spatial-canvas__project-title')?.textContent)
+      .toBe('Repository');
+    expect(container.querySelector('[aria-label="2 pages"]')?.textContent).toContain('2');
     act(() => {
       container.querySelector<HTMLButtonElement>('[aria-label="Pages"]')?.click();
     });
@@ -227,6 +240,166 @@ describe('SpatialCanvas', () => {
     expect(onPageChange).toHaveBeenCalledWith('planning');
     expect(document.activeElement).toBe(tabs[1]);
     expect(onAddPage).toHaveBeenCalledOnce();
+
+    const transfer = {
+      effectAllowed: 'none',
+      dropEffect: 'none',
+      value: '',
+      setData(_type: string, value: string) {
+        this.value = value;
+      },
+      getData() {
+        return this.value;
+      },
+    };
+    act(() => {
+      const start = new Event('dragstart', { bubbles: true });
+      Object.defineProperty(start, 'dataTransfer', { value: transfer });
+      tabs[1]?.dispatchEvent(start);
+      const drop = new Event('drop', { bubbles: true, cancelable: true });
+      Object.defineProperty(drop, 'dataTransfer', { value: transfer });
+      tabs[0]?.dispatchEvent(drop);
+    });
+    expect(onPageMove).toHaveBeenCalledWith('planning', 'projects');
+
+    act(() => {
+      tabs[1]?.focus();
+      tabs[1]?.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+      tabs[1]?.click();
+    });
+    const pageName = container.querySelector<HTMLInputElement>(
+      '[aria-label="Rename Planning"]',
+    );
+    expect(pageName).not.toBeNull();
+    act(() => {
+      if (!pageName) return;
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        'value',
+      )?.set?.call(pageName, 'Roadmap');
+      pageName.dispatchEvent(new Event('input', { bubbles: true }));
+      pageName.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Enter',
+        bubbles: true,
+      }));
+    });
+    expect(onPageRename).toHaveBeenCalledWith('planning', 'Roadmap');
+
+    const projectTrigger = container.querySelector<HTMLButtonElement>(
+      '.spatial-canvas__project-trigger',
+    );
+    act(() => {
+      projectTrigger?.dispatchEvent(
+        new MouseEvent('pointerdown', { bubbles: true }),
+      );
+      projectTrigger?.click();
+    });
+    expect(projectTrigger?.getAttribute('aria-expanded')).toBe('true');
+    expect(container.querySelector('[aria-label="Project name"]')).toBeNull();
+    act(() => {
+      projectTrigger?.dispatchEvent(
+        new MouseEvent('pointerdown', { bubbles: true }),
+      );
+      projectTrigger?.click();
+    });
+    const projectName = container.querySelector<HTMLInputElement>(
+      '[aria-label="Project name"]',
+    );
+    expect(projectName).not.toBeNull();
+    act(() => {
+      if (!projectName) return;
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        'value',
+      )?.set?.call(projectName, 'Repository planning');
+      projectName.dispatchEvent(new Event('input', { bubbles: true }));
+      projectName.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Enter',
+        bubbles: true,
+      }));
+    });
+    expect(onProjectRename).toHaveBeenCalledWith('Repository planning');
+  });
+
+  it('changes dot spacing continuously through low zoom levels', () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    const renderAt = (zoom: number) => {
+      act(() => {
+        root?.render(
+          <SpatialCanvas>
+            <SpatialCanvasViewport
+              tool="select"
+              gridCamera={{ x: 10, y: 20, zoom }}
+            />
+          </SpatialCanvas>,
+        );
+      });
+
+      const size = container.querySelector<HTMLElement>(
+        '.spatial-canvas__grid',
+      )?.style.backgroundSize;
+      return Number.parseFloat(size ?? '');
+    };
+
+    const below = renderAt(0.129);
+    const above = renderAt(0.131);
+
+    expect(below).toBeGreaterThan(12);
+    expect(above).toBeLessThan(20);
+    expect(above).toBeGreaterThan(below);
+    expect(above - below).toBeLessThan(0.1);
+  });
+
+  it('focuses before editing the active page and compacts large page counts', () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    const pages = Array.from({ length: 10 }, (_, index) => ({
+      id: `page-${String(index + 1)}`,
+      name: `Page ${String(index + 1)}`,
+    }));
+
+    act(() => {
+      root?.render(
+        <TooltipProvider>
+          <SpatialCanvasPages
+            projectName="Repository"
+            pages={pages}
+            activePageId="page-1"
+            panelId="page-count-panel"
+            onPageChange={vi.fn()}
+            onAddPage={vi.fn()}
+            onPageRename={vi.fn()}
+          />
+        </TooltipProvider>,
+      );
+    });
+
+    const count = container.querySelector('[aria-label="10 pages"]');
+    const countValue = count?.querySelector('text');
+    const pageTrigger = container.querySelector<HTMLButtonElement>(
+      '.spatial-canvas__page-trigger',
+    );
+    expect(countValue?.textContent).toBe('…');
+
+    act(() => {
+      pageTrigger?.dispatchEvent(
+        new MouseEvent('pointerdown', { bubbles: true }),
+      );
+      pageTrigger?.click();
+    });
+    expect(pageTrigger?.getAttribute('aria-expanded')).toBe('true');
+    expect(container.querySelector('[aria-label="Rename Page 1"]')).toBeNull();
+
+    act(() => {
+      pageTrigger?.dispatchEvent(
+        new MouseEvent('pointerdown', { bubbles: true }),
+      );
+      pageTrigger?.click();
+    });
+    expect(container.querySelector('[aria-label="Rename Page 1"]')).not.toBeNull();
   });
 
   it('uses shared iconography for spatial tools', () => {

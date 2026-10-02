@@ -1,5 +1,4 @@
 import {
-  Copy,
   Frame,
   Hand,
   LayoutGrid,
@@ -18,8 +17,10 @@ import {
 import {
   forwardRef,
   type ComponentPropsWithoutRef,
+  type DragEvent,
   type KeyboardEvent,
   type ReactNode,
+  useEffect,
   useRef,
   useState,
 } from "react";
@@ -124,23 +125,112 @@ export function SpatialCanvasCorner({ children }: { children: ReactNode }) {
   return <div className="spatial-canvas__corner">{children}</div>;
 }
 
-/** Renders spatial canvas page tabs and page creation. */
+function EditableSpatialCanvasName({
+  value,
+  label,
+  placement = "trigger",
+  onCommit,
+  onCancel,
+}: {
+  value: string;
+  label: string;
+  placement?: "trigger" | "popover";
+  onCommit: (value: string) => void;
+  onCancel: () => void;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  const [draft, setDraft] = useState(value);
+
+  useEffect(() => {
+    input.current?.select();
+  }, []);
+
+  const commit = () => {
+    const name = draft.trim();
+    if (name) onCommit(name);
+    else onCancel();
+  };
+
+  return (
+    <input
+      ref={input}
+      className={`spatial-canvas__name-input spatial-canvas__name-input--${placement}`}
+      aria-label={label}
+      value={draft}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          commit();
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          onCancel();
+        }
+      }}
+    />
+  );
+}
+
+/** Renders editable project and page navigation for a spatial canvas. */
 export function SpatialCanvasPages({
+  projectName = "Projects",
+  onProjectRename,
   pages,
   activePageId,
   panelId,
   onPageChange,
   onAddPage,
+  onPageRename,
+  onPageMove,
 }: {
+  projectName?: string;
+  onProjectRename?: (name: string) => void;
   pages: ReadonlyArray<SpatialCanvasPage>;
   activePageId: string;
   panelId: string;
   onPageChange: (pageId: string) => void;
   onAddPage: () => void;
+  onPageRename?: (pageId: string, name: string) => void;
+  onPageMove?: (pageId: string, targetPageId: string) => void;
 }) {
   const tabs = useRef<Array<HTMLButtonElement | null>>([]);
-  const [open, setOpen] = useState(false);
+  const wasFocused = useRef<string | undefined>(undefined);
+  const [focusedControl, setFocusedControl] = useState<string | undefined>(
+    undefined,
+  );
+  const [open, setOpen] = useState<"project" | "pages" | undefined>(undefined);
+  const [editing, setEditing] = useState<string | undefined>(undefined);
+  const [editingInTrigger, setEditingInTrigger] = useState(false);
+  const [draggingPageId, setDraggingPageId] = useState<string | undefined>(
+    undefined,
+  );
   const activePage = pages.find((page) => page.id === activePageId);
+
+  const beginProjectEdit = () => {
+    if (onProjectRename) {
+      setEditingInTrigger(true);
+      setEditing("project");
+    }
+  };
+  const beginPageEdit = (pageId: string, inTrigger = false) => {
+    if (onPageRename) {
+      setEditingInTrigger(inTrigger);
+      setEditing(pageId);
+    }
+  };
+  const toggle = (target: "project" | "pages") => {
+    setEditing(undefined);
+    setEditingInTrigger(false);
+    setOpen((current) => current === target ? undefined : target);
+  };
+  const prepareFocusedClick = (
+    target: "project" | "pages",
+    element: HTMLButtonElement,
+  ) => {
+    wasFocused.current = focusedControl === target ? target : undefined;
+    element.focus();
+  };
   const moveFocus = (
     event: KeyboardEvent<HTMLButtonElement>,
     index: number,
@@ -160,20 +250,140 @@ export function SpatialCanvasPages({
   };
 
   return (
-    <div className="spatial-canvas__pages" data-open={open}>
-      <span className="spatial-canvas__page-title">
-        {activePage?.name ?? "Untitled"}
-      </span>
-      <IconButton
-        label="Pages"
-        aria-expanded={open}
-        active={open}
-        onClick={() => setOpen((current) => !current)}
-      >
-        <Copy size={16} />
-      </IconButton>
-      {open ?
-        <aside className="spatial-canvas__pages-popover" aria-label="Pages">
+    <div className="spatial-canvas__pages" data-open={open ?? "false"}>
+      {editing === "project" ?
+        <EditableSpatialCanvasName
+          value={projectName}
+          label="Project name"
+          onCommit={(name) => {
+            onProjectRename?.(name);
+            setEditing(undefined);
+            setEditingInTrigger(false);
+          }}
+          onCancel={() => {
+            setEditing(undefined);
+            setEditingInTrigger(false);
+          }}
+        />
+      : <button
+          type="button"
+          className="spatial-canvas__project-trigger"
+          aria-expanded={open === "project"}
+          aria-controls={open === "project" ? `${panelId}-projects` : undefined}
+          data-focused={focusedControl === "project"}
+          onPointerDown={(event) => {
+            prepareFocusedClick("project", event.currentTarget);
+          }}
+          onFocus={() => setFocusedControl("project")}
+          onBlur={() => setFocusedControl(undefined)}
+          onClick={() => {
+            if (wasFocused.current === "project" && open === "project") {
+              beginProjectEdit();
+            } else {
+              toggle("project");
+            }
+          }}
+        >
+          <span className="spatial-canvas__project-title">{projectName}</span>
+        </button>
+      }
+      <span className="spatial-canvas__pages-divider" aria-hidden="true" />
+      {editingInTrigger && activePage && editing === activePage.id ?
+        <EditableSpatialCanvasName
+          value={activePage.name}
+          label={`Rename ${activePage.name}`}
+          onCommit={(name) => {
+            onPageRename?.(activePage.id, name);
+            setEditing(undefined);
+            setEditingInTrigger(false);
+          }}
+          onCancel={() => {
+            setEditing(undefined);
+            setEditingInTrigger(false);
+          }}
+        />
+      : <button
+          type="button"
+          className="spatial-canvas__page-trigger"
+          aria-label="Pages"
+          aria-expanded={open === "pages"}
+          aria-controls={open === "pages" ? `${panelId}-pages` : undefined}
+          data-focused={focusedControl === "pages"}
+          onPointerDown={(event) => {
+            prepareFocusedClick("pages", event.currentTarget);
+          }}
+          onFocus={() => setFocusedControl("pages")}
+          onBlur={() => setFocusedControl(undefined)}
+          onClick={() => {
+            if (
+              wasFocused.current === "pages"
+              && open === "pages"
+              && activePage
+            ) {
+              beginPageEdit(activePage.id, true);
+            } else {
+              toggle("pages");
+            }
+          }}
+        >
+          <span
+            className="spatial-canvas__page-count"
+            aria-label={`${String(pages.length)} pages`}
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <rect x="6.5" y="2.5" width="15" height="17" rx="2" />
+              <rect x="2.5" y="6.5" width="15" height="15" rx="2" />
+              <text
+                className="spatial-canvas__page-count-value"
+                x="10"
+                y="14"
+              >
+                {pages.length > 9 ? "…" : pages.length}
+              </text>
+            </svg>
+          </span>
+          <span className="spatial-canvas__page-title">
+            {activePage?.name ?? "Untitled"}
+          </span>
+        </button>
+      }
+      {open === "project" ?
+        <aside
+          id={`${panelId}-projects`}
+          className="spatial-canvas__pages-popover"
+          aria-label="Projects"
+        >
+          <header>
+            <strong>Projects</strong>
+          </header>
+          <div role="listbox" aria-label="Projects">
+            <button
+              type="button"
+              role="option"
+              aria-selected="true"
+              className="spatial-canvas__navigation-row"
+              onPointerDown={(event) => {
+                wasFocused.current =
+                  document.activeElement === event.currentTarget
+                    ? "project-row"
+                    : undefined;
+              }}
+              onClick={() => {
+                if (wasFocused.current === "project-row") beginProjectEdit();
+              }}
+            >
+              {projectName}
+              <span>{pages.length}</span>
+            </button>
+          </div>
+        </aside>
+      : null}
+      {open === "pages" ?
+        <aside
+          id={`${panelId}-pages`}
+          className="spatial-canvas__pages-popover"
+          aria-label="Pages"
+        >
           <header>
             <strong>Pages</strong>
             <IconButton label="Add page" onClick={onAddPage}>
@@ -181,27 +391,74 @@ export function SpatialCanvasPages({
             </IconButton>
           </header>
           <div role="tablist" aria-label="Map pages">
-            {pages.map((page, index) => (
-              <Button
-                size="sm"
-                role="tab"
-                key={page.id}
-                ref={(element) => {
-                  tabs.current[index] = element;
-                }}
-                id={`${panelId}-tab-${String(index)}`}
-                aria-controls={panelId}
-                aria-selected={page.id === activePageId}
-                tabIndex={page.id === activePageId ? 0 : -1}
-                onKeyDown={(event) => moveFocus(event, index)}
-                onClick={() => {
-                  onPageChange(page.id);
-                  setOpen(false);
-                }}
-              >
-                {page.name}
-              </Button>
-            ))}
+            {pages.map((page, index) =>
+              editing === page.id && !editingInTrigger ?
+                <EditableSpatialCanvasName
+                  key={page.id}
+                  value={page.name}
+                  label={`Rename ${page.name}`}
+                  placement="popover"
+                  onCommit={(name) => {
+                    onPageRename?.(page.id, name);
+                    setEditing(undefined);
+                    setEditingInTrigger(false);
+                  }}
+                  onCancel={() => {
+                    setEditing(undefined);
+                    setEditingInTrigger(false);
+                  }}
+                />
+              : <button
+                  type="button"
+                  role="tab"
+                  className="spatial-canvas__navigation-row"
+                  draggable={Boolean(onPageMove)}
+                  key={page.id}
+                  ref={(element) => {
+                    tabs.current[index] = element;
+                  }}
+                  id={`${panelId}-tab-${String(index)}`}
+                  aria-controls={panelId}
+                  aria-selected={page.id === activePageId}
+                  tabIndex={page.id === activePageId ? 0 : -1}
+                  data-dragging={draggingPageId === page.id}
+                  onKeyDown={(event) => moveFocus(event, index)}
+                  onPointerDown={(event) => {
+                    wasFocused.current =
+                      document.activeElement === event.currentTarget
+                        ? page.id
+                        : undefined;
+                  }}
+                  onClick={() => {
+                    if (wasFocused.current === page.id) {
+                      beginPageEdit(page.id);
+                    } else {
+                      onPageChange(page.id);
+                    }
+                  }}
+                  onDragStart={(event: DragEvent<HTMLButtonElement>) => {
+                    setDraggingPageId(page.id);
+                    event.dataTransfer.effectAllowed = "move";
+                    event.dataTransfer.setData("text/plain", page.id);
+                  }}
+                  onDragOver={(event) => {
+                    if (draggingPageId && draggingPageId !== page.id) {
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = "move";
+                    }
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    const source =
+                      draggingPageId || event.dataTransfer.getData("text/plain");
+                    if (source) onPageMove?.(source, page.id);
+                    setDraggingPageId(undefined);
+                  }}
+                  onDragEnd={() => setDraggingPageId(undefined)}
+                >
+                  <span>{page.name}</span>
+                </button>,
+            )}
           </div>
         </aside>
       : null}

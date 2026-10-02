@@ -197,7 +197,7 @@ it("renders independent pages, board tools, presence, comments, and chat", () =>
   expect(container.querySelector('[title="Map agent · agent"]')).not.toBeNull()
   expect(
     container.querySelector(".spatial-canvas__page-title")?.textContent,
-  ).toContain("Projects")
+  ).toContain("Page 1")
   expect(container.querySelector('[aria-label="Pages"]')).not.toBeNull()
 
   const stickyTool = requiredElement(

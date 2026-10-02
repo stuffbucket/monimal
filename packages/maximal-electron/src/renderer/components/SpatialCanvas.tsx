@@ -41,6 +41,10 @@ interface Positioned {
   y: number;
 }
 
+interface SpatialCanvasGridCamera extends Positioned {
+  zoom: number;
+}
+
 interface Sized extends Positioned {
   width: number;
   height: number;
@@ -71,18 +75,44 @@ export function SpatialCanvas({
   );
 }
 
+function gridStyle({
+  x,
+  y,
+  zoom,
+}: SpatialCanvasGridCamera): CSSProperties {
+  const spacing = 16 + 4 * Math.tanh(Math.log(Math.max(zoom, Number.EPSILON)) * 0.35);
+  const offset = (translation: number) =>
+    ((translation % spacing) + spacing) % spacing;
+  return {
+    backgroundPosition: `${offset(x)}px ${offset(y)}px`,
+    backgroundSize: `${spacing}px ${spacing}px`,
+  };
+}
+
 /** Provides the focusable interaction viewport for a spatial canvas. */
 export const SpatialCanvasViewport = forwardRef<
   HTMLDivElement,
-  ComponentPropsWithoutRef<"div"> & { tool: string }
->(function SpatialCanvasViewport({ tool, children, ...props }, ref) {
+  ComponentPropsWithoutRef<"div"> & {
+    tool: string;
+    gridCamera?: SpatialCanvasGridCamera;
+  }
+>(function SpatialCanvasViewport(
+  { tool, gridCamera, children, style, ...props },
+  ref,
+) {
   return (
     <div
       {...props}
       ref={ref}
       className="spatial-canvas__viewport"
       data-tool={tool}
+      style={style}
     >
+      <span
+        className="spatial-canvas__grid"
+        style={gridCamera ? gridStyle(gridCamera) : undefined}
+        aria-hidden="true"
+      />
       {children}
     </div>
   );

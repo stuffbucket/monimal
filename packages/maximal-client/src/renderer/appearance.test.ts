@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   applyAppearance,
   appearanceAccent,
+  appearanceSpatialCanvasBackground,
   DEFAULT_APPEARANCE,
   parseAppearanceTheme,
   readAppearance,
@@ -32,6 +33,33 @@ describe('appearance themes', () => {
         colors: { accent: 'blue' },
       })),
     ).toThrow('six-digit hex')
+    expect(() =>
+      parseAppearanceTheme(JSON.stringify({
+        ...DEFAULT_APPEARANCE,
+        colors: { spatialCanvasBackground: 'transparent' },
+      })),
+    ).toThrow('Spatial canvas background')
+    expect(() =>
+      parseAppearanceTheme(JSON.stringify({
+        ...DEFAULT_APPEARANCE,
+        colors: { spatialCanvasBackground: 123456 },
+      })),
+    ).toThrow('Spatial canvas background')
+  })
+
+  it('normalizes portable colors and omits an empty color map', () => {
+    expect(parseAppearanceTheme(JSON.stringify({
+      ...DEFAULT_APPEARANCE,
+      colors: {
+        accent: '#aabbcc',
+        spatialCanvasBackground: '#123abc',
+      },
+    })).colors).toEqual({
+      accent: '#AABBCC',
+      spatialCanvasBackground: '#123ABC',
+    })
+    expect(parseAppearanceTheme(JSON.stringify(DEFAULT_APPEARANCE))).not
+      .toHaveProperty('colors')
   })
 
   it('persists and applies a Pantone preset', () => {
@@ -112,6 +140,45 @@ describe('appearance themes', () => {
     expect(
       document.documentElement.style.getPropertyValue('--shell-accent-contrast'),
     ).toBe('#000000')
+  })
+
+  it('applies and persists a dedicated spatial canvas background', () => {
+    saveAppearance({
+      ...DEFAULT_APPEARANCE,
+      colors: { spatialCanvasBackground: '#123456' },
+    })
+
+    expect(appearanceSpatialCanvasBackground(readAppearance().theme)).toBe(
+      '#123456',
+    )
+    expect(
+      document.documentElement.style.getPropertyValue(
+        '--shell-spatial-canvas-background',
+      ),
+    ).toBe('#123456')
+  })
+
+  it('resolves spatial canvas backgrounds from presets and mode fallbacks', () => {
+    expect(appearanceSpatialCanvasBackground({
+      ...DEFAULT_APPEARANCE,
+      appearance: 'light',
+      preset: 'apple-system',
+    })).toBe('#F2F2F7')
+    expect(appearanceSpatialCanvasBackground({
+      ...DEFAULT_APPEARANCE,
+      appearance: 'dark',
+      preset: 'apple-system',
+    })).toBe('#1C1C1E')
+    expect(appearanceSpatialCanvasBackground({
+      ...DEFAULT_APPEARANCE,
+      appearance: 'light',
+      preset: 'viva-magenta-2023',
+    })).toBe('#EEF0F4')
+    expect(appearanceSpatialCanvasBackground({
+      ...DEFAULT_APPEARANCE,
+      appearance: 'dark',
+      preset: 'mocha-mousse-2025',
+    })).toBe('#1C1F26')
   })
 
   it('surfaces corrupt persisted data and falls back safely', () => {

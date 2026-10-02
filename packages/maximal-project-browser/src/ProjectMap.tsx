@@ -29,6 +29,7 @@ import type {
 
 import {
   connectorSegment,
+  itemRectangle,
   rectanglesIntersect,
   type Rectangle,
 } from "./geometry.ts"
@@ -37,6 +38,8 @@ import {
   newItemDefinition,
   PROJECT_MAP_TOOLS,
   selectionAfterPointer,
+  type ProjectMapDragState,
+  type ProjectMapPendingMove,
 } from "./interaction.ts"
 import {
   layoutProjects,
@@ -60,25 +63,9 @@ import {
   INITIAL_CAMERA,
   screenToWorld,
   useRafCamera,
-  type Camera,
+  wheelZoomFactor,
   type Point,
 } from "./view.ts"
-
-interface DragState {
-  mode: "pan" | "move" | "marquee"
-  pointerId: number
-  origin: Point
-  camera: Camera
-  worldOrigin: Point
-  itemOrigins: Map<string, Point>
-}
-
-interface PendingMove {
-  itemOrigins: Map<string, Point>
-  dx: number
-  dy: number
-}
-
 export interface ProjectMapProps {
   projects: Array<ProjectMapProject>
   query: string
@@ -94,13 +81,6 @@ export interface ProjectMapProps {
   viewer: ProjectMapViewer
   viewId?: string
 }
-
-function itemRectangle(item: SceneItem): Rectangle | undefined {
-  return "x" in item ?
-      { x: item.x, y: item.y, width: item.width, height: item.height }
-    : undefined
-}
-
 // eslint-disable-next-line max-lines-per-function
 export function ProjectMap({
   projects,
@@ -121,8 +101,8 @@ export function ProjectMap({
   const viewId = providedViewId ?? generatedViewId
   const panelId = `${generatedViewId}-panel`
   const viewport = useRef<HTMLDivElement>(null)
-  const drag = useRef<DragState | undefined>(undefined)
-  const pendingMove = useRef<PendingMove | undefined>(undefined)
+  const drag = useRef<ProjectMapDragState | undefined>(undefined)
+  const pendingMove = useRef<ProjectMapPendingMove | undefined>(undefined)
   const moveFrame = useRef<number | undefined>(undefined)
   const nextId = useRef(0)
   const connectorStart = useRef<string | undefined>(undefined)
@@ -139,7 +119,14 @@ export function ProjectMap({
     () => store.getSnapshot(pageId),
     [pageId, store, storeRevision],
   )
-  const { items, comments, messages, pages, presence: collaborators } = snapshot
+  const {
+    projectName,
+    items,
+    comments,
+    messages,
+    pages,
+    presence: collaborators,
+  } = snapshot
   const updatePage = useCallback(
     (update: (draft: ProjectMapPageDraft) => void) =>
       store.transact(pageId, update),
@@ -171,7 +158,7 @@ export function ProjectMap({
     )
   }, [setItems])
   const scheduleMove = useCallback(
-    (next: PendingMove) => {
+    (next: ProjectMapPendingMove) => {
       pendingMove.current = next
       if (moveFrame.current !== undefined) return
       moveFrame.current = requestAnimationFrame(() => {
@@ -316,7 +303,7 @@ export function ProjectMap({
   const onWheel = (event: WheelEvent<HTMLDivElement>) => {
     event.preventDefault()
     if (event.ctrlKey || event.metaKey) {
-      zoomAt(Math.exp(-event.deltaY * 0.002), {
+      zoomAt(wheelZoomFactor(event.deltaY), {
         x: event.clientX,
         y: event.clientY,
       })
@@ -646,10 +633,14 @@ export function ProjectMap({
           projects={projects}
           busy={busy}
           onOpenProject={onOpenProject}
+          projectName={projectName}
+          onProjectRename={(name) => store.renameProject(name)}
           pages={pages}
           pageId={pageId}
           onPageChange={onPageChange}
           onAddPage={() => onPageChange(store.addPage().id)}
+          onPageRename={(id, name) => store.renamePage(id, name)}
+          onPageMove={(id, targetId) => store.movePage(id, targetId)}
           presence={collaborators}
           comments={comments}
           {...(activeCommentId ? { activeCommentId } : {})}
@@ -702,6 +693,7 @@ export function ProjectMap({
           ref={viewport}
           id={panelId}
           tool={tool}
+          gridCamera={camera}
           tabIndex={0}
           role="tabpanel"
           aria-label="Project map canvas"
