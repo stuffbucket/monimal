@@ -5,9 +5,14 @@ import {
   type TabColor,
   type TerminalLaunchResult,
 } from '@maximal/maximal-electron/renderer'
-import { terminalPaneSessionIds, terminalProcessTitle, type TerminalPane } from '@maximal/maximal-terminal/renderer'
+import { terminalPaneSessionIds, terminalProcessTitle, type TerminalPane, type TerminalSession } from '@maximal/maximal-terminal/renderer'
 
-import { PRODUCT_TABS, SETTINGS_TAB, type AppTab } from './frame/AppFrame'
+import {
+  PRODUCT_TABS,
+  PROJECTS_TAB,
+  SETTINGS_TAB,
+  type AppTab,
+} from './frame/AppFrame'
 import {
   createTerminalGroup as createGroup,
   moveTerminalToGroup as moveToGroup,
@@ -15,6 +20,8 @@ import {
   setTerminalTabColor as setTabColor,
 } from './terminal-tab-organization'
 import { terminalTransport } from './terminal/transport'
+import { terminalSessionResult, terminalSessionRoots } from './terminal/session-metadata'
+import { tabAfterClose } from './frame/document-tabs'
 import {
   useTerminalWindowTransfer,
   type DetachedTerminal,
@@ -59,6 +66,7 @@ function upsertBrowserTab(tabs: AppTab[], session: BrowserSession): AppTab[] {
 
 export function useTerminalTabs(
   detachedWindow?: DetachedTerminal,
+  detachedProjects = false,
 ) {
   const initialTerminalTab = detachedWindow
     ? terminalTab({
@@ -68,9 +76,13 @@ export function useTerminalTabs(
       })
     : undefined
   const [tabs, setTabs] = useState<AppTab[]>(
-    initialTerminalTab ? [initialTerminalTab] : PRODUCT_TABS,
+    initialTerminalTab ? [initialTerminalTab] : detachedProjects ? [PROJECTS_TAB] : PRODUCT_TABS,
   )
-  const [activeTab, setActiveTab] = useState(initialTerminalTab?.id ?? 'overview')
+  const [activeTab, setActiveTab] = useState(initialTerminalTab?.id ?? (detachedProjects ? 'projects' : 'overview'))
+  const lastWorkspaceTab = useRef('overview')
+  useEffect(() => {
+    if (PRODUCT_TABS.some((tab) => tab.id === activeTab)) lastWorkspaceTab.current = activeTab
+  }, [activeTab])
   const [launcherOpen, setLauncherOpen] = useState(false)
   const [recentProfiles, setRecentProfiles] = useState<string[]>([])
   const [renameState, setRenameState] = useState<{ tabId: string; title: string }>()
@@ -90,34 +102,25 @@ export function useTerminalTabs(
   })
 
   useEffect(() => {
-    if (detachedWindow) return
+    if (detachedWindow || detachedProjects) return
     void terminalTransport.list().then((sessions) => {
       setTabs((current) => {
         const known = new Set(current.flatMap((tab) => tab.sessionId ?? []))
-        const paneLeaves = new Set(sessions.flatMap((session) =>
-          session.pane
-            ? terminalPaneSessionIds(session.pane).filter((id) => id !== session.id)
-            : []))
         for (const session of sessions) {
           if (!session.pane) continue
           const tabId = `terminal:${session.id}`
           transfer.panes.set(tabId, session.pane)
           transfer.paneRevisions.set(tabId, session.revision ?? 0)
         }
-        const restored = sessions
-          .filter((session) => !known.has(session.id) && !paneLeaves.has(session.id))
-          .map((session) => terminalTab({
-            sessionId: session.id,
-            label: session.title
-              ?? session.shell.split(/[\\/]/).at(-1)
-              ?? 'Terminal',
-            canRunInBackground: session.canRunInBackground ?? false,
-          }))
+        const restored = terminalSessionRoots(sessions)
+          .filter((session) => !known.has(session.id))
+          .map((session) => terminalTab(terminalSessionResult(session)))
         return restored.length === 0 ? current : [...current, ...restored]
       })
     })
   }, [
     detachedWindow,
+    detachedProjects,
     transfer.paneRevisions,
     transfer.panes,
   ])
@@ -130,11 +133,26 @@ export function useTerminalTabs(
     setActiveTab(tab.id)
   }, [])
 
+  const reopenTerminalSession = useCallback((session: TerminalSession) => {
+    if (session.pane) {
+      transfer.panes.set(`terminal:${session.id}`, session.pane)
+      transfer.paneRevisions.set(`terminal:${session.id}`, session.revision ?? 0)
+    }
+    onTerminalLaunched(terminalSessionResult(session))
+  }, [onTerminalLaunched, transfer.paneRevisions, transfer.panes])
+
   const openSettings = useCallback(() => {
     setTabs((current) => current.some((tab) => tab.id === SETTINGS_TAB.id)
       ? current
       : [...current, SETTINGS_TAB])
     setActiveTab(SETTINGS_TAB.id)
+  }, [])
+
+  const openProjects = useCallback(() => {
+    setTabs((current) => current.some((tab) => tab.id === PROJECTS_TAB.id)
+      ? current
+      : [...current, PROJECTS_TAB])
+    setActiveTab(PROJECTS_TAB.id)
   }, [])
 
   const closeTab = useCallback((id: string) => {
@@ -145,17 +163,18 @@ export function useTerminalTabs(
         closing?.kind !== 'browser'
         && closing?.kind !== 'terminal'
         && closing?.kind !== 'settings'
+        && closing?.kind !== 'projects'
       )) return current
       const next = current.filter((tab) => tab.id !== id)
       setActiveTab((active) => active === id
-        ? (next[index] ?? next[index - 1] ?? PRODUCT_TABS[0])?.id ?? 'overview'
+        ? tabAfterClose(current, id, lastWorkspaceTab.current)
         : active)
       return next
     })
   }, [])
 
   useEffect(() => {
-    if (detachedWindow) return
+    if (detachedWindow || detachedProjects) return
     void window.maximal.browser.list().then((sessions) => {
       setTabs((current) => sessions.reduce(upsertBrowserTab, current))
     }).catch(() => setBrowserError('Browser tabs could not be restored.'))
@@ -169,7 +188,7 @@ export function useTerminalTabs(
         setActiveTab(`browser:${event.session.id}`)
       }
     })
-  }, [closeTab, detachedWindow])
+  }, [closeTab, detachedWindow, detachedProjects])
 
   const openBrowser = useCallback(async (url: string) => {
     try {
@@ -201,7 +220,7 @@ export function useTerminalTabs(
       }
       const next = current.filter((tab) => tab.id !== SETTINGS_TAB.id)
       setActiveTab((active) => active === SETTINGS_TAB.id
-        ? (next[index] ?? next[index - 1] ?? PRODUCT_TABS[0])?.id ?? 'overview'
+        ? tabAfterClose(current, SETTINGS_TAB.id, lastWorkspaceTab.current)
         : active)
       return next
     })
@@ -316,6 +335,8 @@ export function useTerminalTabs(
     setBrowserError,
     rememberProfile,
     onTerminalLaunched,
+    reopenTerminalSession,
+    openProjects,
     openSettings,
     openBrowser,
     closeBrowser,

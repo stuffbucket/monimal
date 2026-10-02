@@ -7,9 +7,12 @@ import '@maximal/maximal-electron/renderer/styles.css'
 
 import type { ProjectSearchResult } from '@maximal/project-catalog'
 import { createYProjectMapStore } from '@maximal/maximal-project-browser'
+import { Button, Dialog } from '@maximal/maximal-electron/renderer'
+import type { DetachableTerminalTransport } from '@maximal/maximal-terminal/renderer'
 import {
   AppFrame,
   PRODUCT_TABS,
+  PROJECTS_TAB,
   SETTINGS_TAB,
   SurfaceActivity,
   SurfaceRail,
@@ -18,14 +21,27 @@ import {
   type AppTab,
 } from './frame/AppFrame'
 import { WorkspaceRail } from './frame/WorkspaceRail'
+import { WORKBAR_PROFILE_SECTIONS } from './frame/workbar-layout'
+import { WorkspaceHome } from './home/WorkspaceHome'
+import { BrowserSessions, TerminalSessions } from './home/WorkspaceSessions'
 import { MaximalQueryProvider } from './query-client'
 import { ProjectBrowser } from './projects/ProjectBrowser'
-import { Settings } from './settings/Settings'
+import { Settings, type SettingsSectionRequest } from './settings/Settings'
 import { createPreviewSettingsCapabilities } from './settings/ui-preview-capabilities'
 import type { MaximalHost } from '../shared/host'
 import { UnsavedChangesProvider, useGuardedNavigation } from './unsaved-changes'
 
 const capabilities = createPreviewSettingsCapabilities()
+const previewSessionError = 'Session actions are available in the desktop workspace, not the UI preview.'
+const unavailableSession = () => Promise.reject(new Error(previewSessionError))
+const previewTerminalTransport: DetachableTerminalTransport = {
+  list: unavailableSession,
+  spawn: unavailableSession,
+  write: unavailableSession,
+  resize: unavailableSession,
+  terminate: unavailableSession,
+  subscribe: () => () => undefined,
+}
 const previewProjectMapStore = createYProjectMapStore()
 previewProjectMapStore.updatePresence('preview-agent', {
   id: 'agent',
@@ -93,6 +109,11 @@ const previewProjects: ProjectSearchResult[] = [
 ]
 
 const previewProjectsApi: MaximalHost['projects'] = {
+  undockWindow() { return Promise.reject(new Error('Window transfer requires the desktop client.')) },
+  redockWindow() { return Promise.reject(new Error('Window transfer requires the desktop client.')) },
+  windowState() { return Promise.resolve(undefined) },
+  onWindowRedocked() { return () => undefined },
+  openWorkspaceSettings() { return Promise.reject(new Error('Window transfer requires the desktop client.')) },
   search(query) {
     const normalized = query.trim().toLowerCase()
     return Promise.resolve(previewProjects.filter((project) =>
@@ -135,20 +156,27 @@ function ProductPreview({ title }: { title: string }): ReactElement {
 }
 
 function PreviewFrame(): ReactElement {
-  const [tabs, setTabs] = useState<AppTab[]>([...PRODUCT_TABS, SETTINGS_TAB])
-  const [activeTab, setActiveTab] = useState(SETTINGS_TAB.id)
-  const [projectBrowserOpen, setProjectBrowserOpen] = useState(
-    () => new URLSearchParams(window.location.search).get('surface') === 'projects',
+  const initialProjectsOpen =
+    new URLSearchParams(window.location.search).get('surface') === 'projects'
+  const [tabs, setTabs] = useState<AppTab[]>([
+    ...PRODUCT_TABS,
+    SETTINGS_TAB,
+    ...(initialProjectsOpen ? [PROJECTS_TAB] : []),
+  ])
+  const [activeTab, setActiveTab] = useState(
+    initialProjectsOpen ? PROJECTS_TAB.id : SETTINGS_TAB.id,
   )
   const [openedProject, setOpenedProject] = useState<string>()
+  const [actionError, setActionError] = useState<string>()
   const requestNavigation = useGuardedNavigation()
   const section = new URLSearchParams(window.location.search).get('section')
-  const request =
+  const [request, setRequest] = useState<SettingsSectionRequest>(
     section === 'accounts'
       ? { id: 'settings-account-heading' as const }
       : section === 'models'
         ? { id: 'settings-models-heading' as const }
-        : { id: 'settings-search-heading' as const }
+        : { id: 'settings-search-heading' as const },
+  )
   const current = tabs.find((tab) => tab.id === activeTab) ?? PRODUCT_TABS[0]
   const settingsOpen = tabs.some((tab) => tab.kind === 'settings')
 
@@ -168,27 +196,58 @@ function PreviewFrame(): ReactElement {
     })
   }
 
+  const openSettingsTab = (): void => {
+    if (!settingsOpen) setTabs((currentTabs) => [...currentTabs, SETTINGS_TAB])
+    setActiveTab(SETTINGS_TAB.id)
+  }
+
+  const openProjects = (): void => {
+    setTabs((currentTabs) => currentTabs.some((tab) => tab.id === PROJECTS_TAB.id)
+      ? currentTabs
+      : [...currentTabs, PROJECTS_TAB])
+    setActiveTab(PROJECTS_TAB.id)
+  }
+
+  const closeProjects = (): void => {
+    setTabs((currentTabs) => currentTabs.filter((tab) => tab.id !== PROJECTS_TAB.id))
+    if (activeTab === PROJECTS_TAB.id) setActiveTab(PRODUCT_TABS[0].id)
+  }
+  const selectTab = (id: string): void => requestNavigation(() => {
+    if (id === PROJECTS_TAB.id) openProjects()
+    else setActiveTab(id)
+  })
+  const sessionAction = (): void => setActionError(previewSessionError)
+
   return (
     <AppFrame
       tabs={tabs}
       activeTab={current.id}
-      surface={projectBrowserOpen ? 'projects' : current.kind}
-      onSelectTab={(id) => requestNavigation(() => setActiveTab(id))}
+      surface={current.kind}
+      onSelectTab={selectTab}
       onCloseTab={(id) => {
         if (id === SETTINGS_TAB.id) requestNavigation(closeSettings)
+        if (id === PROJECTS_TAB.id) closeProjects()
       }}
-      onOpenAssistant={() => undefined}
-      onOpenProjects={() => setProjectBrowserOpen(true)}
+      onOpenProjects={() => selectTab(PROJECTS_TAB.id)}
     >
-      {!projectBrowserOpen && current.kind === 'overview' ? <ProductPreview title="Overview" /> : null}
-      {!projectBrowserOpen && current.kind === 'traffic' ? <ProductPreview title="Traffic" /> : null}
-      {!projectBrowserOpen && current.kind === 'settings' ? (
+      {current.kind === 'overview' ? <ProductPreview title="Overview" /> : null}
+      {current.kind === 'traffic' ? <ProductPreview title="Traffic" /> : null}
+      {current.kind === 'home' ? (
+        <WorkspaceHome tabs={tabs} onSelectTab={selectTab} onOpenProjects={() => selectTab(PROJECTS_TAB.id)} onNewTerminal={sessionAction} onNewBrowser={sessionAction} />
+      ) : null}
+      {current.kind === 'terminals' ? (
+        <TerminalSessions tabs={tabs} transport={previewTerminalTransport} onSelectTab={selectTab} onResume={sessionAction} onNew={sessionAction} onClose={sessionAction} />
+      ) : null}
+      {current.kind === 'browsers' ? (
+        <BrowserSessions tabs={tabs} onSelectTab={selectTab} onNew={sessionAction} onClose={sessionAction} />
+      ) : null}
+      {current.kind === 'settings' ? (
         <Settings capabilities={capabilities} request={request} />
       ) : null}
       <SurfaceActivity>
         <WorkspaceRail
-          current={current.id}
-          onSelect={(id) => setActiveTab(id)}
+          current={current.kind}
+          onSelect={selectTab}
           workbar={capabilities.workbar}
           account={{
             id: 'octocat',
@@ -196,25 +255,37 @@ function PreviewFrame(): ReactElement {
             handle: '@octocat',
             plan: 'individual',
           }}
-          onOpenProfileSurface={() => undefined}
-          onSignOut={() => undefined}
+          onOpenProfileSurface={(surface) => requestNavigation(() => {
+            setRequest({ id: WORKBAR_PROFILE_SECTIONS[surface] })
+            openSettingsTab()
+          })}
           settingsOpen={settingsOpen}
           onToggleSettings={toggleSettings}
         />
       </SurfaceActivity>
       <ProjectBrowser
-        open={projectBrowserOpen}
+        open={current.kind === 'projects'}
         embedded
-        onOpenChange={setProjectBrowserOpen}
+        onOpenChange={(open) => {
+          if (!open) closeProjects()
+        }}
         onOpenProject={(project) => {
           setOpenedProject(project.id)
           return Promise.resolve()
         }}
-        onOpenSettings={() => setProjectBrowserOpen(false)}
+        onOpenSettings={openSettingsTab}
         projectsApi={previewProjectsApi}
         mapStore={previewProjectMapStore}
       />
       <output data-testid="preview-opened-project">{openedProject}</output>
+      <Dialog
+        open={actionError !== undefined}
+        onOpenChange={(open) => { if (!open) setActionError(undefined) }}
+        title="Desktop workspace required"
+        description={actionError}
+      >
+        <Button onClick={() => setActionError(undefined)}>Done</Button>
+      </Dialog>
     </AppFrame>
   )
 }

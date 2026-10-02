@@ -124,7 +124,7 @@ export function SpatialCanvasCorner({ children }: { children: ReactNode }) {
   return <div className="spatial-canvas__corner">{children}</div>;
 }
 
-/** Renders spatial canvas page tabs and page creation. */
+/** Opens page navigation from the current page title and Pages icon. */
 export function SpatialCanvasPages({
   pages,
   activePageId,
@@ -161,17 +161,18 @@ export function SpatialCanvasPages({
 
   return (
     <div className="spatial-canvas__pages" data-open={open}>
-      <span className="spatial-canvas__page-title">
-        {activePage?.name ?? "Untitled"}
-      </span>
-      <IconButton
-        label="Pages"
+      <Button
+        size="sm"
+        className="spatial-canvas__page-trigger"
+        aria-label={`Pages: ${activePage?.name ?? "Untitled"}`}
         aria-expanded={open}
-        active={open}
         onClick={() => setOpen((current) => !current)}
       >
+        <span className="spatial-canvas__page-title">
+          {activePage?.name ?? "Untitled"}
+        </span>
         <Copy size={16} />
-      </IconButton>
+      </Button>
       {open ?
         <aside className="spatial-canvas__pages-popover" aria-label="Pages">
           <header>

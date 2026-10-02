@@ -47,6 +47,8 @@ function findingKind(message) {
 
 export async function scanUnsafeTypeAssertions(root = ROOT) {
   const files = trackedFiles(root).filter(isScannablePath)
+    .filter((relativePath) => fs.statSync(path.join(root, relativePath), { throwIfNoEntry: false })?.isFile())
+  if (files.length === 0) throw new Error("No TypeScript source files are available for the unsafe assertion scan.")
   const eslint = new ESLint({
     cwd: root,
     overrideConfigFile: true,

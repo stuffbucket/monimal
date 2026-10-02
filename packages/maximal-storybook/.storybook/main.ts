@@ -1,4 +1,5 @@
 import type { StorybookConfig } from '@storybook/react-vite';
+import { storybookManagerHead } from '../src/index';
 
 /**
  * Storybook, as the place to look at a control.
@@ -35,6 +36,8 @@ const config: StorybookConfig = {
   },
   // No usage data leaves this machine.
   core: { disableTelemetry: true },
+  managerHead: (head) =>
+    storybookManagerHead(head, process.env['STORYBOOK_IDENTITY_LABEL']),
   /*
    * The stylesheet mode a run starts in, as a variable rather than only as a
    * toolbar switch. `scripts/storybook-check.mjs` drives the preview by URL

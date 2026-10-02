@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@maximal/maximal-storybook';
+import { expect, userEvent, within } from '@maximal/maximal-storybook/test';
 import { useState, type ReactNode } from 'react';
 
 import { SpatialCanvas, SpatialCanvasViewport } from './SpatialCanvas.js';
@@ -193,6 +194,34 @@ function ZoomDemo() {
 export const PageNavigation: Story = {
   args: { label: 'Page navigation', children: null },
   render: () => <PageNavigationDemo />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const title = canvas.getByText('Projects', { selector: '.spatial-canvas__page-title' });
+    const trigger = canvas.getByRole('button', { name: 'Pages: Projects' });
+    const icon = trigger.querySelector('svg');
+    if (!icon) throw new Error('The Pages trigger must include its icon');
+    const triggerBounds = trigger.getBoundingClientRect();
+    const titleBounds = title.getBoundingClientRect();
+    const iconBounds = icon.getBoundingClientRect();
+    await expect(trigger).toContainElement(title);
+    await expect(titleBounds.left).toBeGreaterThanOrEqual(triggerBounds.left);
+    await expect(iconBounds.right).toBeLessThanOrEqual(triggerBounds.right);
+    await expect(triggerBounds.width).toBeGreaterThanOrEqual(titleBounds.width + iconBounds.width);
+    await userEvent.click(title);
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    await userEvent.click(canvas.getByRole('tab', { name: 'Planning' }));
+    const planning = canvas.getByRole('button', { name: 'Pages: Planning' });
+    await expect(planning).toHaveAttribute('aria-expanded', 'false');
+    planning.focus();
+    await userEvent.keyboard('{Enter}');
+    await expect(canvas.getByRole('tab', { name: 'Planning' })).toHaveAttribute('aria-selected', 'true');
+    await userEvent.keyboard(' ');
+    await expect(planning).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(icon);
+    await expect(planning).toHaveAttribute('aria-expanded', 'true');
+    await userEvent.click(planning);
+    await expect(planning).toHaveAttribute('aria-expanded', 'false');
+  },
 };
 
 export const PresenceAndActions: Story = {

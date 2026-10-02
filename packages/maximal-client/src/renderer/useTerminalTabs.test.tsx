@@ -2,17 +2,19 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BrowserEvent } from '@maximal/maximal-browser'
+import type { TerminalPane } from '@maximal/maximal-terminal/renderer'
 
 const { terminalList } = vi.hoisted(() => ({ terminalList: vi.fn() }))
 vi.mock('./terminal/transport', () => ({ terminalTransport: { list: terminalList } }))
 vi.mock('./frame/AppFrame', () => ({
   PRODUCT_TABS: [{ id: 'overview', title: 'Overview', kind: 'overview' }],
+  PROJECTS_TAB: { id: 'projects', title: 'Projects', kind: 'projects', closable: true },
   SETTINGS_TAB: { id: 'settings', title: 'Settings', kind: 'settings' },
 }))
 
 import { useTerminalTabs, type TerminalTabsState } from './useTerminalTabs'
 
-const pane = {
+const pane: TerminalPane = {
   direction: 'right',
   first: { sessionId: 'primary' },
   second: { sessionId: 'split' },
@@ -80,6 +82,36 @@ async function restore() {
 }
 
 describe('terminal reconstruction', () => {
+  it('starts a detached Projects frame without claiming workspace terminal sessions', async () => {
+    let state: TerminalTabsState | undefined
+    function Harness() {
+      state = useTerminalTabs(undefined, true)
+      return null
+    }
+    await act(async () => { root.render(<Harness />) })
+    expect(state?.tabs.map((tab) => tab.id)).toEqual(['projects'])
+    expect(state?.activeTab).toBe('projects')
+    expect(terminalList).not.toHaveBeenCalled()
+  })
+  it('opens Projects once as a closable document tab', async () => {
+    terminalList.mockResolvedValue([])
+    let state: TerminalTabsState | undefined
+    function Harness() {
+      state = useTerminalTabs()
+      return null
+    }
+    await act(async () => { root.render(<Harness />) })
+
+    act(() => state?.openProjects())
+    act(() => state?.openProjects())
+    expect(state?.tabs.filter((tab) => tab.id === 'projects')).toHaveLength(1)
+    expect(state?.activeTab).toBe('projects')
+
+    act(() => state?.closeTab('projects'))
+    expect(state?.tabs.some((tab) => tab.id === 'projects')).toBe(false)
+    expect(state?.activeTab).toBe('overview')
+  })
+
   it('restores an ordinary direct terminal', async () => {
     terminalList.mockResolvedValue([{ id: 'direct', cwd: '/tmp', shell: '/bin/zsh', startedAt: 1 }])
     expect((await restore()).tabs).toEqual([expect.objectContaining({ id: 'terminal:direct', title: 'zsh' })])
@@ -94,6 +126,23 @@ describe('terminal reconstruction', () => {
     const restored = await restore()
     expect(restored.panes).toEqual([['terminal:primary', pane]])
     expect(restored.revisions).toEqual([['terminal:primary', 7]])
+  })
+
+  it('resumes a background split without spawning a new session or leaf tabs', async () => {
+    terminalList.mockResolvedValue([])
+    let state: TerminalTabsState | undefined
+    function Harness() {
+      state = useTerminalTabs()
+      return null
+    }
+    await act(async () => { root.render(<Harness />) })
+    act(() => state?.reopenTerminalSession(durable))
+    act(() => state?.reopenTerminalSession(durable))
+    expect(state?.tabs.filter((tab) => tab.kind === 'terminal').map((tab) => tab.id))
+      .toEqual(['terminal:primary'])
+    expect(state?.activeTab).toBe('terminal:primary')
+    expect(state?.panes.get('terminal:primary')).toEqual(pane)
+    expect(state?.paneRevisions.get('terminal:primary')).toBe(7)
   })
 
   it('retains the host-owned document title', async () => {

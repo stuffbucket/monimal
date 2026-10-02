@@ -9,7 +9,7 @@ import type { MaximalHost } from '@maximal/maximal-client/shared/host'
 
 const { exposeInMainWorld, invoke, on, off } = vi.hoisted(() => ({
   exposeInMainWorld: vi.fn(),
-  invoke: vi.fn(() => Promise.resolve(undefined)),
+  invoke: vi.fn((): Promise<unknown> => Promise.resolve(undefined)),
   on: vi.fn(),
   off: vi.fn(),
 }))
@@ -34,6 +34,38 @@ beforeEach(() => {
 })
 
 describe('preload bridge allowlist', () => {
+  it('forwards Projects window requests and return values without interpreting state', async () => {
+    const undock = { x: 120, y: -20, state: 'opaque Projects state' }
+    const redock = { sourceFrameId: '2', targetFrameId: '1', state: 'new state' }
+    invoke.mockResolvedValueOnce(true)
+    await expect(bridge.projects.undockWindow(undock)).resolves.toBe(true)
+    invoke.mockResolvedValueOnce(false)
+    await expect(bridge.projects.redockWindow(redock)).resolves.toBe(false)
+    invoke.mockResolvedValueOnce(undock.state)
+    await expect(bridge.projects.windowState()).resolves.toBe(undock.state)
+    expect(invoke.mock.calls).toEqual([
+      [BRIDGE_CHANNELS.projectsUndockWindow, undock],
+      [BRIDGE_CHANNELS.projectsRedockWindow, redock],
+      [BRIDGE_CHANNELS.projectsWindowState],
+    ])
+  })
+
+  it('subscribes to Projects redocking without exposing the Electron event and unsubscribes', () => {
+    const listener = vi.fn()
+    const unsubscribe = bridge.projects.onWindowRedocked(listener)
+    expect(on).toHaveBeenCalledWith(BRIDGE_CHANNELS.projectsWindowRedocked, expect.any(Function))
+    const callback = on.mock.calls[0]?.[1] as (event: unknown, state: string) => void
+    callback({ sender: 'private' }, 'opaque state')
+    expect(listener).toHaveBeenCalledExactlyOnceWith('opaque state')
+    unsubscribe()
+    expect(off).toHaveBeenCalledExactlyOnceWith(BRIDGE_CHANNELS.projectsWindowRedocked, callback)
+  })
+
+  it('delegates Projects settings navigation to the workspace host without arguments', async () => {
+    await expect(bridge.projects.openWorkspaceSettings()).resolves.toBeUndefined()
+    expect(invoke).toHaveBeenCalledExactlyOnceWith(BRIDGE_CHANNELS.projectsOpenWorkspaceSettings)
+  })
+
   it('exposes exactly the documented deep key set', () => {
     expect(Object.keys(bridge).sort()).toEqual([
       'appearance',
@@ -190,12 +222,17 @@ describe('preload bridge allowlist', () => {
     expect(Object.keys(bridge.projects).sort()).toEqual([
       'addRoot',
       'onChange',
+      'onWindowRedocked',
+      'openWorkspaceSettings',
       'opened',
+      'redockWindow',
       'refresh',
       'removeRoot',
       'search',
       'snapshot',
+      'undockWindow',
       'updateRoot',
+      'windowState',
     ])
     expect(Object.keys(bridge.terminalTypography).sort()).toEqual([
       'fonts',

@@ -21,7 +21,8 @@
     "@maximal/maximal-react-component": {
       "root": "packages/maximal-react-component",
       "dependsOn": [
-        "@maximal/eslint-config"
+        "@maximal/eslint-config",
+        "@maximal/maximal-storybook"
       ],
       "cycleEdges": [],
       "duplicatePairs": []

@@ -29,6 +29,7 @@ import type {
 
 import {
   connectorSegment,
+  itemRectangle,
   rectanglesIntersect,
   type Rectangle,
 } from "./geometry.ts"
@@ -62,6 +63,7 @@ import {
   useRafCamera,
   type Camera,
   type Point,
+  type PendingMove,
 } from "./view.ts"
 
 interface DragState {
@@ -71,12 +73,6 @@ interface DragState {
   camera: Camera
   worldOrigin: Point
   itemOrigins: Map<string, Point>
-}
-
-interface PendingMove {
-  itemOrigins: Map<string, Point>
-  dx: number
-  dy: number
 }
 
 export interface ProjectMapProps {
@@ -93,12 +89,8 @@ export interface ProjectMapProps {
   onPageChange: (pageId: string) => void
   viewer: ProjectMapViewer
   viewId?: string
-}
-
-function itemRectangle(item: SceneItem): Rectangle | undefined {
-  return "x" in item ?
-      { x: item.x, y: item.y, width: item.width, height: item.height }
-    : undefined
+  initialCamera?: Camera
+  onCameraChange?: (camera: Camera) => void
 }
 
 // eslint-disable-next-line max-lines-per-function
@@ -116,6 +108,8 @@ export function ProjectMap({
   onPageChange,
   viewer,
   viewId: providedViewId,
+  initialCamera = INITIAL_CAMERA,
+  onCameraChange,
 }: ProjectMapProps) {
   const generatedViewId = useId()
   const viewId = providedViewId ?? generatedViewId
@@ -125,10 +119,13 @@ export function ProjectMap({
   const pendingMove = useRef<PendingMove | undefined>(undefined)
   const moveFrame = useRef<number | undefined>(undefined)
   const nextId = useRef(0)
+  // Retained and transferred boards must not reuse another mount's IDs.
+  const [idPrefix] = useState(() => crypto.randomUUID())
   const connectorStart = useRef<string | undefined>(undefined)
   const cursor = useRef<Point | undefined>(undefined)
   const [storeRevision, setStoreRevision] = useState(0)
-  const [camera, scheduleCamera] = useRafCamera(INITIAL_CAMERA)
+  const [camera, scheduleCamera] = useRafCamera(initialCamera)
+  useEffect(() => onCameraChange?.(camera), [camera, onCameraChange])
   const [tool, setTool] = useState<ProjectMapTool>("select")
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [marquee, setMarquee] = useState<Rectangle | undefined>(undefined)
@@ -271,8 +268,8 @@ export function ProjectMap({
     [items],
   )
   const nextCommentId = useCallback(
-    (kind: "comment" | "reply") => `${kind}:${++nextId.current}`,
-    [],
+    (kind: "comment" | "reply") => `${kind}:${idPrefix}:${++nextId.current}`,
+    [idPrefix],
   )
   const {
     activeComment,
@@ -336,7 +333,7 @@ export function ProjectMap({
       return
     }
     if (tool !== "sticky" && tool !== "shape" && tool !== "section") return
-    const id = `local:${++nextId.current}`
+    const id = `local:${idPrefix}:${++nextId.current}`
     const definition = newItemDefinition(tool)
     setItems((current) => [
       ...current,
@@ -411,7 +408,7 @@ export function ProjectMap({
         setItems((current) => [
           ...current,
           {
-            id: `local:${++nextId.current}`,
+            id: `local:${idPrefix}:${++nextId.current}`,
             type: "connector",
             fromId: start,
             toId: item.id,
@@ -673,7 +670,7 @@ export function ProjectMap({
           onAddComment={(body) =>
             updatePage((draft) => {
               draft.comments.push({
-                id: `comment:${++nextId.current}`,
+                id: `comment:${idPrefix}:${++nextId.current}`,
                 author: viewer.name,
                 authorId: viewer.id,
                 authorInitials: viewer.initials,
@@ -690,7 +687,7 @@ export function ProjectMap({
           onAddMessage={(body) =>
             updatePage((draft) => {
               draft.messages.push({
-                id: `message:${++nextId.current}`,
+                id: `message:${idPrefix}:${++nextId.current}`,
                 author: viewer.name,
                 body,
               })
@@ -700,6 +697,7 @@ export function ProjectMap({
 
         <SpatialCanvasViewport
           ref={viewport}
+          camera={camera}
           id={panelId}
           tool={tool}
           tabIndex={0}

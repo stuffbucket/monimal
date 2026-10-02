@@ -106,6 +106,11 @@ const bridge = {
     refresh: (rootId) => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsRefresh, rootId),
     opened: (projectId) => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsOpened, projectId),
     onChange: (listener) => subscribe(BRIDGE_CHANNELS.projectsChanged, listener),
+    undockWindow: (request) => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsUndockWindow, request),
+    redockWindow: (request) => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsRedockWindow, request),
+    windowState: () => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsWindowState),
+    onWindowRedocked: (listener) => subscribe(BRIDGE_CHANNELS.projectsWindowRedocked, listener),
+    openWorkspaceSettings: () => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsOpenWorkspaceSettings),
   },
   terminalTypography: {
     get: () => ipcRenderer.invoke(BRIDGE_CHANNELS.terminalTypographyGet),

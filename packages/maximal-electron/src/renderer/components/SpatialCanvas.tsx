@@ -54,6 +54,15 @@ function sizedStyle({ x, y, width, height }: Sized): CSSProperties {
   return { ...positionStyle({ x, y }), width, height };
 }
 
+function CanvasMarker({
+  x,
+  y,
+  color,
+  ...props
+}: Positioned & { color: string } & ComponentPropsWithoutRef<"span">) {
+  return <span {...props} style={{ color, ...positionStyle({ x, y }) }} />;
+}
+
 /** Provides the token-driven root for a spatial editing surface. */
 export function SpatialCanvas({
   children,
@@ -71,18 +80,38 @@ export function SpatialCanvas({
   );
 }
 
-/** Provides the focusable interaction viewport for a spatial canvas. */
+/** Keeps the dot grid anchored to the camera, coarsening it at low zoom. */
 export const SpatialCanvasViewport = forwardRef<
   HTMLDivElement,
-  ComponentPropsWithoutRef<"div"> & { tool: string }
->(function SpatialCanvasViewport({ tool, children, ...props }, ref) {
+  ComponentPropsWithoutRef<"div"> & {
+    tool: string;
+    camera?: Positioned & { zoom: number };
+  }
+>(function SpatialCanvasViewport({
+  tool,
+  camera = { x: 0, y: 0, zoom: 1 },
+  style,
+  children,
+  ...props
+}, ref) {
+  const gridScale = camera.zoom * 2 ** Math.max(0, Math.ceil(Math.log2(1 / camera.zoom)));
+  const radius = `var(--shell-spatial-grid-radius) * ${Math.max(1, camera.zoom)}`;
+  const spacing = `calc(var(--shell-space-4) * ${gridScale})`;
+  const gridStyle: CSSProperties = {
+    backgroundImage: `radial-gradient(circle, currentColor calc(${radius} - var(--shell-spatial-grid-edge)), transparent calc(${radius} + var(--shell-spatial-grid-edge)))`,
+    backgroundPosition: `calc(${camera.x}px - var(--shell-space-4) * ${gridScale} / 2) calc(${camera.y}px - var(--shell-space-4) * ${gridScale} / 2)`,
+    backgroundSize: `${spacing} ${spacing}`,
+  };
+
   return (
     <div
       {...props}
       ref={ref}
       className="spatial-canvas__viewport"
       data-tool={tool}
+      style={style}
     >
+      <div className="spatial-canvas__grid" aria-hidden="true" style={gridStyle} />
       {children}
     </div>
   );
@@ -257,10 +286,12 @@ export function SpatialCanvasCommentCursor({
   color,
 }: Positioned & { color: string }) {
   return (
-    <span
+    <CanvasMarker
       className="spatial-canvas__comment-cursor"
       data-state="tool"
-      style={{ color, ...positionStyle({ x, y }) }}
+      x={x}
+      y={y}
+      color={color}
       aria-hidden="true"
     />
   );
@@ -273,10 +304,12 @@ export function SpatialCanvasCommentAnchor({
   color,
 }: Positioned & { color: string }) {
   return (
-    <span
+    <CanvasMarker
       className="spatial-canvas__comment-anchor"
       data-state="anchored"
-      style={{ color, ...positionStyle({ x, y }) }}
+      x={x}
+      y={y}
+      color={color}
       aria-hidden="true"
     />
   );
@@ -299,14 +332,13 @@ export function SpatialCanvasCursor({
 }) {
   const labeled = children !== undefined && children !== null;
   return (
-    <span
+    <CanvasMarker
       className="spatial-canvas__cursor"
       data-labeled={labeled}
       data-state={state}
-      style={{
-        color,
-        ...positionStyle({ x, y }),
-      }}
+      x={x}
+      y={y}
+      color={color}
       aria-hidden="true"
     >
       <span className="spatial-canvas__cursor-glyph">
@@ -317,7 +349,7 @@ export function SpatialCanvasCursor({
           <span>{children}</span>
         </span>
       : null}
-    </span>
+    </CanvasMarker>
   );
 }
 

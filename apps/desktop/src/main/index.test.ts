@@ -652,6 +652,7 @@ describe('closed IPC boundary', () => {
       BRIDGE_CHANNELS.harnessEnd,
       BRIDGE_CHANNELS.harnessModelProgress,
       BRIDGE_CHANNELS.projectsChanged,
+      BRIDGE_CHANNELS.projectsWindowRedocked,
     ])
   })
 

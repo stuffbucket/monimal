@@ -33,6 +33,36 @@ you want, that is a missing token rather than a licence to reach in. Say which
 one and it can be added; a token substitutes a value and cannot break the way a
 selector can.
 
+## Workbar navigation
+
+Consumers MUST route each visible workbar item to a functional destination.
+
+Consumers MUST map terminal and browser document tabs to their owning workbar
+destination rather than use document IDs as workbar selection IDs.
+
+The shell MUST own the `home`, `overview`, and `traffic` glyphs.
+
+## Document tabs
+
+Explicitly closable document tabs MUST retain their close affordance when they
+are the last tab. Tabs with an unspecified `closable` value MUST retain the
+last-tab protection.
+
+Document transfers MUST carry their consumer-owned snapshot in the optional
+`document` metadata rather than terminal session fields.
+
+## Spatial camera
+
+Consumers MUST pass the same world-to-viewport `camera` to
+`SpatialCanvasViewport` and the corresponding coordinates to `SpatialCanvasScene`.
+
+Hosts MAY override `--shell-spatial-grid-dot-light`,
+`--shell-spatial-grid-dot-dark`, and `--shell-spatial-grid-background-light`
+on their shell root to select the spatial canvas palette.
+
+`SpatialCanvasPages` MUST expose the current page title and Pages icon as one
+button that toggles the page picker through pointer, Enter, or Space activation.
+
 ## Why `dist/` is not committed
 
 Committing it would make workspace imports work without a build, and #70

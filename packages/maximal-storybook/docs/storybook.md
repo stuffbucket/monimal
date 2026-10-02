@@ -17,6 +17,9 @@ non-visual classification in the Storybook checks.
 `pnpm storybook:check` MUST inspect real computed layout and accessibility in
 a browser.
 
+Development servers MUST register their branch, worktree, commit, port, and
+process identity through `scripts/storybook-server.mjs`.
+
 Screenshots MAY support diagnosis but MUST NOT be the only oracle.
 
 Stories and Storybook fixtures MUST remain unreachable from every package

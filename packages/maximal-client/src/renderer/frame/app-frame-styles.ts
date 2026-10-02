@@ -62,12 +62,63 @@ const APP_FRAME_CSS = `
 }
 
 .sb-shell .workspace-surface {
+  box-sizing: border-box;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
   padding: var(--shell-space-5, 24px);
 }
 
 .sb-shell .workspace-surface__header h1,
 .sb-shell .workspace-surface__header p {
   margin: 0;
+}
+
+.sb-shell .workspace-surface__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--shell-space-2, 8px);
+}
+
+.sb-shell .workspace-surface > .workspace-surface__actions {
+  margin: var(--shell-space-4, 16px) 0;
+}
+
+.sb-shell .workspace-surface h2 {
+  font-size: var(--shell-text-lg);
+  font-weight: var(--shell-weight-lg);
+}
+
+.sb-shell .workspace-surface__list {
+  display: grid;
+  gap: var(--shell-space-2, 8px);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.sb-shell .workspace-surface__entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--shell-space-3, 12px);
+  padding: var(--shell-space-3, 12px);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius, 4px);
+}
+
+.sb-shell .workspace-surface__copy {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: var(--shell-space-1, 4px);
+}
+
+.sb-shell .workspace-surface__detail {
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-sm);
+  overflow-wrap: anywhere;
 }
 
 .sb-shell .workspace-surface__header h1 {
@@ -81,53 +132,6 @@ const APP_FRAME_CSS = `
   font-size: var(--shell-text-sm);
 }
 
-.sb-shell .workspace-map {
-  position: relative;
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  background: rgb(227 227 255);
-}
-
-.sb-shell .workspace-map__canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  cursor: grab;
-  touch-action: none;
-}
-
-.sb-shell .workspace-map__canvas:active {
-  cursor: grabbing;
-}
-
-.sb-shell .workspace-map__label {
-  position: absolute;
-  top: var(--shell-space-3, 12px);
-  left: var(--shell-space-3, 12px);
-  display: grid;
-  gap: 2px;
-  padding: var(--shell-space-2, 8px);
-  border-radius: var(--shell-radius, 4px);
-  color: rgb(38 38 68);
-  background: rgb(247 247 255 / 82%);
-  box-shadow: 0 4px 14px rgb(67 67 108 / 12%);
-  pointer-events: none;
-}
-
-.sb-shell .workspace-map__label strong {
-  font-size: var(--shell-text-sm);
-  font-weight: var(--shell-weight-lg);
-}
-
-.sb-shell .workspace-map__label span {
-  color: rgb(83 83 120);
-  font-size: var(--shell-text-xs);
-  font-variant-numeric: tabular-nums;
-}
 `
 
 const APP_FRAME_STYLE_ID = 'maximal-app-frame'

@@ -62,10 +62,15 @@ describe('WorkbarSection', () => {
     const moveProjectsUp = container.querySelector<HTMLButtonElement>(
       '[aria-label="Move Projects up"]',
     )
+    await vi.waitFor(async () => {
+      await settleQueries()
+      expect(moveProjectsUp?.disabled).toBe(false)
+    })
     await act(async () => {
       moveProjectsUp?.click()
       await new Promise((resolve) => setTimeout(resolve, 0))
     })
+    await settleQueries()
     expect([...container.querySelectorAll<HTMLElement>('.workbar__item')]
       .map((item) => item.title)).toEqual([
         'Projects',
