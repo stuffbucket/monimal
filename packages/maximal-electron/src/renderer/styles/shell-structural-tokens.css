@@ -13,7 +13,6 @@
   --shell-radius-large: 4px;
   --shell-radius-dialog: 4px;
   --shell-focus-ring-width: 2px;
-  --shell-icon-stroke: 1px;
   --shell-field-background: var(--shell-input-background, var(--shell-canvas));
   --shell-focus-ring-offset: 2px;
   --shell-input-border: var(--shell-border-strong, var(--shell-border));

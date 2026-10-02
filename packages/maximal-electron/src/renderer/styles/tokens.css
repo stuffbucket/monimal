@@ -116,9 +116,6 @@
    * One ring. This was written out five times in three different geometries,
    * so a control's focus outline depended on which stylesheet it landed in.
    */
-  /* Lucide draws at 2. Shell glyphs use the thin one-pixel stroke. */
-  --icon-stroke: 1px;
-
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;
   --focus-ring-color: var(--accent);

@@ -320,7 +320,6 @@ export function AppWorkspace({
 }: AppWorkspaceProps): ReactElement {
   const [profileError, setProfileError] = useState<string>()
   const [browserAddress, setBrowserAddress] = useState<string>()
-  const [mapOpen, setMapOpen] = useState(false)
   const [projectBrowserOpen, setProjectBrowserOpen] = useState(false)
   const [focusedTerminalSessions, setFocusedTerminalSessions] = useState<
     Record<string, string>

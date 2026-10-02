@@ -61,7 +61,6 @@ focus rings, type, and optical details are not spacing increments.
 | `--shell-icon-optical-folder-offset-y` | `0.5px` | Centers the Folder glyph's painted bounds in its slot. |
 | `--shell-icon-optical-map-scale` | `1.111111` | Expands the Map glyph to the prominent painted extent. |
 | `--shell-icon-optical-terminal-scale` | `1.111111` | Expands the Terminal glyph to the prominent painted extent. |
-| `--shell-icon-stroke` | `1px` | The thin stroke used by shell iconography and spatial lines. |
 | `--shell-input-border` | `var(--shell-border-strong, var(--shell-border))` | The outline of a field. |
 | `--shell-leading-base` | `1.5` | Line height for a paragraph. |
 | `--shell-provider-anthropic-card-background` | `var(--shell-raised)` | The Anthropic model-card surface. |
