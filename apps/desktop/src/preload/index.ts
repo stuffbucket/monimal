@@ -115,6 +115,11 @@ const bridge = {
     openPreview: () => ipcRenderer.invoke(BRIDGE_CHANNELS.terminalTypographyOpenPreview),
     onChange: (listener) => subscribe(BRIDGE_CHANNELS.terminalTypographyChanged, listener),
   },
+  workbar: {
+    get: () => ipcRenderer.invoke(BRIDGE_CHANNELS.workbarGet),
+    update: (layout) => ipcRenderer.invoke(BRIDGE_CHANNELS.workbarUpdate, layout),
+    onChange: (listener) => subscribe(BRIDGE_CHANNELS.workbarChanged, listener),
+  },
   harness: {
     show: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessShow),
     hide: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessHide),

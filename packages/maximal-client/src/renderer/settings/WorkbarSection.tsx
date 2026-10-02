@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { type ReactElement } from 'react'
 import {
+  Banner,
   IconButton,
   SettingsGroup,
   SettingsItem,
@@ -13,9 +14,16 @@ import {
   WORKBAR_ITEMS,
   useWorkbarLayout,
 } from '../frame/workbar-layout'
+import type { SettingsCapabilities } from './capabilities'
 
-export function WorkbarSection(): ReactElement {
-  const { layout, move, setVisible } = useWorkbarLayout()
+export function WorkbarSection({
+  capabilities,
+}: {
+  capabilities: SettingsCapabilities
+}): ReactElement {
+  const { layout, move, setVisible, busy, error } = useWorkbarLayout(
+    capabilities.workbar,
+  )
   const byId = new Map(WORKBAR_ITEMS.map((item) => [item.id, item]))
   const orderedItems = layout.order.map((id) => byId.get(id)!)
   const visible = new Set(layout.visible)
@@ -26,6 +34,7 @@ export function WorkbarSection(): ReactElement {
         title="Workbar"
         description="Choose which destinations appear and arrange their order."
       >
+        {error ? <Banner status="failed">{error}</Banner> : null}
         <SettingsGroup dividers={false}>
           {orderedItems.map((item, index) => {
             const Icon = shellIcon(item.icon)
@@ -42,14 +51,14 @@ export function WorkbarSection(): ReactElement {
                   <>
                     <IconButton
                       label={`Move ${item.label} up`}
-                      disabled={index === 0}
+                      disabled={busy || index === 0}
                       onClick={() => move(item.id, -1)}
                     >
                       <ChevronUp size={16} />
                     </IconButton>
                     <IconButton
                       label={`Move ${item.label} down`}
-                      disabled={index === orderedItems.length - 1}
+                      disabled={busy || index === orderedItems.length - 1}
                       onClick={() => move(item.id, 1)}
                     >
                       <ChevronDown size={16} />
@@ -58,6 +67,7 @@ export function WorkbarSection(): ReactElement {
                       label={`Show ${item.label} in workbar`}
                       displayLabel={null}
                       checked={visible.has(item.id)}
+                      disabled={busy}
                       onChange={(enabled) => setVisible(item.id, enabled)}
                     />
                   </>

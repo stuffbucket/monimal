@@ -57,6 +57,7 @@ import type {
   TerminalFontAxis,
   TerminalFontCatalog,
   TerminalTypographySettings,
+  WorkbarLayout,
 } from '../../shared/host'
 
 import {
@@ -103,6 +104,7 @@ export type {
   TerminalFontAxis,
   TerminalFontCatalog,
   TerminalTypographySettings,
+  WorkbarLayout,
   SearchProviderValidationRequest,
   SearchProviderValidationResponse,
   SearchSettingsResponse,
@@ -185,6 +187,11 @@ export interface SettingsCapabilities {
     installFont(fontId: string): Promise<TerminalFontCatalog>
     openPreview(): Promise<void>
     subscribe(listener: (settings: TerminalTypographySettings) => void): () => void
+  }
+  workbar: {
+    get(): Promise<WorkbarLayout>
+    update(layout: WorkbarLayout): Promise<WorkbarLayout>
+    subscribe(listener: (layout: WorkbarLayout) => void): () => void
   }
   connections: {
     list(): Promise<ConnectionsListResponse>
@@ -418,6 +425,11 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
       installFont: (fontId) => bridge.terminalTypography.installFont(fontId),
       openPreview: () => bridge.terminalTypography.openPreview(),
       subscribe: (listener) => bridge.terminalTypography.onChange(listener),
+    },
+    workbar: {
+      get: () => bridge.workbar.get(),
+      update: (layout) => bridge.workbar.update(layout),
+      subscribe: (listener) => bridge.workbar.onChange(listener),
     },
     connections: {
       list: async () =>

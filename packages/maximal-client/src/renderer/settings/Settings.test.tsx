@@ -11,7 +11,10 @@ import {
   DEFAULT_SETTINGS_SECTION_ID,
   SETTINGS_SECTIONS,
 } from '../../shared/settings-sections'
-import type { PersistedMaterialPreference } from '../../shared/host'
+import type {
+  PersistedMaterialPreference,
+  WorkbarLayout,
+} from '../../shared/host'
 import { AppFrame, PRODUCT_TABS } from '../frame/AppFrame'
 import { MaximalQueryProvider } from '../query-client'
 import type {
@@ -201,6 +204,14 @@ function fakeCapabilities(): SettingsCapabilities {
       })),
       installFont: vi.fn(),
       openPreview: vi.fn(async () => {}),
+      subscribe: vi.fn(() => () => {}),
+    },
+    workbar: {
+      get: vi.fn(async (): Promise<WorkbarLayout> => ({
+        order: ['home', 'projects', 'overview', 'traffic', 'terminals', 'browsers'],
+        visible: ['home', 'projects', 'overview', 'traffic', 'terminals', 'browsers'],
+      })),
+      update: vi.fn(async (layout: WorkbarLayout) => layout),
       subscribe: vi.fn(() => () => {}),
     },
     connections: {

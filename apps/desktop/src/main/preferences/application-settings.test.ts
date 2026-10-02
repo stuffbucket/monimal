@@ -12,6 +12,8 @@ import {
   setReducedMotionEnabled,
   setVibrancyEnabled,
   setTerminalTypography,
+  setWorkbarLayout,
+  workbarLayoutSchema,
 } from './application-settings'
 
 const directories: string[] = []
@@ -302,5 +304,33 @@ describe('loadApplicationSettings', () => {
         effects: { ...settings.palette.effects, opacity: 1.1 },
       },
     })).rejects.toThrow()
+  })
+
+  it('persists and validates workbar layout through the application settings store', async () => {
+    const directory = await fixture()
+    const layout = {
+      order: ['projects', 'home', 'overview', 'traffic', 'terminals', 'browsers'] as const,
+      visible: ['projects', 'home', 'terminals'] as const,
+    }
+
+    await expect(setWorkbarLayout(directory, {
+      order: [...layout.order],
+      visible: [...layout.visible],
+    })).resolves.toEqual(layout)
+    expect(loadApplicationSettings(directory).settings.workbarLayout).toEqual(layout)
+    await expect(setWorkbarLayout(directory, {
+      order: ['home', 'home', 'overview', 'traffic', 'terminals', 'browsers'],
+      visible: ['home'],
+    })).rejects.toThrow()
+  })
+
+  it('normalizes stale persisted workbar layouts without losing user order', () => {
+    expect(workbarLayoutSchema.parse({
+      order: ['projects', 'removed', 'projects', 'home'],
+      visible: ['projects', 'removed', 'projects'],
+    })).toEqual({
+      order: ['projects', 'home', 'overview', 'traffic', 'terminals', 'browsers'],
+      visible: ['projects'],
+    })
   })
 })
