@@ -12,6 +12,7 @@ import {
   useWorkbarLayout,
   type WorkbarItemId,
 } from './workbar-layout'
+import type { SettingsCapabilities } from '../settings/capabilities'
 
 interface ContextMenuState {
   x: number
@@ -22,6 +23,7 @@ interface ContextMenuState {
 export function WorkspaceRail({
   current,
   onSelect,
+  workbar,
   account,
   onOpenProfileSurface,
   onSignIn,
@@ -31,6 +33,7 @@ export function WorkspaceRail({
 }: {
   current: string
   onSelect: (id: WorkbarItemId) => void
+  workbar: SettingsCapabilities['workbar']
   account?: Account
   onOpenProfileSurface?: (surface: SettingsSurface) => void
   onSignIn?: () => void
@@ -38,7 +41,7 @@ export function WorkspaceRail({
   settingsOpen?: boolean
   onToggleSettings?: () => void
 }): ReactElement {
-  const { layout, setVisible } = useWorkbarLayout()
+  const { layout, setVisible, busy, error } = useWorkbarLayout(workbar)
   const [contextMenu, setContextMenu] = useState<ContextMenuState>()
   const byId = new Map(WORKBAR_ITEMS.map((item) => [item.id, item]))
   const orderedItems = layout.order.map((id) => byId.get(id)!)
@@ -56,6 +59,7 @@ export function WorkspaceRail({
           setContextMenu({ x: event.clientX, y: event.clientY, container })
         }}
       >
+        {error ? <span role="alert" className="visually-hidden">{error}</span> : null}
         <Workbar
           items={items}
           current={current as WorkbarItemId}
@@ -103,6 +107,7 @@ export function WorkspaceRail({
                 key={item.id}
                 className="menu__item"
                 checked={visible.has(item.id)}
+                disabled={busy}
                 onCheckedChange={(checked) => setVisible(item.id, checked === true)}
                 data-testid={`workbar-menu-${item.id}`}
               >

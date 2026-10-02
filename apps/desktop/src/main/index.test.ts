@@ -645,6 +645,7 @@ describe('closed IPC boundary', () => {
       BRIDGE_CHANNELS.terminalPaneChanged,
       BRIDGE_CHANNELS.browserEvent,
       BRIDGE_CHANNELS.terminalTypographyChanged,
+      BRIDGE_CHANNELS.workbarChanged,
       BRIDGE_CHANNELS.harnessDelta,
       BRIDGE_CHANNELS.harnessTool,
       BRIDGE_CHANNELS.harnessApproval,

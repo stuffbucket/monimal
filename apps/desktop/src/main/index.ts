@@ -72,6 +72,7 @@ import {
 import { resolveLicenseBundlePath } from './native/license-bundle.js'
 import { listClientInstallations } from './native/client-installations.js'
 import { registerAppearanceIpc } from './native/appearance-ipc.js'
+import { registerWorkbarIpc } from './native/workbar-ipc.js'
 import { toLifecycleStatus } from './sidecar/lifecycle-status.js'
 import { registerOllamaRuntimeIpc } from './ollama-runtime-ipc.js'
 import { DesktopProjectCatalog } from './adapters/project-catalog.js'
@@ -407,6 +408,7 @@ function registerIpc(
     broadcast(BRIDGE_CHANNELS.projectsChanged)
   })
   registerAppearanceIpc(broadcast, openTypographyPreviewWindow)
+  registerWorkbarIpc(broadcast)
   ipcMain.handle(BRIDGE_CHANNELS.authStatus, () => session.authStatus())
   ipcMain.handle(BRIDGE_CHANNELS.authStart, () => session.authStart())
   ipcMain.handle(BRIDGE_CHANNELS.authCancel, () => session.authCancel())

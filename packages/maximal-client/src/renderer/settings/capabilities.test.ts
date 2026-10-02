@@ -14,6 +14,7 @@ import type {
   MaximalHost,
   PersistedMaterialPreference,
   TerminalTypographySettings,
+  WorkbarLayout,
 } from '../../shared/host'
 import { ControlCallError } from '../shared/control-error'
 import {
@@ -263,6 +264,14 @@ function fakeBridge(): MaximalHost {
       })),
       installFont: vi.fn(),
       openPreview: vi.fn(async () => {}),
+      onChange: vi.fn(() => () => {}),
+    },
+    workbar: {
+      get: vi.fn(async (): Promise<WorkbarLayout> => ({
+        order: ['home', 'projects', 'overview', 'traffic', 'terminals', 'browsers'],
+        visible: ['home', 'projects', 'overview', 'traffic', 'terminals', 'browsers'],
+      })),
+      update: vi.fn(async (layout: WorkbarLayout) => layout),
       onChange: vi.fn(() => () => {}),
     },
     harness: {

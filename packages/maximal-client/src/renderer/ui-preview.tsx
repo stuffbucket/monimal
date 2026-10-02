@@ -189,6 +189,7 @@ function PreviewFrame(): ReactElement {
         <WorkspaceRail
           current={current.id}
           onSelect={(id) => setActiveTab(id)}
+          workbar={capabilities.workbar}
           account={{
             id: 'octocat',
             displayName: 'Octocat',

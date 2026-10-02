@@ -12,6 +12,9 @@ import {
   type PersistedMaterialPreference,
   TERMINAL_THICKEN_DEFAULT,
   type TerminalTypographySettings,
+  WORKBAR_ITEM_IDS,
+  type WorkbarItemId,
+  type WorkbarLayout,
 } from '@maximal/maximal-client/shared/host'
 import {
   DEFAULT_TERMINAL_PALETTE_SETTINGS,
@@ -99,6 +102,32 @@ export const terminalTypographySettingsSchema = z.object({
   thickenStrength: value.thicken ? value.thickenStrength : 0,
 }))
 
+const workbarItemIdSchema = z.enum(WORKBAR_ITEM_IDS)
+const workbarItemIds = new Set<string>(WORKBAR_ITEM_IDS)
+
+export const workbarLayoutUpdateSchema = z.object({
+  order: z.array(workbarItemIdSchema)
+    .length(WORKBAR_ITEM_IDS.length)
+    .refine((ids) => new Set(ids).size === WORKBAR_ITEM_IDS.length),
+  visible: z.array(workbarItemIdSchema)
+    .refine((ids) => new Set(ids).size === ids.length),
+}).transform((value) => value)
+
+export const workbarLayoutSchema: z.ZodType<WorkbarLayout> = z.object({
+  order: z.array(z.string()),
+  visible: z.array(z.string()),
+}).transform((value) => {
+  const order = [...new Set(value.order)]
+    .filter((id): id is WorkbarItemId => workbarItemIds.has(id))
+  const present = new Set(order)
+  order.push(...WORKBAR_ITEM_IDS.filter((id) => !present.has(id)))
+  return {
+    order,
+    visible: [...new Set(value.visible)]
+      .filter((id): id is WorkbarItemId => workbarItemIds.has(id)),
+  }
+})
+
 const applicationSettingsSchema = z.object({
   agentApproval: z.enum(['all', 'writes', 'none']),
   agentTools: z.boolean(),
@@ -109,6 +138,7 @@ const applicationSettingsSchema = z.object({
   terminalSessionPrefix: z.string().regex(TMUX_SESSION_PREFIX_PATTERN),
   terminalTmuxStatus: z.enum(['off', 'on', 'inherit']),
   terminalTypography: terminalTypographySettingsSchema.transform((value) => value),
+  workbarLayout: workbarLayoutSchema,
   ollamaStartOnLaunch: z.boolean(),
   vibrancyEnabled: z.boolean(),
   backgroundEffectsEnabled: z.boolean(),
@@ -132,6 +162,7 @@ const applicationSettingsPersistence = {
   terminalSessionPrefix: 'user',
   terminalTmuxStatus: 'user',
   terminalTypography: 'user',
+  workbarLayout: 'user',
   ollamaStartOnLaunch: 'user',
   vibrancyEnabled: 'user',
   backgroundEffectsEnabled: 'user',
@@ -194,6 +225,10 @@ function applicationSettingsDefaults(
       ligatures: true,
       fontFeatures: {},
       palette: DEFAULT_TERMINAL_PALETTE_SETTINGS,
+    }),
+    workbarLayout: workbarLayoutSchema.catch({
+      order: [...WORKBAR_ITEM_IDS],
+      visible: [...WORKBAR_ITEM_IDS],
     }),
     ollamaStartOnLaunch: applicationSettingsSchema.shape.ollamaStartOnLaunch.catch(false),
     vibrancyEnabled: applicationSettingsSchema.shape.vibrancyEnabled.catch(false),
@@ -392,5 +427,24 @@ export async function setTerminalTypography(
     }
     return (await store.update('terminalTypography', value))
       .settings.terminalTypography
+  }
+}
+
+export async function setWorkbarLayout(
+  userDataDirectory: string,
+  layout: WorkbarLayout,
+): Promise<WorkbarLayout> {
+  const value = workbarLayoutUpdateSchema.parse(layout)
+  const store = applicationSettingsStore(userDataDirectory)
+  try {
+    return (await store.create('workbarLayout', value)).settings.workbarLayout
+  } catch (error) {
+    if (
+      !(error instanceof Error)
+      || error.message !== 'Setting already exists in its configured layer: workbarLayout'
+    ) {
+      throw error
+    }
+    return (await store.update('workbarLayout', value)).settings.workbarLayout
   }
 }

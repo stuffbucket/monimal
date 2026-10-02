@@ -62,6 +62,7 @@ describe('preload bridge allowlist', () => {
       'systemNotifications',
       'terminal',
       'terminalTypography',
+      'workbar',
     ])
     expect(Object.keys(bridge.appearance).sort()).toEqual([
       'get',
@@ -204,6 +205,11 @@ describe('preload bridge allowlist', () => {
       'openPreview',
       'update',
     ])
+    expect(Object.keys(bridge.workbar).sort()).toEqual([
+      'get',
+      'onChange',
+      'update',
+    ])
     expect(Object.keys(bridge.terminal).sort()).toEqual([
       'acknowledge',
       'copy',
@@ -337,6 +343,11 @@ describe('preload bridge allowlist', () => {
     await bridge.terminalTypography.fonts()
     await bridge.terminalTypography.installFont('intel-one-mono')
     await bridge.terminalTypography.openPreview()
+    await bridge.workbar.get()
+    await bridge.workbar.update({
+      order: ['home', 'projects', 'overview', 'traffic', 'terminals', 'browsers'],
+      visible: ['home', 'projects'],
+    })
     await bridge.harness.show()
     await bridge.harness.hide()
     await bridge.harness.provider()
@@ -494,6 +505,11 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.terminalTypographyFonts],
       [BRIDGE_CHANNELS.terminalTypographyInstallFont, 'intel-one-mono'],
       [BRIDGE_CHANNELS.terminalTypographyOpenPreview],
+      [BRIDGE_CHANNELS.workbarGet],
+      [BRIDGE_CHANNELS.workbarUpdate, {
+        order: ['home', 'projects', 'overview', 'traffic', 'terminals', 'browsers'],
+        visible: ['home', 'projects'],
+      }],
       [BRIDGE_CHANNELS.harnessShow],
       [BRIDGE_CHANNELS.harnessHide],
       [BRIDGE_CHANNELS.harnessProvider],
