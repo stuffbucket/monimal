@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 import type {
   AssistantChat,
   AssistantChatMessage,
@@ -20,46 +21,60 @@ export function AssistantHistory({
 }: {
   onOpenTerminal: (chatId: string) => void
 }) {
-  const [chats, setChats] = useState<AssistantChat[]>([])
+  const queryClient = useQueryClient()
   const [selected, setSelected] = useState<string>()
-  const [messages, setMessages] = useState<AssistantChatMessage[]>([])
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<StatusFilter>('all')
   const [sort, setSort] = useState<AssistantChatSort>('activity')
-
-  const reload = useCallback(() => {
-    void window.maximal.harness.chats.list({
+  const chatsQueryKey = ['assistant', 'chats', 'history', search, status, sort] as const
+  const chatsQuery = useQuery({
+    queryKey: chatsQueryKey,
+    queryFn: () => window.maximal.harness.chats.list({
       search: search || undefined,
       status,
       sort,
       direction: 'desc',
       limit: 500,
-    }).then((result) => {
-      setChats(result.chats)
-      if (result.chats.length === 0) setMessages([])
-      setSelected((current) =>
-        current && result.chats.some((chat) => chat.id === current)
-          ? current
-          : result.chats[0]?.id)
-    })
-  }, [search, sort, status])
+    }),
+  })
+  const chats = chatsQuery.data?.chats ?? []
+  const selectedChatId = selected && chats.some((chat) => chat.id === selected)
+    ? selected
+    : chats[0]?.id
+  const messagesQuery = useQuery({
+    queryKey: ['assistant', 'chats', 'messages', selectedChatId],
+    queryFn: () => window.maximal.harness.chats.messages(selectedChatId ?? ''),
+    enabled: selectedChatId !== undefined,
+  })
+  const messages: AssistantChatMessage[] = messagesQuery.data ?? []
 
-  useEffect(reload, [reload])
-  useEffect(() => window.maximal.harness.onChatsChanged(reload), [reload])
+  useEffect(() => window.maximal.harness.onChatsChanged(() => {
+    void queryClient.invalidateQueries({ queryKey: ['assistant', 'chats'] })
+  }), [queryClient])
 
-  useEffect(() => {
-    if (!selected) return
-    void window.maximal.harness.chats.messages(selected).then(setMessages)
-  }, [selected])
-
-  const activeChat = chats.find((chat) => chat.id === selected)
-  const update = async (
-    chat: AssistantChat,
-    next: Parameters<typeof window.maximal.harness.chats.update>[1],
-  ) => {
-    await window.maximal.harness.chats.update(chat.id, next)
-    reload()
+  const invalidateChats = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['assistant', 'chats'] })
   }
+  const updateMutation = useMutation({
+    mutationFn: ({
+      chat,
+      next,
+    }: {
+      chat: AssistantChat
+      next: Parameters<typeof window.maximal.harness.chats.update>[1]
+    }) => window.maximal.harness.chats.update(chat.id, next),
+    onSuccess: invalidateChats,
+  })
+  const openMutation = useMutation({
+    mutationFn: (id: string) => window.maximal.harness.chats.open(id),
+    onSuccess: invalidateChats,
+  })
+  const removeMutation = useMutation({
+    mutationFn: (id: string) => window.maximal.harness.chats.remove(id),
+    onSuccess: invalidateChats,
+  })
+
+  const activeChat = chats.find((chat) => chat.id === selectedChatId)
 
   return (
     <section className="assistant-history" aria-label="Assistant chats">
@@ -105,10 +120,10 @@ export function AssistantHistory({
               <button
                 className="assistant-history__chat"
                 type="button"
-                aria-current={selected === chat.id}
+                aria-current={selectedChatId === chat.id}
                 onClick={() => {
                   setSelected(chat.id)
-                  void window.maximal.harness.chats.open(chat.id).then(reload)
+                  openMutation.mutate(chat.id)
                 }}
               >
                 <span
@@ -139,7 +154,10 @@ export function AssistantHistory({
               <div className="assistant-history__actions">
                 <button
                   type="button"
-                  onClick={() => void update(activeChat, { pinned: !activeChat.pinned })}
+                  onClick={() => updateMutation.mutate({
+                    chat: activeChat,
+                    next: { pinned: !activeChat.pinned },
+                  })}
                 >
                   {activeChat.pinned ? 'Unpin' : 'Pin'}
                 </button>
@@ -147,15 +165,18 @@ export function AssistantHistory({
                   type="button"
                   onClick={() => {
                     const title = globalThis.prompt('Rename chat', activeChat.title)?.trim()
-                    if (title) void update(activeChat, { title })
+                    if (title) updateMutation.mutate({ chat: activeChat, next: { title } })
                   }}
                 >
                   Rename
                 </button>
                 <button
                   type="button"
-                  onClick={() => void update(activeChat, {
-                    status: activeChat.status === 'active' ? 'archived' : 'active',
+                  onClick={() => updateMutation.mutate({
+                    chat: activeChat,
+                    next: {
+                      status: activeChat.status === 'active' ? 'archived' : 'active',
+                    },
                   })}
                 >
                   {activeChat.status === 'active' ? 'Archive' : 'Restore'}
@@ -164,7 +185,7 @@ export function AssistantHistory({
                   type="button"
                   onClick={() => {
                     if (!globalThis.confirm(`Delete “${activeChat.title}”?`)) return
-                    void window.maximal.harness.chats.remove(activeChat.id).then(reload)
+                    removeMutation.mutate(activeChat.id)
                   }}
                 >
                   Delete

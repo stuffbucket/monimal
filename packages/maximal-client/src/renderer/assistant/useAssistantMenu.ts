@@ -1,43 +1,41 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 
-import type {
-  AssistantChat,
-  AssistantOverlayPreferences,
-} from '@maximal/maximal-harness'
+const recentAssistantChatsQueryKey = ['assistant', 'chats', 'recent'] as const
+const assistantPreferencesQueryKey = ['assistant', 'preferences'] as const
 
 export function useAssistantMenu() {
-  const [recent, setRecent] = useState<AssistantChat[]>([])
-  const [preferences, setPreferences] =
-    useState<AssistantOverlayPreferences | null>(null)
-
-  const reload = useCallback(() => {
-    void Promise.all([
-      window.maximal.harness.chats.list({
-        status: 'active',
-        sort: 'activity',
-        direction: 'desc',
-        limit: 5,
-      }),
-      window.maximal.harness.preferences(),
-    ]).then(([chatList, nextPreferences]) => {
-      setRecent(chatList.chats)
-      setPreferences(nextPreferences)
-    })
-  }, [])
+  const queryClient = useQueryClient()
+  const recent = useQuery({
+    queryKey: recentAssistantChatsQueryKey,
+    queryFn: () => window.maximal.harness.chats.list({
+      status: 'active',
+      sort: 'activity',
+      direction: 'desc',
+      limit: 5,
+    }),
+  })
+  const preferences = useQuery({
+    queryKey: assistantPreferencesQueryKey,
+    queryFn: () => window.maximal.harness.preferences(),
+  })
 
   useEffect(() => {
-    reload()
-    const stopChats = window.maximal.harness.onChatsChanged(reload)
-    const stopPreferences = window.maximal.harness.onPreferences(setPreferences)
+    const stopChats = window.maximal.harness.onChatsChanged(() => {
+      void queryClient.invalidateQueries({ queryKey: recentAssistantChatsQueryKey })
+    })
+    const stopPreferences = window.maximal.harness.onPreferences((next) => {
+      queryClient.setQueryData(assistantPreferencesQueryKey, next)
+    })
     return () => {
       stopChats()
       stopPreferences()
     }
-  }, [reload])
+  }, [queryClient])
 
   return {
-    recent,
-    hotkey: preferences?.hotkey ?? 'CommandOrControl+Shift+Space',
+    recent: recent.data?.chats ?? [],
+    hotkey: preferences.data?.hotkey ?? 'CommandOrControl+Shift+Space',
     toggle: () => {
       void window.maximal.harness.toggle()
     },
