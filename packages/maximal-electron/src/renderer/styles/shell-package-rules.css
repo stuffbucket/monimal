@@ -10,7 +10,20 @@
 .sb-shell .spatial-canvas-surface,
 .sb-shell .spatial-canvas,
 .sb-shell .spatial-canvas__viewport {
-  background-color: var(--shell-spatial-canvas-background, var(--shell-canvas));
+  background-color: var(
+    --shell-spatial-canvas-background,
+    light-dark(
+      var(--shell-spatial-grid-background-light, var(--shell-canvas)),
+      var(--shell-canvas)
+    )
+  );
+}
+
+.sb-shell .spatial-canvas__grid {
+  color: light-dark(
+    var(--shell-spatial-grid-dot-light, var(--shell-text-subtle)),
+    var(--shell-spatial-grid-dot-dark, var(--shell-text-subtle))
+  );
 }
 
 .sb-shell .app-frame__slot,
@@ -1152,6 +1165,7 @@
 }
 
 .sb-shell .tooltip {
+  z-index: 1002;
   box-sizing: border-box;
   max-width: min(24rem, calc(100vw - 16px));
   padding: var(--shell-space-1) var(--shell-space-2);
@@ -1343,6 +1357,7 @@
 .sb-shell .dialog__scrim {
   position: fixed;
   inset: 0;
+  z-index: 1000;
   background: var(--shell-scrim, rgb(0 0 0 / 0.34));
 }
 
@@ -1350,6 +1365,7 @@
   position: fixed;
   top: 50%;
   left: 50%;
+  z-index: 1001;
   display: flex;
   flex-direction: column;
   gap: var(--shell-space-3);
@@ -1394,6 +1410,7 @@
 }
 
 .sb-shell .menu {
+  z-index: 1002;
   min-width: 220px;
   max-height: min(360px, 100vh);
   overflow-y: auto;

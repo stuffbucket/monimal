@@ -1,5 +1,6 @@
 import { mkdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 import { resolveLocalModelsPath } from '@maximal/local-model-registry'
 import {
@@ -92,6 +93,7 @@ import {
   updateSplashStatus,
 } from './windows/splash-window.js'
 import { centerOnPrimaryDisplay } from './windows/window-placement.js'
+import { ProjectsWindowHost } from './windows/projects-window-host.js'
 import {
   isHarnessBusy,
   showHarnessHost,
@@ -407,6 +409,18 @@ function registerIpc(
     projects.opened(nonEmptyString.parse(projectId))
     broadcast(BRIDGE_CHANNELS.projectsChanged)
   })
+  new ProjectsWindowHost({
+    preloadPath: join(__dirname, 'preload.js'),
+    workspaceWindow: () => mainWindow,
+    isRendererUrl,
+    loadRenderer: loadRendererQuery,
+    configureWindow: (window) => {
+      registerVibrancyWindow(window)
+      installRendererRecovery(window)
+    },
+    focusWindow,
+    openWorkspaceSettings: () => openSettings('settings-projects-heading'),
+  }).registerIpc()
   registerAppearanceIpc(broadcast, openTypographyPreviewWindow)
   registerWorkbarIpc(broadcast)
   ipcMain.handle(BRIDGE_CHANNELS.authStatus, () => session.authStatus())
@@ -627,18 +641,32 @@ function loadRenderer(win: BrowserWindow, terminal?: TerminalWindowRequest): voi
     query.set('terminalCanRunInBackground', String(terminal.canRunInBackground))
     if (terminal.pane) query.set('terminalPane', JSON.stringify(terminal.pane))
   }
-  loadRendererQuery(win, query)
+  void loadRendererQuery(win, query)
 }
 
-function loadRendererQuery(win: BrowserWindow, query: URLSearchParams): void {
+function isRendererUrl(url: string): boolean {
+  try {
+    const candidate = new URL(url)
+    if (typeof MAIN_WINDOW_VITE_DEV_SERVER_URL !== 'undefined' && MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+      return candidate.origin === new URL(MAIN_WINDOW_VITE_DEV_SERVER_URL).origin
+    }
+    const renderer = pathToFileURL(join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`))
+    return candidate.protocol === renderer.protocol && candidate.host === renderer.host &&
+      candidate.pathname === renderer.pathname
+  } catch {
+    return false
+  }
+}
+
+function loadRendererQuery(win: BrowserWindow, query: URLSearchParams): Promise<void> {
   const search = query.toString()
   if (
     typeof MAIN_WINDOW_VITE_DEV_SERVER_URL !== 'undefined' &&
     MAIN_WINDOW_VITE_DEV_SERVER_URL
   ) {
-    void win.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}${search === '' ? '' : `?${search}`}`)
+    return win.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}${search === '' ? '' : `?${search}`}`)
   } else {
-    void win.loadFile(
+    return win.loadFile(
       join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
       search === '' ? undefined : { search },
     )
@@ -808,7 +836,7 @@ function openTypographyPreviewWindow(): void {
     height,
     ...centerOnPrimaryDisplay(width, height),
     loadRenderer: (window) => {
-      loadRendererQuery(window, new URLSearchParams({ terminalTypographyPreview: 'true' }))
+      void loadRendererQuery(window, new URLSearchParams({ terminalTypographyPreview: 'true' }))
     },
   })
   typographyPreviewWindow = win

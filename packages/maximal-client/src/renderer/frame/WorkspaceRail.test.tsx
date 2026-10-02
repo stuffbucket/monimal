@@ -10,6 +10,7 @@ import {
   type WorkbarLayout,
 } from './workbar-layout'
 import type { SettingsCapabilities } from '../settings/capabilities'
+import type { Surface } from './AppFrame'
 
 let container: HTMLElement | null = null
 const workbar: SettingsCapabilities['workbar'] = {
@@ -24,6 +25,29 @@ afterEach(() => {
 })
 
 describe('WorkspaceRail', () => {
+  it.each([
+    { current: 'terminal', destination: 'terminals' },
+    { current: 'browser', destination: 'browsers' },
+    { current: 'projects', destination: 'projects' },
+    { current: 'settings', destination: undefined },
+  ] satisfies { current: Surface; destination?: string }[])(
+    'highlights the owning workbar destination for $current documents',
+    ({ current, destination }) => {
+      container = document.createElement('div')
+      document.body.appendChild(container)
+      const root = createRoot(container)
+      act(() => {
+        root.render(
+          <QueryClientProvider client={createMaximalQueryClient()}>
+            <WorkspaceRail current={current} onSelect={vi.fn()} workbar={workbar} />
+          </QueryClientProvider>,
+        )
+      })
+      expect(container.querySelector('[aria-current="true"]')?.getAttribute('data-testid'))
+        .toBe(destination ? `workbar-${destination}` : undefined)
+      act(() => root.unmount())
+    },
+  )
   it('shows the configurable workspace destinations', () => {
     container = document.createElement('div')
     document.body.appendChild(container)
@@ -81,7 +105,7 @@ describe('WorkspaceRail', () => {
     act(() => root.unmount())
   })
 
-  it('selects Home as the docked workspace map', () => {
+  it('selects Home as the workspace landing page', () => {
     container = document.createElement('div')
     document.body.appendChild(container)
     const root = createRoot(container)

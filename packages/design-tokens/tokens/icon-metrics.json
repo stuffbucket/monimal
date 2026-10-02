@@ -155,6 +155,62 @@
           "unit": "px"
         }
       }
+    },
+    "spatial-canvas": {
+      "radius": {
+        "$type": "dimension",
+        "$value": { "value": 1, "unit": "px" },
+        "$extensions": {
+          "dev.maximal.design-token": {
+            "cssCustomProperties": ["--spatial-grid-radius", "--shell-spatial-grid-radius"]
+          }
+        }
+      },
+      "edge": {
+        "$type": "dimension",
+        "$value": { "value": 0.25, "unit": "px" },
+        "$extensions": {
+          "dev.maximal.design-token": {
+            "cssCustomProperties": ["--spatial-grid-edge", "--shell-spatial-grid-edge"]
+          }
+        }
+      },
+      "dot-light": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [0.7686274509803922, 0.7686274509803922, 0.7686274509803922]
+        },
+        "$extensions": {
+          "dev.maximal.design-token": {
+            "cssCustomProperties": ["--shell-spatial-grid-dot-light"]
+          }
+        }
+      },
+      "dot-dark": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [0.3764705882352941, 0.3764705882352941, 0.3764705882352941]
+        },
+        "$extensions": {
+          "dev.maximal.design-token": {
+            "cssCustomProperties": ["--shell-spatial-grid-dot-dark"]
+          }
+        }
+      },
+      "background-light": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [0.9607843137254902, 0.9607843137254902, 0.9607843137254902]
+        },
+        "$extensions": {
+          "dev.maximal.design-token": {
+            "cssCustomProperties": ["--shell-spatial-grid-background-light"]
+          }
+        }
+      }
     }
   }
 }

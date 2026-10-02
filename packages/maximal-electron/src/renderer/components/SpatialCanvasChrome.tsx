@@ -305,7 +305,7 @@ export function SpatialCanvasPages({
       : <button
           type="button"
           className="spatial-canvas__page-trigger"
-          aria-label="Pages"
+          aria-label={`Pages: ${activePage?.name ?? "Untitled"}`}
           aria-expanded={open === "pages"}
           aria-controls={open === "pages" ? `${panelId}-pages` : undefined}
           data-focused={focusedControl === "pages"}

@@ -224,7 +224,7 @@ describe('SpatialCanvas', () => {
       .toBe('Repository');
     expect(container.querySelector('[aria-label="2 pages"]')?.textContent).toContain('2');
     act(() => {
-      container.querySelector<HTMLButtonElement>('[aria-label="Pages"]')?.click();
+      container.querySelector<HTMLButtonElement>('[aria-label="Pages: Projects"]')?.click();
     });
     const tabs = container.querySelectorAll<HTMLButtonElement>('[role="tab"]');
     expect(tabs[0]?.getAttribute('aria-controls')).toBe('board-panel');
@@ -402,6 +402,43 @@ describe('SpatialCanvas', () => {
     expect(container.querySelector('[aria-label="Rename Page 1"]')).not.toBeNull();
   });
 
+  it('keeps project and page controls separate while opening pages from the title', () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    const onPageChange = vi.fn();
+    act(() => {
+      root?.render(
+        <TooltipProvider>
+          <SpatialCanvasPages
+            pages={[{ id: 'projects', name: 'Projects' }]}
+            activePageId="projects"
+            panelId="board-panel"
+            onPageChange={onPageChange}
+            onAddPage={vi.fn()}
+          />
+        </TooltipProvider>,
+      );
+    });
+    const title = container.querySelector<HTMLElement>('.spatial-canvas__page-title');
+    const project = container.querySelector<HTMLButtonElement>('.spatial-canvas__project-trigger');
+    const trigger = container.querySelector<HTMLButtonElement>('[aria-label="Pages: Projects"]');
+    const icon = trigger?.querySelector('svg');
+    if (!title || !project || !trigger || !icon) {
+      throw new Error('The project and current page controls must render');
+    }
+    expect(title.closest('button')).toBe(trigger);
+    expect(container.querySelectorAll('.spatial-canvas__pages > button')).toHaveLength(2);
+    expect(project.compareDocumentPosition(trigger) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(trigger.type).toBe('button');
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    act(() => title.click());
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(container.querySelector('[aria-label="Map pages"]')).not.toBeNull();
+    expect(onPageChange).not.toHaveBeenCalled();
+    expect(icon.closest('button')).toBe(trigger);
+  });
+
   it('uses shared iconography for spatial tools', () => {
     const container = document.createElement('div');
     document.body.append(container);
@@ -560,6 +597,46 @@ describe('SpatialCanvas', () => {
     expect(SPATIAL_CANVAS_STYLES).toContain(
       'font-weight: var(--shell-weight-md)',
     );
+  });
+
+  it('antialiases the dot edge using dedicated grid geometry tokens', () => {
+    expect(SPATIAL_CANVAS_STYLES).toContain(
+      'calc(var(--shell-spatial-grid-radius) - var(--shell-spatial-grid-edge))',
+    );
+    expect(SPATIAL_CANVAS_STYLES).toContain(
+      'calc(var(--shell-spatial-grid-radius) + var(--shell-spatial-grid-edge))',
+    );
+  });
+
+  it.each([
+    { x: 340, y: 100, zoom: 1 },
+    { x: -50, y: 75, zoom: 2 },
+    { x: 240, y: 140, zoom: 4 },
+    { x: 10, y: -20, zoom: 0.1 },
+  ])('anchors the grid to camera $x, $y at zoom $zoom', ({ x, y, zoom }) => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    act(() => root?.render(
+      <SpatialCanvasViewport tool="hand" camera={{ x, y, zoom }} style={{ color: 'red' }} />,
+    ));
+    const viewport = container.querySelector<HTMLElement>('.spatial-canvas__viewport');
+    const grid = viewport?.querySelector<HTMLElement>('.spatial-canvas__grid');
+    const spacing = 16 + 4 * Math.tanh(
+      Math.log(Math.max(zoom, Number.EPSILON)) * 0.35,
+    );
+    const offset = (translation: number) =>
+      ((translation % spacing) + spacing) % spacing;
+    expect(grid?.style.backgroundPosition).toBe(
+      `${offset(x)}px ${offset(y)}px`,
+    );
+    expect(grid?.style.backgroundSize).toBe(
+      `${spacing}px ${spacing}px`,
+    );
+    expect(grid?.style.backgroundImage).toBe('');
+    expect(grid?.getAttribute('aria-hidden')).toBe('true');
+    expect(viewport?.style.color).toBe('red');
+    expect(viewport?.hasAttribute('camera')).toBe(false);
   });
 
   it('owns every project browser cursor state, including active panning', () => {

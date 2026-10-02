@@ -15,6 +15,7 @@ import test from 'node:test';
 import {
   dtcgInventory,
   iconSourceIssues,
+  inventoryIssues,
   ratchetChanges,
   readIconMetrics,
   scanTokenSources,
@@ -95,6 +96,22 @@ test('DTCG icon owners type matching CSS custom properties', () => {
   );
   assert.equal(inventory['icon-optical-map-scale'].$type, 'number');
   assert.equal(inventory['icon-optical-map-scale'].$value, 1.111111);
+});
+
+test('DTCG spatial grid owners type colors and dot geometry', () => {
+  const tokens = new Map([
+    ['--shell-spatial-grid-dot-light', [{ file: 'tokens.css', value: 'rgb(196 196 196)' }]],
+    ['--shell-spatial-grid-background-light', [{ file: 'tokens.css', value: 'rgb(245 245 245)' }]],
+    ['--shell-spatial-grid-radius', [{ file: 'structural.css', value: '1px' }]],
+  ]);
+  const inventory = dtcgInventory(tokens).inventory;
+  assert.equal(inventory['shell-spatial-grid-dot-light'].$type, 'color');
+  assert.equal(inventory['shell-spatial-grid-background-light'].$type, 'color');
+  assert.deepEqual(inventory['shell-spatial-grid-radius'].$value, { value: 1, unit: 'px' });
+  assert.deepEqual(inventoryIssues({
+    tokens,
+    references: new Map(),
+  }).filter(({ kind }) => kind !== 'tool-gap'), []);
 });
 
 test('icon metric scan ratchets off-grid Lucide sizes', () => {

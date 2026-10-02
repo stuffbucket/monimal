@@ -29,6 +29,9 @@
 const THEME_CSS = `
 :root {
    color-scheme: dark;
+  --shell-spatial-grid-dot-light: rgb(196 196 196);
+  --shell-spatial-grid-dot-dark: rgb(96 96 96);
+  --shell-spatial-grid-background-light: rgb(245 245 245);
 
   /* Window chrome and side-panel surface. Matches the host window's own
      default background colour, so the Electron paint and this value agree

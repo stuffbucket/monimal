@@ -107,12 +107,15 @@ export function createYProjectMapStore({
   awareness = new Awareness(document),
   initialPage = { id: "projects", name: "Page 1" },
   initialProjectName = "Untitled project",
+  initialUpdate,
 }: {
   document?: Y.Doc
   awareness?: Awareness
   initialPage?: ProjectMapPage
   initialProjectName?: string
+  initialUpdate?: Uint8Array
 } = {}): ProjectMapStore {
+  if (initialUpdate) Y.applyUpdate(document, initialUpdate, "window-transfer")
   const pages = document.getMap<StoredPage>("project-map-pages")
   const metadata = document.getMap<
     ProjectMapMetadata["name"] | ProjectMapMetadata["pageOrder"]

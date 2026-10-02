@@ -226,7 +226,7 @@ export const PageNavigation: Story = {
     const canvas = within(canvasElement);
     const menu = canvas.getByRole('button', { name: 'Maximal menu' });
     const project = canvas.getByRole('button', { name: 'Untitled project' });
-    const pages = canvas.getByRole('button', { name: 'Pages' });
+    const pages = canvas.getByRole('button', { name: 'Pages: Page 1' });
     const pageCount = canvas.getByLabelText('2 pages');
 
     const menuRect = menu.getBoundingClientRect();

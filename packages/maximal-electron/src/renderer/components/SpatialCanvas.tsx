@@ -58,6 +58,15 @@ function sizedStyle({ x, y, width, height }: Sized): CSSProperties {
   return { ...positionStyle({ x, y }), width, height };
 }
 
+function CanvasMarker({
+  x,
+  y,
+  color,
+  ...props
+}: Positioned & { color: string } & ComponentPropsWithoutRef<"span">) {
+  return <span {...props} style={{ color, ...positionStyle({ x, y }) }} />;
+}
+
 /** Provides the token-driven root for a spatial editing surface. */
 export function SpatialCanvas({
   children,
@@ -89,17 +98,23 @@ function gridStyle({
   };
 }
 
-/** Provides the focusable interaction viewport for a spatial canvas. */
+/** Keeps the dot grid smoothly anchored and scaled with the camera. */
 export const SpatialCanvasViewport = forwardRef<
   HTMLDivElement,
   ComponentPropsWithoutRef<"div"> & {
     tool: string;
     gridCamera?: SpatialCanvasGridCamera;
+    camera?: SpatialCanvasGridCamera;
   }
->(function SpatialCanvasViewport(
-  { tool, gridCamera, children, style, ...props },
-  ref,
-) {
+>(function SpatialCanvasViewport({
+  tool,
+  camera = { x: 0, y: 0, zoom: 1 },
+  gridCamera,
+  style,
+  children,
+  ...props
+}, ref) {
+  const activeGridCamera = gridCamera ?? camera;
   return (
     <div
       {...props}
@@ -110,7 +125,7 @@ export const SpatialCanvasViewport = forwardRef<
     >
       <span
         className="spatial-canvas__grid"
-        style={gridCamera ? gridStyle(gridCamera) : undefined}
+        style={gridStyle(activeGridCamera)}
         aria-hidden="true"
       />
       {children}
@@ -287,10 +302,12 @@ export function SpatialCanvasCommentCursor({
   color,
 }: Positioned & { color: string }) {
   return (
-    <span
+    <CanvasMarker
       className="spatial-canvas__comment-cursor"
       data-state="tool"
-      style={{ color, ...positionStyle({ x, y }) }}
+      x={x}
+      y={y}
+      color={color}
       aria-hidden="true"
     />
   );
@@ -303,10 +320,12 @@ export function SpatialCanvasCommentAnchor({
   color,
 }: Positioned & { color: string }) {
   return (
-    <span
+    <CanvasMarker
       className="spatial-canvas__comment-anchor"
       data-state="anchored"
-      style={{ color, ...positionStyle({ x, y }) }}
+      x={x}
+      y={y}
+      color={color}
       aria-hidden="true"
     />
   );
@@ -329,14 +348,13 @@ export function SpatialCanvasCursor({
 }) {
   const labeled = children !== undefined && children !== null;
   return (
-    <span
+    <CanvasMarker
       className="spatial-canvas__cursor"
       data-labeled={labeled}
       data-state={state}
-      style={{
-        color,
-        ...positionStyle({ x, y }),
-      }}
+      x={x}
+      y={y}
+      color={color}
       aria-hidden="true"
     >
       <span className="spatial-canvas__cursor-glyph">
@@ -347,7 +365,7 @@ export function SpatialCanvasCursor({
           <span>{children}</span>
         </span>
       : null}
-    </span>
+    </CanvasMarker>
   );
 }
 

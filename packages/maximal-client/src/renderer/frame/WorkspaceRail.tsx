@@ -13,6 +13,7 @@ import {
   type WorkbarItemId,
 } from './workbar-layout'
 import type { SettingsCapabilities } from '../settings/capabilities'
+import type { Surface } from './AppFrame'
 
 interface ContextMenuState {
   x: number
@@ -31,7 +32,7 @@ export function WorkspaceRail({
   settingsOpen,
   onToggleSettings,
 }: {
-  current: string
+  current: Surface
   onSelect: (id: WorkbarItemId) => void
   workbar: SettingsCapabilities['workbar']
   account?: Account
@@ -47,6 +48,9 @@ export function WorkspaceRail({
   const orderedItems = layout.order.map((id) => byId.get(id)!)
   const visible = new Set(layout.visible)
   const items = orderedItems.filter(({ id }) => visible.has(id))
+  const destination = current === 'terminal' ? 'terminals'
+    : current === 'browser' ? 'browsers'
+    : current === 'settings' || current === 'assistant' ? undefined : current
 
   return (
     <>
@@ -62,7 +66,7 @@ export function WorkspaceRail({
         {error ? <span role="alert" className="visually-hidden">{error}</span> : null}
         <Workbar
           items={items}
-          current={current as WorkbarItemId}
+          current={destination}
           onSelect={onSelect}
           account={account}
           onOpenProfileSurface={onOpenProfileSurface}

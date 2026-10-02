@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@maximal/maximal-storybook';
+import { expect } from '@maximal/maximal-storybook/test';
 import { useRef, useState, type PointerEvent } from 'react';
 
 import {
@@ -41,6 +42,34 @@ type Story = StoryObj<typeof meta>;
 export const Board: Story = {
   args: { children: null },
   name: 'Primitive Composition',
+  play: async ({ canvasElement }) => {
+    const viewport = canvasElement.querySelector('.spatial-canvas__viewport');
+    if (viewport === null) throw new Error('Canvas viewport was not rendered');
+    const gridElement = viewport.querySelector('.spatial-canvas__grid');
+    if (gridElement === null) throw new Error('Canvas grid was not rendered');
+    const grid = getComputedStyle(gridElement);
+    await expect(grid.backgroundImage).toContain('radial-gradient');
+    await expect(grid.backgroundImage).toContain('0.75px');
+    await expect(grid.backgroundImage).toContain('1.25px');
+    await expect(grid.backgroundPosition).toBe('0px 12px');
+    await expect(grid.backgroundSize).toBe('16px 16px');
+    await expect(grid.pointerEvents).toBe('none');
+    const channels = (value: string) => Array.from(
+      value.matchAll(/\d+/g), (match) => Number(match[0]),
+    ).slice(0, 3);
+    const dots = channels(grid.backgroundImage);
+    const background = channels(getComputedStyle(viewport).backgroundColor);
+    const opacity = Number(grid.opacity);
+    await expect(dots).toHaveLength(3);
+    await expect(background).toHaveLength(3);
+    await expect(Math.min(...dots.map((channel, index) =>
+      Math.abs(channel - (background[index] ?? channel)) * opacity,
+    ))).toBeGreaterThan(30);
+    if (document.documentElement.dataset['theme'] === 'light') {
+      await expect(dots).toEqual([196, 196, 196]);
+      await expect(background).toEqual([238, 240, 244]);
+    }
+  },
   parameters: {
     docs: {
       description: {
@@ -118,6 +147,7 @@ export const Board: Story = {
       />
       <SpatialCanvasViewport
         id="spatial-story-panel"
+        camera={{ x: 240, y: 140, zoom: 1 }}
         tool="select"
         role="tabpanel"
         aria-label="Spatial canvas"
@@ -166,6 +196,22 @@ export const Board: Story = {
           </SpatialCanvasCursor>
         </SpatialCanvasScene>
       </SpatialCanvasViewport>
+    </SpatialCanvas>
+  ),
+};
+
+export const BoardLight: Story = {
+  ...Board,
+  name: 'Camera Grid — Light',
+  globals: { theme: 'light' },
+  render: () => (
+    <SpatialCanvas>
+      <SpatialCanvasViewport
+        tool="hand"
+        camera={{ x: 240, y: 140, zoom: 1 }}
+        role="img"
+        aria-label="Spatial canvas grid in light theme"
+      />
     </SpatialCanvas>
   ),
 };
@@ -220,6 +266,7 @@ function AttachedConnectorDemo() {
       />
       <SpatialCanvasViewport
         id="connector-demo-panel"
+        camera={{ x: 180, y: 150, zoom: 1 }}
         tool="select"
         role="tabpanel"
         aria-label="Attached connector demonstration"

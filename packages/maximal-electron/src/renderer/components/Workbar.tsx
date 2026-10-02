@@ -30,7 +30,7 @@ export function Workbar<Id extends string>({
   testId = 'workbar',
 }: {
   items: WorkbarItem<Id>[];
-  current: Id;
+  current?: Id;
   onSelect: (id: Id) => void;
   account?: Account;
   onOpenProfileSurface?: (surface: SettingsSurface) => void;

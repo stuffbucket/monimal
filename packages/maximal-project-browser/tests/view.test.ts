@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest"
 
-import { clampZoom, wheelZoomFactor } from "../src/view.ts"
+import { clampZoom, INITIAL_CAMERA, wheelZoomFactor } from "../src/view.ts"
 
 describe("project map camera", () => {
+  it("starts at the shared project overview", () => {
+    expect(INITIAL_CAMERA).toEqual({ x: 340, y: 100, zoom: 1 })
+  })
+
   it("uses a 30% slower continuous wheel zoom rate", () => {
     const previousFactor = Math.exp(-120 * 0.002)
     const nextFactor = wheelZoomFactor(120)

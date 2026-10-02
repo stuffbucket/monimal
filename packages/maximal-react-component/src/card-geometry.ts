@@ -21,6 +21,7 @@ interface DragState {
 }
 
 const EXPANDED_THRESHOLD = 240
+const MINIMUM_HEIGHT = 120
 const MINIMUM_WIDTH = 280
 const VIEWPORT_GUTTER = 16
 
@@ -85,10 +86,14 @@ function updateGeometry(
   }
 
   const topResize = state.edge === "top"
+  const maximumHeight =
+    topResize ?
+      state.cardTop + state.cardHeight - VIEWPORT_GUTTER
+    : options.window.innerHeight - state.cardTop - VIEWPORT_GUTTER
   const nextHeight = clamp(
     state.cardHeight + (topResize ? -deltaY : deltaY),
-    120,
-    options.window.innerHeight - VIEWPORT_GUTTER * 2,
+    Math.min(MINIMUM_HEIGHT, maximumHeight),
+    maximumHeight,
   )
   options.card.style.setProperty("height", `${nextHeight}px`, "important")
   if (topResize) {
@@ -100,14 +105,9 @@ function updateGeometry(
 function finishGeometry(options: CardGeometryOptions, state: DragState): void {
   options.card.removeAttribute("data-interacting")
   if (state.edge === "left" || state.edge === "right") return
-  const rect = options.card.getBoundingClientRect()
-  const expanded = rect.height >= EXPANDED_THRESHOLD
-  const preserveBottom = state.edge === "top" ? rect.bottom : undefined
-  options.card.style.removeProperty("height")
-  options.onExpandedChange(expanded)
-  if (preserveBottom !== undefined) {
-    options.card.style.top = `${preserveBottom - options.card.getBoundingClientRect().height}px`
-  }
+  options.onExpandedChange(
+    options.card.getBoundingClientRect().height >= EXPANDED_THRESHOLD,
+  )
 }
 
 export function installCardGeometry(options: CardGeometryOptions): () => void {
@@ -147,6 +147,11 @@ export function installCardGeometry(options: CardGeometryOptions): () => void {
       pointerY: event.clientY,
     }
     card.setAttribute("data-interacting", state.kind)
+    if (state.edge === "top" || state.edge === "bottom") {
+      // The placement cap would stop the card growing toward the pointer.
+      card.style.maxHeight = ""
+      card.style.setProperty("height", `${rect.height}px`, "important")
+    }
     event.preventDefault()
   }
 

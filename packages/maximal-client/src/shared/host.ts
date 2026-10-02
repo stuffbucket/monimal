@@ -316,6 +316,19 @@ export interface TerminalRedockRequest extends TerminalWindowRequest {
   targetFrameId: string
 }
 
+/** Opaque serialized Projects renderer state; the native host never interprets it. */
+export interface ProjectsWindowRequest {
+  x: number
+  y: number
+  state: string
+}
+
+export interface ProjectsRedockRequest {
+  sourceFrameId: string
+  targetFrameId: string
+  state: string
+}
+
 export interface TerminalRedockedEvent {
   id: string
   title: string
@@ -434,6 +447,11 @@ export interface MaximalHost {
     refresh: (rootId?: string) => Promise<ProjectCatalogSnapshot>
     opened: (projectId: string) => Promise<void>
     onChange: (listener: () => void) => Unsubscribe
+    undockWindow: (request: ProjectsWindowRequest) => Promise<boolean>
+    redockWindow: (request: ProjectsRedockRequest) => Promise<boolean>
+    windowState: () => Promise<string | undefined>
+    onWindowRedocked: (listener: (state: string) => void) => Unsubscribe
+    openWorkspaceSettings: () => Promise<void>
   }
   terminalTypography: {
     get: () => Promise<TerminalTypographySettings>

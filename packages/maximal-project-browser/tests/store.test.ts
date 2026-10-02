@@ -61,6 +61,43 @@ describe("Yjs project map store", () => {
     second.destroy()
   })
 
+  it("restores transferred state before defaults and preserves update origins", () => {
+    const source = createYProjectMapStore()
+    source.transact("projects", (draft) => {
+      draft.messages.push({
+        id: "message-1",
+        author: "Agent",
+        body: "Transferred",
+      })
+    })
+    const document = new Y.Doc()
+    const origins: Array<unknown> = []
+    document.on("update", (_update, origin) => origins.push(origin))
+
+    const restored = createYProjectMapStore({
+      document,
+      initialUpdate: source.encodeState(),
+    })
+
+    expect(restored.getSnapshot("projects").messages).toEqual([
+      { id: "message-1", author: "Agent", body: "Transferred" },
+    ])
+    expect(origins).toContain("window-transfer")
+
+    origins.length = 0
+    restored.transact("projects", (draft) => {
+      draft.messages.push({
+        id: "message-2",
+        author: "Human",
+        body: "Edited",
+      })
+    })
+    expect(origins).toContain("project-map")
+
+    source.destroy()
+    restored.destroy()
+  })
+
   it("starts with an editable project and page when no state exists", () => {
     const store = createYProjectMapStore()
 

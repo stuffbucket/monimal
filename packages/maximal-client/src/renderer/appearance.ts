@@ -70,6 +70,11 @@ export const APPEARANCE_PRESETS: ReadonlyArray<{
 const STORAGE_KEY = 'maximal.appearance.v1'
 const CHANGE_EVENT = 'maximal:appearance-changed'
 const HEX_COLOR = /^#[0-9a-f]{6}$/i
+
+function isHexColor(value: unknown): value is string {
+  // Stryker disable next-line ConditionalExpression: the regex rejects every non-string JSON value after coercion.
+  return typeof value === 'string' && HEX_COLOR.test(value)
+}
 const MODES = new Set<AppearanceMode>(['system', 'light', 'dark'])
 const PRESETS = new Set<AppearancePreset>(APPEARANCE_PRESETS.map(({ value }) => value))
 const OVERRIDDEN_TOKENS = [
@@ -157,7 +162,7 @@ export function parseAppearanceTheme(raw: string): AppearanceThemeFile {
   const spatialCanvasBackground = colors?.spatialCanvasBackground
   if (
     spatialCanvasBackground !== undefined
-    && !HEX_COLOR.test(String(spatialCanvasBackground))
+    && !isHexColor(spatialCanvasBackground)
   ) {
     throw new Error('Spatial canvas background must be a six-digit hex color.')
   }

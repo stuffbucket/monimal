@@ -120,6 +120,18 @@ function cssTokenValue(type, value) {
     return `${String(value.value)}px`;
   }
   if (type === 'number' && typeof value === 'number') return String(value);
+  if (
+    type === 'color'
+    && value?.colorSpace === 'srgb'
+    && Array.isArray(value.components)
+    && value.components.length === 3
+    && (value.alpha === undefined || value.alpha === 1)
+    && value.components.every((component) =>
+      typeof component === 'number' && component >= 0 && component <= 1)
+  ) {
+    return `rgb(${value.components.map((component) =>
+      String(Math.round(component * 255))).join(' ')})`;
+  }
   throw new Error(`Unsupported owned CSS token type: ${String(type)}`);
 }
 

@@ -50,6 +50,8 @@
   --shell-icon-size: 16px;
   --shell-icon-prominent: 24px;
   --shell-icon-stroke: 1.5;
+  --shell-spatial-grid-radius: 1px;
+  --shell-spatial-grid-edge: 0.25px;
   --shell-icon-optical-map-scale: 1.111111;
   --shell-icon-optical-terminal-scale: 1.111111;
   --shell-icon-optical-folder-offset-y: 0.5px;
