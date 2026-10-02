@@ -261,6 +261,11 @@ const SETTINGS_CSS = `
 }
 
 .theme-card__preview {
+  --theme-card-background: rgb(17 19 23);
+  --theme-card-surface: rgb(28 31 38);
+  --theme-card-text: rgb(245 245 245);
+  --theme-card-accent: rgb(81 152 166);
+
   display: flex;
   align-items: end;
   gap: var(--shell-space-2, 8px);
@@ -270,13 +275,10 @@ const SETTINGS_CSS = `
   color: var(--theme-card-text);
   background-color: var(--theme-card-background);
   background-image:
-    var(
-      --theme-card-gradient,
-      linear-gradient(
-        145deg,
-        var(--theme-card-background),
-        var(--theme-card-surface)
-      )
+    linear-gradient(
+      145deg,
+      var(--theme-card-background),
+      var(--theme-card-surface)
     );
 }
 
@@ -489,6 +491,8 @@ const SETTINGS_CSS = `
 }
 
 .solar-direction__axis {
+  --solar-angle: 0;
+
   position: absolute;
   top: 50%;
   left: 50%;

@@ -54,7 +54,7 @@ export function ThemeCard({
     '--theme-card-surface': palette.surface,
     '--theme-card-text': palette.text,
     '--theme-card-accent': palette.accent,
-    ...(gradient === undefined ? {} : { '--theme-card-gradient': gradient }),
+    ...(gradient === undefined ? {} : { backgroundImage: gradient }),
   } as CSSProperties
   const className = [
     'theme-card',
