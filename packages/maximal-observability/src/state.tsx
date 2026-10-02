@@ -29,11 +29,7 @@ export type Loadable<T> =
 
 export type TimePreset = "15m" | "1h" | "24h" | "7d" | "all"
 export type FilterDimension =
-  | "clients"
-  | "operations"
-  | "providers"
-  | "models"
-  | "sessionIds"
+  "clients" | "operations" | "providers" | "models" | "sessionIds"
 
 const systemNow = (): Date => new Date()
 
