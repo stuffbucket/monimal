@@ -2,15 +2,16 @@ import { execFile } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 
 import type { TerminalFontAxis } from '@maximal/maximal-client/shared/host'
+import { z } from 'zod'
 
-interface SystemFont {
-  path?: string
-  typefaces?: Array<{ family?: string }>
-}
-
-interface SystemFontReport {
-  SPFontsDataType?: SystemFont[]
-}
+const systemFontReportSchema = z.object({
+  SPFontsDataType: z.array(z.object({
+    path: z.string().optional(),
+    typefaces: z.array(z.object({
+      family: z.string().optional(),
+    })).optional(),
+  })).optional(),
+})
 
 function execute(file: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -94,7 +95,7 @@ export async function discoverFontVariationAxes(
   const profile = dependencies.profile
     ?? (() => execute('/usr/sbin/system_profiler', ['SPFontsDataType', '-json']))
   const read = dependencies.read ?? readFile
-  const report = JSON.parse(await profile()) as SystemFontReport
+  const report = systemFontReportSchema.parse(JSON.parse(await profile()))
   const normalize = (family: string): string =>
     family.toLocaleLowerCase().replaceAll(/[^a-z0-9]/gu, '')
   const requested = new Map(families.map((family) => [normalize(family), family]))

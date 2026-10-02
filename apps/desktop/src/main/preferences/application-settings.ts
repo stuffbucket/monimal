@@ -3,7 +3,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 import {
-  getJsonDocumentStore,
+  getNamedJsonDocumentStore,
   getSettingsStore,
   loadSettings,
 } from '@maximal/maximal-settings'
@@ -162,9 +162,10 @@ function applicationSettingsDefaults(
   const homeDirectory = context.homeDirectory ?? homedir()
   let legacy: Record<string, unknown>
   try {
-    legacy = getJsonDocumentStore({
+    legacy = getNamedJsonDocumentStore({
       namespace: 'maximal-legacy-preferences',
-      filePath: join(userDataDirectory, 'preferences.json'),
+      directoryPath: userDataDirectory,
+      documentName: 'preferences',
     }).read() ?? {}
   } catch {
     legacy = {}

@@ -58,6 +58,8 @@
 
 - Consumers MAY use `getJsonDocumentStore({ namespace, filePath })` independently
   of typed settings resolution.
+- Consumers MAY use `getNamedJsonDocumentStore` when the settings package must
+  own construction of a JSON document path within an absolute directory.
 - Consumers MUST use absolute JSON paths and trusted, application-controlled
   directories; hostile directory replacement is outside this API's boundary.
 - Writers MUST use `create`, `update`, `transact`, or `delete` consistently;

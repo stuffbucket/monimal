@@ -215,7 +215,9 @@ const {
     ipcMainRemoveHandler: vi.fn(),
     onBeforeSendHeaders: vi.fn(),
     onHeadersReceived: vi.fn(),
-    createHostWindowMock: vi.fn(() => fakeWindow),
+    createHostWindowMock: vi.fn((_options?: {
+      loadRenderer?: (window: typeof fakeWindow) => void
+    }) => fakeWindow),
     shellOpenExternal: vi.fn(() => Promise.resolve()),
     shellOpenPath: vi.fn(() => Promise.resolve('')),
     showMessageBox: vi.fn(() => Promise.resolve({ response: 0 })),
@@ -1246,11 +1248,7 @@ describe('window defaults', () => {
         height: 760,
       }),
     )
-    const options = (
-      createHostWindowMock.mock.calls as unknown as Array<[
-        { loadRenderer: (window: typeof fakeWindow) => void },
-      ]>
-    )[1]?.[0]
+    const options = createHostWindowMock.mock.calls[1]?.[0]
     if (!options) throw new Error('Typography preview window was not created')
     expect(options.loadRenderer).toEqual(expect.any(Function))
 

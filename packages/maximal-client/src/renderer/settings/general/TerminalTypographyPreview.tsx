@@ -17,6 +17,18 @@ const PREVIEW_WIDTH = 1200
 const PREVIEW_HEIGHT = 620
 const MAX_RASTER_SCALE = 4
 
+interface SampleCanvasContext {
+  font: string
+  fillStyle: string | CanvasGradient | CanvasPattern
+  strokeStyle: string | CanvasGradient | CanvasPattern
+  lineWidth: number
+  lineJoin: CanvasLineJoin
+  miterLimit: number
+  letterSpacing: string
+  fillText(text: string, x: number, y: number): void
+  strokeText(text: string, x: number, y: number): void
+}
+
 export function previewRasterScale(devicePixelRatio: number): number {
   return Number.isFinite(devicePixelRatio) && devicePixelRatio > 0
     ? Math.min(devicePixelRatio, MAX_RASTER_SCALE)
@@ -39,7 +51,7 @@ function canvasFont(
 }
 
 export function drawSample(
-  context: CanvasRenderingContext2D,
+  context: SampleCanvasContext,
   text: string,
   x: number,
   y: number,

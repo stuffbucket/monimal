@@ -23,12 +23,13 @@ describe('terminal typography preview', () => {
   it('applies tracking before drawing both stroke and fill', () => {
     const calls: Array<[string, string]> = []
     let letterSpacing = ''
+    const lineJoin: CanvasLineJoin = 'miter'
     const context = {
       font: '',
       fillStyle: '',
       strokeStyle: '',
       lineWidth: 0,
-      lineJoin: 'miter',
+      lineJoin,
       miterLimit: 10,
       get letterSpacing() {
         return letterSpacing
@@ -42,7 +43,7 @@ describe('terminal typography preview', () => {
       fillText() {
         calls.push(['fill', letterSpacing])
       },
-    } as unknown as CanvasRenderingContext2D
+    }
 
     drawSample(context, 'sample', 0, 20, {
       fontFamily: 'ui-monospace',
