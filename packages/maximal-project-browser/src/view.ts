@@ -11,14 +11,8 @@ export interface Point {
   y: number
 }
 
-export interface PendingMove {
-  itemOrigins: Map<string, Point>
-  dx: number
-  dy: number
-}
-
 export const INITIAL_CAMERA: Camera = { x: 340, y: 100, zoom: 1 }
-export const WHEEL_ZOOM_RATE = 0.0014
+const WHEEL_ZOOM_RATE = 0.0014
 
 export function clampZoom(value: number): number {
   return Math.min(4, Math.max(0.1, value))

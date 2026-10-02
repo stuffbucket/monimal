@@ -10,7 +10,7 @@
     "src/store.ts:92:0-97:80",
     "src/store.ts:108:0-169:1",
     "src/store.ts:186:0-225:1",
-    "src/view.ts:15:0-24:0",
+    "src/view.ts:14:0-24:0",
     "src/geometry.ts:10:0-14:1"
   ],
   "reporters": ["progress", "clear-text", "html", "json"],
