@@ -3,6 +3,7 @@
   // The manifest exports point at `dist/`; these are the sources tsup builds them from.
   "entry": [
     "src/index.ts",
+    "src/cli.ts",
     "src/host/index.ts",
     "src/renderer/index.ts",
     "src/renderer/Overlay.stories.tsx",
@@ -10,7 +11,11 @@
     "tests/**/*.test.{ts,tsx}"
   ],
   "project": ["src/**/*.{ts,tsx}", "scripts/**/*.mjs", "tests/**/*.{ts,tsx}"],
-  // The command runner is built into Stryker core but is inferred as a plugin.
-  "ignoreDependencies": ["@stryker-mutator/command-runner"],
+  "ignoreDependencies": [
+    // Imported by src/styles.css; Knip's TypeScript project does not traverse CSS imports.
+    "@fontsource/opendyslexic",
+    // The command runner is built into Stryker core but is inferred as a plugin.
+    "@stryker-mutator/command-runner"
+  ],
   "ignoreExportsUsedInFile": true
 }

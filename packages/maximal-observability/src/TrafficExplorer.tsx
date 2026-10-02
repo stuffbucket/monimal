@@ -144,6 +144,10 @@ export function TrafficExplorerInspector() {
                 value={displayValue(detail.data.request.identity.traceId)}
               />
               <Field
+                label="Session ID"
+                value={displayValue(detail.data.request.identity.sessionId)}
+              />
+              <Field
                 label="Client"
                 value={displayValue(detail.data.request.attribution.client)}
               />

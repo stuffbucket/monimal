@@ -10,6 +10,7 @@ import { TERMINAL_THICKEN_DEFAULT } from '../../shared/host'
 
 import type {
   AccountsListResponse,
+  AssistantOverlayPreferences,
   ConnectorSettingValue,
   MenuBarModeAttempt,
   MenuBarModeState,
@@ -306,6 +307,12 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
     })),
     ghosttyPath: '/Applications/Ghostty.app/Contents/MacOS/ghostty',
   })
+  let assistantOverlay: AssistantOverlayPreferences = {
+    candy: true,
+    approval: 'writes',
+    outputFont: 'auto',
+    hotkey: 'CommandOrControl+Shift+Space',
+  }
   const menuBarState = (): MenuBarModeState => ({
     enabled: menuBarEnabled,
     pending: menuBarAttempt !== null,
@@ -506,6 +513,11 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
       systemNotificationStatus: () =>
         Promise.resolve({ supported: true, canOpenSettings: true }),
       openSystemNotificationSettings: () => Promise.resolve(),
+      assistantOverlay: () => Promise.resolve(assistantOverlay),
+      updateAssistantOverlay: (update) => {
+        assistantOverlay = { ...assistantOverlay, ...update }
+        return Promise.resolve(assistantOverlay)
+      },
     },
     providerOnboarding: {
       get: () => Promise.resolve({ dismissed: false }),

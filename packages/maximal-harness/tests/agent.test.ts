@@ -82,7 +82,12 @@ describe('discoverProvider', () => {
           id: 'claude',
           display_name: 'Claude',
           max_input_tokens: 200_000,
-          capabilities: { thinking: { supported: true } },
+          capabilities: {
+            thinking: {
+              supported: true,
+              efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+            },
+          },
         }],
       })),
     );
@@ -95,7 +100,7 @@ describe('discoverProvider', () => {
       models: [{
         label: 'Claude',
         description: 'Extended reasoning · 200K context',
-        efforts: ['low', 'medium', 'high'],
+        efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
       }],
     });
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
@@ -153,6 +158,40 @@ describe('discoverProvider', () => {
       });
     },
   );
+
+  it('uses human-facing names from the Maximal model catalogue', async () => {
+    process.env['STUFFBUCKET_PROVIDER'] = 'maximal';
+    configureAgent({
+      ...agentOptions,
+      preferredModel: 'maximal:claude-opus-5-5',
+    });
+    const fetchModel = vi.fn((
+      _input: string | URL | Request,
+    ) => Promise.resolve(Response.json({
+      data: [{
+        id: 'claude-opus-5-5',
+        display_name: 'Claude Opus 5.5',
+      }],
+    })));
+    vi.stubGlobal('fetch', fetchModel);
+
+    await expect(discoverProvider()).resolves.toMatchObject({
+      state: 'ready',
+      models: [{
+        key: 'maximal:claude-opus-5-5',
+        label: 'Claude Opus 5.5',
+      }],
+    });
+    expect(fetchModel).toHaveBeenCalledWith(
+      expect.stringContaining('/v1/models'),
+      expect.objectContaining({
+        headers: {
+          'anthropic-version': '2023-06-01',
+          authorization: 'Bearer supplied-by-local-backend',
+        },
+      }),
+    );
+  });
 
   it('selects a preferred GGUF from the shared embedded inventory', async () => {
     delete process.env['STUFFBUCKET_PROVIDER'];

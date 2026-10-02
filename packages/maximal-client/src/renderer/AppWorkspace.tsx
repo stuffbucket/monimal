@@ -22,6 +22,8 @@ import {
 
 import type { SettingsSectionId } from '../shared/settings-sections'
 import { AccountStatusLine } from './AccountStatusLine'
+import { AssistantHistory } from './assistant/AssistantHistory'
+import { useAssistantMenu } from './assistant/useAssistantMenu'
 import {
   AppFrame,
   PRODUCT_TABS,
@@ -125,6 +127,9 @@ function ActiveSurface({
       ) : null}
       {current?.kind === 'overview' ? <Overview /> : null}
       {current?.kind === 'traffic' ? <Traffic /> : null}
+      {current?.kind === 'assistant' ? (
+        <AssistantHistory onOpenTerminal={terminalState.openAssistantChat} />
+      ) : null}
       {current?.kind === 'browser' && current.browserId && current.url ? (
         <BrowserSurface
           session={{
@@ -150,6 +155,7 @@ function ActiveSurface({
           initialPanes={terminalState.panes}
           paneRevisions={terminalState.paneRevisions}
           typography={settings.terminalTypography}
+          paneFocusRequest={terminalState.paneFocusRequest}
         />
       ) : null}
       {current?.kind === 'settings' ? (
@@ -309,6 +315,7 @@ export function AppWorkspace({
 }: AppWorkspaceProps): ReactElement {
   const [profileError, setProfileError] = useState<string>()
   const [projectError, setProjectError] = useState<string>()
+  const assistantMenu = useAssistantMenu()
   const [browserAddress, setBrowserAddress] = useState<string>()
   const [focusedTerminalSessions, setFocusedTerminalSessions] = useState<
     Record<string, string>
@@ -406,10 +413,16 @@ export function AppWorkspace({
           if (closing?.kind === 'settings') requestNavigation(() => terminalState.closeTab(id))
           else if (closing?.kind === 'browser') void terminalState.closeBrowser(id)
           else if (closing?.kind === 'terminal') terminalState.requestCloseTerminal(id)
-          else terminalState.closeTab(id)
+          else requestNavigation(() => terminalState.closeTab(id))
         }}
         onNewTab={detached ? undefined : () => terminalState.setLauncherOpen(true)}
-        onOpenAssistant={detached ? undefined : () => void window.maximal.harness.show()}
+        assistant={detached ? undefined : {
+          recent: assistantMenu.recent,
+          hotkey: assistantMenu.hotkey,
+          onToggle: assistantMenu.toggle,
+          onOpenChat: terminalState.openAssistantChat,
+          onShowMore: terminalState.openAssistant,
+        }}
         onOpenBrowser={detached ? undefined : () => setBrowserAddress('https://')}
         onOpenProjects={detached ? undefined : () => selectTab('projects')}
         tabTransfer={{

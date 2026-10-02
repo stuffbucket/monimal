@@ -1,6 +1,7 @@
 import type {
   TrafficContextObservation,
   TrafficDispatchObservation,
+  TrafficSessionObservation,
 } from "@maximal/maximal-observability-contract"
 
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test"
@@ -285,6 +286,7 @@ describe("messages handler orchestration", () => {
     }
     const dispatches: Array<TrafficDispatchObservation> = []
     const contexts: Array<TrafficContextObservation> = []
+    const sessions: Array<TrafficSessionObservation> = []
     const app = createApp()
 
     const response = await requestContext.run(
@@ -299,6 +301,7 @@ describe("messages handler orchestration", () => {
         trafficObservation: {
           recordDispatch: (observation) => dispatches.push(observation),
           recordContext: (observation) => contexts.push(observation),
+          recordSession: (observation) => sessions.push(observation),
           recordFirstResponse: () => undefined,
           recordTokens: () => undefined,
           complete: () => undefined,
@@ -307,7 +310,10 @@ describe("messages handler orchestration", () => {
       () =>
         app.request("/", {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: {
+            "content-type": "application/json",
+            "x-session-id": "active-session",
+          },
           body: JSON.stringify(
             createPayload({
               max_tokens: 4_096,
@@ -334,6 +340,8 @@ describe("messages handler orchestration", () => {
     )
 
     expect(response.status).toBe(200)
+    expect(sessions).toHaveLength(1)
+    expect(sessions[0]?.sessionId).toBe(getUUID("active-session"))
     expect(dispatches.at(-1)).toMatchObject({
       attribution: {
         client: "Claude Code",

@@ -23,6 +23,7 @@ void test("request filters and cursor query have stable defaults", () => {
     models: [],
     clients: [],
     projects: [],
+    sessionIds: [],
     terminalSessionIds: [],
     applications: [],
     streaming: null,

@@ -122,6 +122,22 @@ function fakeCapabilities(options?: {
       canOpenSettings: options?.canOpenNotificationSettings ?? true,
     })),
     openSystemNotificationSettings: vi.fn(async () => undefined),
+    assistantOverlay: vi.fn(async () => ({
+      candy: true,
+      approval: 'writes' as const,
+      outputFont: 'auto' as const,
+      hotkey: 'CommandOrControl+Shift+Space',
+    })),
+    updateAssistantOverlay: vi.fn(async (update: {
+      candy?: boolean
+      approval?: 'all' | 'read-only' | 'writes' | 'none'
+      outputFont?: 'auto' | 'default' | 'terminal' | 'open-dyslexic' | 'serif'
+    }) => ({
+      candy: update.candy ?? true,
+      approval: update.approval ?? 'writes',
+      outputFont: update.outputFont ?? 'auto',
+      hotkey: 'CommandOrControl+Shift+Space',
+    })),
   }
   const initialTypography = {
     fontFamily: 'JetBrainsMono Nerd Font',
@@ -517,12 +533,13 @@ describe('GeneralSection', () => {
     expect(surface.querySelector('h1')).toBeNull()
     expect([...surface.querySelectorAll('h2')].map(({ textContent }) => textContent)).toEqual([
       'Desktop app',
+      'Assistant overlay',
       'Notifications',
     ])
-    expect(surface.querySelectorAll('.settings__group')).toHaveLength(2)
+    expect(surface.querySelectorAll('.settings__group')).toHaveLength(3)
     expect([
       ...surface.querySelectorAll(
-        '.settings__group .settings__item + .settings__item',
+        '.settings__section:first-of-type .settings__item + .settings__item',
       ),
     ].every((item) => item.getAttribute('data-divider') === 'false')).toBe(true)
     expect(surface.textContent).toContain('Desktop app version')
@@ -531,6 +548,7 @@ describe('GeneralSection', () => {
     expect(surface.textContent).toContain('Quick access shortcut')
     expect(surface.textContent).toContain('Ctrl Ctrl')
     expect(surface.textContent).toContain('Menu bar')
+    expect(surface.querySelector('[data-testid="assistant-candy-switch"]')).not.toBeNull()
     expect(surface.textContent).toContain(
       'Manage notification permission, alerts, and sounds in system settings.',
     )

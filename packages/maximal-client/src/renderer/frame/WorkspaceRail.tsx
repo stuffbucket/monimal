@@ -50,7 +50,7 @@ export function WorkspaceRail({
   const items = orderedItems.filter(({ id }) => visible.has(id))
   const destination = current === 'terminal' ? 'terminals'
     : current === 'browser' ? 'browsers'
-    : current === 'settings' ? undefined : current
+    : current === 'settings' || current === 'assistant' ? undefined : current
 
   return (
     <>

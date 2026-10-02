@@ -105,11 +105,6 @@
     "count": 1
   },
   {
-    "path": "packages/maximal-client/src/renderer/useTerminalTabs.test.tsx",
-    "kind": "unvalidated-json-parse",
-    "count": 2
-  },
-  {
     "path": "packages/maximal-context-window/tests/architecture.test.ts",
     "kind": "unvalidated-json-parse",
     "count": 1

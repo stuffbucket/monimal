@@ -188,17 +188,36 @@ describe('preload bridge allowlist', () => {
       'abort',
       'approve',
       'ask',
+      'chats',
       'ensureModel',
       'hide',
       'onApproval',
+      'onChatSelected',
+      'onChatsChanged',
       'onDelta',
       'onEnd',
       'onModelProgress',
+      'onPreferences',
+      'onTerminalOpened',
       'onTool',
+      'openChat',
+      'preferences',
       'provider',
       'selectEffort',
       'selectModel',
       'show',
+      'steer',
+      'toggle',
+      'updatePreferences',
+    ])
+    expect(Object.keys(bridge.harness.chats).sort()).toEqual([
+      'create',
+      'list',
+      'messages',
+      'open',
+      'remove',
+      'terminal',
+      'update',
     ])
     expect(Object.keys(bridge.menuBarMode).sort()).toEqual([
       'beginEnable',
@@ -256,12 +275,14 @@ describe('preload bridge allowlist', () => {
       'list',
       'onData',
       'onExit',
+      'onMenuFocus',
       'onPaneChanged',
       'onTabRedocked',
       'profiles',
       'redock',
       'resize',
       'spawn',
+      'syncMenu',
       'syncPane',
       'terminate',
       'undock',
@@ -391,9 +412,11 @@ describe('preload bridge allowlist', () => {
     await bridge.harness.selectModel('ollama:qwen3:4b')
     await bridge.harness.selectEffort('high')
     await bridge.harness.ask('Explain this file')
+    await bridge.harness.steer('Focus on tests')
     await bridge.harness.abort()
     await bridge.harness.approve({ id: 'approval-1', allow: true, remember: false })
     await bridge.harness.ensureModel()
+    await bridge.harness.chats.terminal('chat-1', 80, 24)
     await bridge.terminal.spawn({ id: 'terminal-1', cols: 80, rows: 24 })
     await bridge.terminal.write('terminal-1', 'pwd\r')
     await bridge.terminal.resize('terminal-1', 120, 40)
@@ -421,6 +444,11 @@ describe('preload bridge allowlist', () => {
       targetFrameId: '1',
     })
     await bridge.terminal.syncPane('terminal-1', { sessionId: 'terminal-1' })
+    await bridge.terminal.syncMenu([{
+      id: 'terminal-1',
+      title: 'Build workspace',
+      paneSessionIds: ['terminal-1', 'terminal-2'],
+    }])
     await bridge.shutdown.current()
     await bridge.shutdown.force()
 
@@ -553,9 +581,11 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.harnessSelectModel, 'ollama:qwen3:4b'],
       [BRIDGE_CHANNELS.harnessSelectEffort, 'high'],
       [BRIDGE_CHANNELS.harnessAsk, { prompt: 'Explain this file' }],
+      [BRIDGE_CHANNELS.harnessSteer, { prompt: 'Focus on tests' }],
       [BRIDGE_CHANNELS.harnessAbort],
       [BRIDGE_CHANNELS.harnessApprove, { id: 'approval-1', allow: true, remember: false }],
       [BRIDGE_CHANNELS.harnessEnsureModel],
+      [BRIDGE_CHANNELS.harnessChatTerminal, { id: 'chat-1', cols: 80, rows: 24 }],
       [BRIDGE_CHANNELS.terminalSpawn, { id: 'terminal-1', cols: 80, rows: 24 }],
       [BRIDGE_CHANNELS.terminalWrite, { id: 'terminal-1', data: 'pwd\r' }],
       [BRIDGE_CHANNELS.terminalResize, { id: 'terminal-1', cols: 120, rows: 40 }],
@@ -576,6 +606,14 @@ describe('preload bridge allowlist', () => {
         BRIDGE_CHANNELS.terminalPaneSync,
         { id: 'terminal-1', pane: { sessionId: 'terminal-1' } },
       ],
+      [
+        BRIDGE_CHANNELS.terminalMenuSync,
+        [{
+          id: 'terminal-1',
+          title: 'Build workspace',
+          paneSessionIds: ['terminal-1', 'terminal-2'],
+        }],
+      ],
       [BRIDGE_CHANNELS.shutdownCurrent],
       [BRIDGE_CHANNELS.shutdownForce],
     ])
@@ -584,22 +622,36 @@ describe('preload bridge allowlist', () => {
   it('wraps terminal events and removes only their listeners', () => {
     const onData = vi.fn()
     const onExit = vi.fn()
+    const onMenuFocus = vi.fn()
     const unsubscribeData = bridge.terminal.onData(onData)
     const unsubscribeExit = bridge.terminal.onExit(onExit)
+    const unsubscribeMenuFocus = bridge.terminal.onMenuFocus(onMenuFocus)
     const dataHandler = on.mock.calls[0]?.[1] as (event: unknown, payload: unknown) => void
     const exitHandler = on.mock.calls[1]?.[1] as (event: unknown, payload: unknown) => void
+    const menuFocusHandler = on.mock.calls[2]?.[1] as (
+      event: unknown,
+      payload: unknown,
+    ) => void
     const data = { id: 'terminal-1', data: 'ready', sequence: 1 }
     const exit = { id: 'terminal-1', exitCode: 0 }
+    const menuFocus = { id: 'terminal-1', paneSessionId: 'terminal-2' }
 
     dataHandler({}, data)
     exitHandler({}, exit)
+    menuFocusHandler({}, menuFocus)
     expect(onData).toHaveBeenCalledWith(data)
     expect(onExit).toHaveBeenCalledWith(exit)
+    expect(onMenuFocus).toHaveBeenCalledWith(menuFocus)
 
     unsubscribeData()
     unsubscribeExit()
+    unsubscribeMenuFocus()
     expect(off).toHaveBeenCalledWith(BRIDGE_CHANNELS.terminalData, dataHandler)
     expect(off).toHaveBeenCalledWith(BRIDGE_CHANNELS.terminalExit, exitHandler)
+    expect(off).toHaveBeenCalledWith(
+      BRIDGE_CHANNELS.terminalMenuFocus,
+      menuFocusHandler,
+    )
   })
 
   it('wraps lifecycle payloads and removes only its own listener', () => {

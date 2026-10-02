@@ -122,7 +122,7 @@ Both are monorepo-native;
 | --- | --- |
 | Copied packages | `CLAUDE.md` includes `AGENTS.md`; root instructions take precedence. |
 | `maximal-electron` | Uses the workspace mutation runner for changed-line and explicit local scopes, cached edit loops, and fresh complete or sharded audits. |
-| `maximal-electron` | `TextInput` owns the token-based active-service treatment, the Radix-backed `Slider` owns its track, detents, labels, and thumb geometry, settings action rows and divider behavior live with the shared settings components, and `ModelCardGrid` owns provider adornments, disabled-provider activation, and model-action placement so consumers do not recreate those controls. |
+| `maximal-electron` | `TextInput` owns the token-based active-service treatment, the Radix-backed `Slider` owns its track, detents, labels, and thumb geometry, `Menu` owns described and selected dropdown rows, settings action rows and divider behavior live with the shared settings components, and `ModelCardGrid` owns provider adornments, disabled-provider activation, and model-action placement so consumers do not recreate those controls. |
 | `maximal-electron` | `Workbar` owns the persistent activity navigation geometry and the shared shell-icon vocabulary so consumers do not specialize collapsed side navigation or remap tab icons locally. |
 | `maximal-client` | Workbar destinations MUST use product-owned workspace actions, live terminal session inventory, browser document state, project discovery, or observability surfaces rather than placeholder pages. |
 | `maximal-electron` | `StatusProvider` owns keyed, ordered status registration; `StatusViewport` owns paging and per-entry dismissal; and `AppFrame` composes them so status layout follows visible content rather than a consumer-owned region flag. |
@@ -133,6 +133,8 @@ Both are monorepo-native;
 | `maximal-storybook` | Owns workspace Storybook integration while stories and deterministic fixtures remain beside the packages they exercise. |
 | `maximal-electron` | `NumberInput` owns bounded numeric draft-and-commit behavior; `UnitValueInput` owns automatic/manual presentation and persisted display units while consumers own canonical conversion; `TypefaceControls` composes reusable compact typeface fields; and `TerminalTabs` forwards consumer-owned live typography to terminal views without owning its persistence or font discovery. |
 | `@wterm/dom` 0.4.1 | Kitty graphics canvas backing stores scale with the bounded device pixel ratio so terminal images remain sharp on HiDPI displays. |
+| `maximal-electron` | Electron hosts MAY launch trusted application-owned terminal commands through the main-only `launchTrustedTerminal` API; renderer PTY requests remain restricted to opaque session geometry. |
+| `maximal-electron` | The shared shell contract owns the optional Maximal candy-paint surface tokens so consumers do not embed product palette literals. |
 | Workspace | `@maximal/eslint-config` owns the shared ESLint configuration and enforced rule sets. |
 | Workspace | `architecture-analysis.json` owns package coverage, the declared workspace dependency tree (`dependsOn`), external-package deny rules, and non-Core architecture baselines. |
 | `maximal-settings` | The pnpm bootstrap hook MUST load its dependency-policy source before workspace packages are installed; installed consumers MUST use the exported entry point. |
@@ -149,6 +151,7 @@ Both are monorepo-native;
 | `model-runtimes/omlx` | Ships as a profile-installed Cordis adapter, not as compiled Core code. |
 | `maximal` / `apps/desktop` | Core dependencies are workspace links; the desktop sidecar builds the Maximal composition. |
 | `maximal-core` / `maximal` | Desktop-spawned Core (`start --desktop-ipc`) uses inherited Node child-process IPC for control RPC and events instead of binding its private HTTP listener; standalone Core keeps its loopback control listener and public proxy unchanged. |
+| `maximal-core` | Production traffic and token-usage persistence and aggregation run in a Core-owned child process over validated inherited IPC; direct SQLite construction is retained only as an injected library and test seam. |
 | `maximal-core` | Ollama API keys are saved without using a malformed inference request as an authentication probe; Ollama has no dedicated key-validation endpoint. |
 | `maximal-core` / `maximal-core-contract` | Ollama account probes expose a sanitized error code with unavailable results so Settings can distinguish a saved working key from a saved key whose validation failed. |
 | `@maximal/maximal-client` / `maximal-core` | Ollama direct Cloud API keys are entered in Maximal and returned only through the private desktop settings control path so the password field can hide or reveal the configured value; Ollama device identities remain owned by the Ollama app or CLI. |

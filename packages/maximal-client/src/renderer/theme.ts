@@ -265,9 +265,37 @@ const THEME_CSS = `
 
 const THEME_STYLE_ID = 'maximal-theme'
 
+function applyCandyPalette(style: CSSStyleDeclaration): void {
+  style.setProperty(
+    '--shell-candy-background',
+    [
+      'radial-gradient(circle at 12% 24%, rgb(255 245 224 / 28%) 0 1px, transparent 2px)',
+      'radial-gradient(circle at 78% 18%, rgb(255 245 224 / 22%) 0 1.5px, transparent 2.5px)',
+      'radial-gradient(circle at 62% 74%, rgb(255 245 224 / 20%) 0 1px, transparent 2px)',
+      'linear-gradient(155deg, #a91f39 0%, #c8334a 54%, #7d1427 100%)',
+    ].join(', '),
+  )
+  style.setProperty('--shell-candy-border', 'color-mix(in srgb, #f4ead4 45%, #681321)')
+  style.setProperty('--shell-candy-icon-shadow', '0 4px 14px rgb(31 0 6 / 32%)')
+  style.setProperty(
+    '--shell-candy-shadow',
+    [
+      '0 1px 2px rgb(0 0 0 / 24%)',
+      '0 12px 36px rgb(44 0 8 / 42%)',
+      'inset 0 1px rgb(255 245 224 / 22%)',
+    ].join(', '),
+  )
+  style.setProperty(
+    '--shell-candy-sheen',
+    'linear-gradient(112deg, transparent 24%, rgb(255 244 224 / 4%) 40%, rgb(255 244 224 / 22%) 49%, rgb(255 244 224 / 5%) 58%, transparent 72%)',
+  )
+  style.setProperty('--shell-candy-text', '#fff8e9')
+}
+
 if (typeof document !== 'undefined' && !document.getElementById(THEME_STYLE_ID)) {
   const style = document.createElement('style')
   style.id = THEME_STYLE_ID
   style.textContent = THEME_CSS
   document.head.appendChild(style)
+  applyCandyPalette(document.documentElement.style)
 }

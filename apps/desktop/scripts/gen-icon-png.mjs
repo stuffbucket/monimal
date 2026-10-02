@@ -12,16 +12,40 @@
  */
 
 import { spawnSync } from 'node:child_process'
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { dirname, resolve } from 'node:path'
+
+import {
+  decodeRgbaPng,
+  encodeRgbaPng,
+  extractTrayGlyph,
+} from './tray-image.mjs'
 
 const source = resolve('build/icon.icns')
 const output = resolve('build/icon.png')
 const trayOutputs = [
-  resolve('resources/tray/tray.png'),
-  resolve('resources/tray/trayTemplate.png'),
-  resolve('resources/tray/trayTemplate@2x.png'),
+  { path: resolve('resources/tray/tray.png'), size: 22, template: false },
+  { path: resolve('resources/tray/trayTemplate.png'), size: 22, template: true },
+  { path: resolve('resources/tray/trayTemplate@2x.png'), size: 44, template: true },
 ]
+
+function verifyTrayGlyph(path) {
+  const image = decodeRgbaPng(readFileSync(path))
+  let visible = 0
+  for (let offset = 3; offset < image.pixels.length; offset += 4) {
+    if (image.pixels[offset] > 8) visible += 1
+  }
+  const coverage = visible / (image.width * image.height)
+  if (coverage < 0.05 || coverage > 0.5) {
+    throw new Error(`${path} has invalid visible-pixel coverage ${coverage.toFixed(3)}`)
+  }
+}
 
 if (process.platform !== 'darwin') {
   console.log('gen-icon-png: not darwin, nothing to do')
@@ -49,9 +73,33 @@ if (result.status !== 0) {
   process.exit(1)
 }
 
+const appIcon = decodeRgbaPng(readFileSync(output))
 for (const trayOutput of trayOutputs) {
-  mkdirSync(dirname(trayOutput), { recursive: true })
-  copyFileSync(output, trayOutput)
+  mkdirSync(dirname(trayOutput.path), { recursive: true })
+  const intermediate = `${trayOutput.path}.source.png`
+  writeFileSync(
+    intermediate,
+    encodeRgbaPng(extractTrayGlyph(appIcon, trayOutput)),
+  )
+  const trayResult = spawnSync(
+    'sips',
+    [
+      '-z',
+      String(trayOutput.size),
+      String(trayOutput.size),
+      intermediate,
+      '--out',
+      trayOutput.path,
+    ],
+    { encoding: 'utf8' },
+  )
+  rmSync(intermediate, { force: true })
+  if (trayResult.status !== 0) {
+    console.error(`gen-icon-png: could not write ${trayOutput.path}`)
+    console.error(trayResult.stderr ?? '')
+    process.exit(1)
+  }
+  verifyTrayGlyph(trayOutput.path)
 }
 
 console.log(`gen-icon-png: wrote ${output} and tray resources`)

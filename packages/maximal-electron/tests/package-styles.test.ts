@@ -167,7 +167,7 @@ describe('the exported components', () => {
       'components/SplitTree: 5',
       'components/controls/Button: 2',
       'components/controls/Fields: 1',
-      'components/controls/Overlays: 2',
+      'components/controls/Overlays: 3',
       'components/controls/ScrollArea: 1',
       'components/controls/Tile: 1',
       'components/settings/SettingsDisclosure: 1',

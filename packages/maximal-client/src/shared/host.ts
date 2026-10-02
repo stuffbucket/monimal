@@ -49,10 +49,17 @@ import type {
 import type {
   AgentApprovalRequest,
   AgentEffort,
+  AssistantChat,
+  AssistantAttachment,
+  AssistantChatList,
+  AssistantChatListQuery,
+  AssistantChatMessage,
+  AssistantChatUpdate,
   AgentEnd,
   AgentToolEvent,
   ApproveRequest,
   AskAccepted,
+  AssistantOverlayPreferences,
   ModelProgress,
   ProviderStatus,
 } from '@maximal/maximal-harness'
@@ -336,6 +343,17 @@ export interface TerminalPaneChangedEvent {
   origin: string
 }
 
+export interface TerminalMenuEntry {
+  id: string
+  title: string
+  paneSessionIds: string[]
+}
+
+export interface TerminalMenuFocusRequest {
+  id: string
+  paneSessionId?: string
+}
+
 type Unsubscribe = () => void
 
 /**
@@ -450,19 +468,57 @@ export interface MaximalHost {
   }
   harness: {
     show: () => Promise<void>
+    toggle: () => Promise<void>
+    openChat: (id: string) => Promise<void>
     hide: () => Promise<void>
     provider: () => Promise<ProviderStatus>
     selectModel: (modelKey: string) => Promise<ProviderStatus>
     selectEffort: (effort: AgentEffort) => Promise<ProviderStatus>
-    ask: (prompt: string) => Promise<AskAccepted>
+    ask: (
+      prompt: string,
+      chatId?: string,
+      attachments?: AssistantAttachment[],
+    ) => Promise<AskAccepted>
+    steer: (prompt: string, chatId?: string) => Promise<boolean>
     abort: () => Promise<void>
     approve: (request: ApproveRequest) => Promise<void>
     ensureModel: () => Promise<ModelProgress>
+    preferences: () => Promise<AssistantOverlayPreferences>
+    updatePreferences: (
+      update: Partial<Pick<
+        AssistantOverlayPreferences,
+        'candy' | 'approval' | 'outputFont'
+      >>,
+    ) => Promise<AssistantOverlayPreferences>
     onDelta: (listener: (text: string) => void) => Unsubscribe
     onTool: (listener: (event: AgentToolEvent) => void) => Unsubscribe
     onApproval: (listener: (request: AgentApprovalRequest) => void) => Unsubscribe
     onEnd: (listener: (result: AgentEnd) => void) => Unsubscribe
     onModelProgress: (listener: (progress: ModelProgress) => void) => Unsubscribe
+    onPreferences: (
+      listener: (preferences: AssistantOverlayPreferences) => void,
+    ) => Unsubscribe
+    onChatSelected: (listener: (id: string) => void) => Unsubscribe
+    onChatsChanged: (listener: () => void) => Unsubscribe
+    onTerminalOpened: (
+      listener: (opened: {
+        chatId: string
+        result: TerminalLaunchResult
+      }) => void,
+    ) => Unsubscribe
+    chats: {
+      list: (query?: AssistantChatListQuery) => Promise<AssistantChatList>
+      create: (title?: string) => Promise<AssistantChat>
+      open: (id: string) => Promise<AssistantChat>
+      update: (id: string, update: AssistantChatUpdate) => Promise<AssistantChat>
+      remove: (id: string) => Promise<void>
+      messages: (id: string) => Promise<AssistantChatMessage[]>
+      terminal: (
+        id: string,
+        cols: number,
+        rows: number,
+      ) => Promise<TerminalLaunchResult>
+    }
   }
   browser: BrowserHostBridge
   terminal: {
@@ -480,10 +536,12 @@ export interface MaximalHost {
     copy: (request: TerminalWindowRequest) => Promise<boolean>
     redock: (request: TerminalRedockRequest) => Promise<boolean>
     syncPane: (id: string, pane: TerminalPaneLayout) => Promise<void>
+    syncMenu: (entries: TerminalMenuEntry[]) => Promise<void>
     onData: (listener: (message: TerminalDataMessage) => void) => Unsubscribe
     onExit: (listener: (message: TerminalExitMessage) => void) => Unsubscribe
     onTabRedocked: (listener: (message: TerminalRedockedEvent) => void) => Unsubscribe
     onPaneChanged: (listener: (message: TerminalPaneChangedEvent) => void) => Unsubscribe
+    onMenuFocus: (listener: (message: TerminalMenuFocusRequest) => void) => Unsubscribe
   }
   /** The application menu asking for Settings: a section id to scroll to, or null for the surface. */
   onOpenSettings: (listener: (sectionId: string | null) => void) => Unsubscribe

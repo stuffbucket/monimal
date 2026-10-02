@@ -134,12 +134,14 @@ function annotateTrafficDispatch({
   payload,
   requestedModel,
   selectedModel,
+  sessionId,
   subagentSessionId,
   compactType,
 }: {
   payload: AnthropicMessagesPayload
   requestedModel: string
   selectedModel: ReturnType<typeof findEndpointModel>
+  sessionId: string | undefined
   subagentSessionId: string | null
   compactType: CompactType
 }): void {
@@ -150,6 +152,7 @@ function annotateTrafficDispatch({
   const at = new Date().toISOString()
   const resolvedModel = boundedIdentifier(selectedModel?.id ?? payload.model)
   try {
+    if (sessionId) observation.recordSession?.({ at, sessionId })
     observation.recordDispatch({
       at,
       attribution: {
@@ -326,6 +329,7 @@ export async function handleCompletion(
     payload: anthropicPayload,
     requestedModel,
     selectedModel,
+    sessionId,
     subagentSessionId: subagentMarker?.session_id ?? null,
     compactType,
   })

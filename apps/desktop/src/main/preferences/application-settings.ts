@@ -129,7 +129,9 @@ export const workbarLayoutSchema: z.ZodType<WorkbarLayout> = z.object({
 })
 
 const applicationSettingsSchema = z.object({
-  agentApproval: z.enum(['all', 'writes', 'none']),
+  assistantOverlayCandy: z.boolean(),
+  assistantOutputFont: z.enum(['auto', 'default', 'terminal', 'open-dyslexic', 'serif']),
+  agentApproval: z.enum(['all', 'read-only', 'writes', 'none']),
   agentTools: z.boolean(),
   agentCwd: z.string().min(1),
   agentModel: z.string().min(1).optional(),
@@ -153,6 +155,8 @@ const applicationSettingsSchema = z.object({
 type ApplicationSettings = z.infer<typeof applicationSettingsSchema>
 
 const applicationSettingsPersistence = {
+  assistantOverlayCandy: 'user',
+  assistantOutputFont: 'user',
   agentApproval: 'user',
   agentTools: 'user',
   agentCwd: 'user',
@@ -202,6 +206,8 @@ function applicationSettingsDefaults(
     legacy = {}
   }
   const defaults = z.object({
+    assistantOverlayCandy: applicationSettingsSchema.shape.assistantOverlayCandy.catch(true),
+    assistantOutputFont: applicationSettingsSchema.shape.assistantOutputFont.catch('auto'),
     agentApproval: applicationSettingsSchema.shape.agentApproval.catch('writes'),
     agentTools: applicationSettingsSchema.shape.agentTools.catch(true),
     agentCwd: applicationSettingsSchema.shape.agentCwd.catch(homeDirectory),
@@ -294,8 +300,47 @@ export async function setOllamaStartOnLaunch(
     ) {
       throw error
     }
+
     return (await store.update('ollamaStartOnLaunch', enabled))
       .settings.ollamaStartOnLaunch
+  }
+}
+
+export async function setAssistantOverlayPreferences(
+  userDataDirectory: string,
+  update: {
+    candy?: boolean
+    approval?: ApplicationSettings['agentApproval']
+    outputFont?: ApplicationSettings['assistantOutputFont']
+  },
+): Promise<Pick<
+  ApplicationSettings,
+  'assistantOverlayCandy' | 'agentApproval' | 'assistantOutputFont'
+>> {
+  const store = applicationSettingsStore(userDataDirectory)
+  let settings = store.getSnapshot().settings
+  for (const [key, value] of [
+    ['assistantOverlayCandy', update.candy],
+    ['agentApproval', update.approval],
+    ['assistantOutputFont', update.outputFont],
+  ] as const) {
+    if (value === undefined) continue
+    try {
+      settings = (await store.create(key, value)).settings
+    } catch (error) {
+      if (
+        !(error instanceof Error)
+        || error.message !== `Setting already exists in its configured layer: ${key}`
+      ) {
+        throw error
+      }
+      settings = (await store.update(key, value)).settings
+    }
+  }
+  return {
+    assistantOverlayCandy: settings.assistantOverlayCandy,
+    agentApproval: settings.agentApproval,
+    assistantOutputFont: settings.assistantOutputFont,
   }
 }
 

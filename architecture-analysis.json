@@ -305,6 +305,7 @@
       "root": "packages/maximal-harness",
       "dependsOn": [
         "@maximal/eslint-config",
+        "@maximal/maximal-assets",
         "@maximal/maximal-electron",
         "@maximal/maximal-llama-cpp"
       ],

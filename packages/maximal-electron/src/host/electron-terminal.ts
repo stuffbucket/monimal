@@ -9,6 +9,7 @@ export {
   killAllPtys,
   killPty,
   launchTerminal,
+  launchTrustedTerminal,
   listTerminalProfiles,
   listPtys,
   resizePty,

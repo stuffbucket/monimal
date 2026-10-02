@@ -3,6 +3,8 @@
 Composable React surfaces for Maximal's embedded traffic dashboard. The package
 provides overview metrics, filters, request history and detail views, token and
 traffic-flow charts, and a bounded live-invalidation state layer.
+Traffic filters include the model session IDs present in the loaded request
+history.
 
 This is a renderer-only consumer. Hosts supply an `ObservabilitySource` that
 implements the versioned types from

@@ -44,7 +44,7 @@ function hasIsolatedHostPaths(): boolean {
   })
 }
 
-function isBunTestProcess(): boolean {
+export function isBunTestProcess(): boolean {
   // casts-keep: Bun is an optional runtime global (absent under Node).
   const bun = (globalThis as { Bun?: unknown }).Bun
   if (bun === undefined) return false

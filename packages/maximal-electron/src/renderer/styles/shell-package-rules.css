@@ -1406,6 +1406,8 @@
 .sb-shell .menu {
   z-index: 1002;
   min-width: 220px;
+  max-height: min(360px, 100vh);
+  overflow-y: auto;
   padding: var(--shell-space-1);
   background: var(--shell-raised);
   border: 1px solid var(--shell-border-strong, var(--shell-border));
@@ -1428,14 +1430,29 @@
   cursor: pointer;
 }
 
-.sb-shell .menu__item-label {
-  flex: 1;
-}
-
 .sb-shell .menu__item-shortcut {
   color: var(--shell-text-muted);
   font-size: 11px;
   letter-spacing: 0.02em;
+}
+
+.sb-shell.shell-candy-surface {
+  border-color: var(--shell-candy-border);
+  background: var(--shell-candy-background);
+  background-size: 47px 43px, 71px 67px, 89px 83px, auto;
+  box-shadow: var(--shell-candy-shadow);
+}
+
+.sb-shell.shell-candy-surface::before {
+  background: var(--shell-candy-sheen);
+}
+
+.sb-shell.shell-candy-surface .shell-candy-surface__icon {
+  box-shadow: var(--shell-candy-icon-shadow);
+}
+
+.sb-shell.shell-candy-surface .shell-candy-surface__text {
+  color: var(--shell-candy-text);
 }
 
 .sb-shell .menu__separator {
