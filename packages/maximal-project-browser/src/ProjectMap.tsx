@@ -21,11 +21,8 @@ import {
   type WheelEvent,
 } from "react"
 
-import type {
-  ProjectMapPageDraft,
-  ProjectMapStore,
-  ProjectMapViewer,
-} from "./store.ts"
+import type { ProjectMapProps } from "./ProjectMapProps.ts"
+import type { ProjectMapPageDraft } from "./store.ts"
 
 import {
   connectorSegment,
@@ -38,13 +35,10 @@ import {
   newItemDefinition,
   PROJECT_MAP_TOOLS,
   selectionAfterPointer,
+  type ProjectMapDragState,
+  type ProjectMapPendingMove,
 } from "./interaction.ts"
-import {
-  layoutProjects,
-  type ProjectMapProject,
-  type ProjectMapTool,
-  type SceneItem,
-} from "./model.ts"
+import { layoutProjects, type ProjectMapTool, type SceneItem } from "./model.ts"
 import { ProjectMapChrome } from "./ProjectMapChrome.tsx"
 import { ProjectMapCommentPlacement } from "./ProjectMapCommentPlacement.tsx"
 import {
@@ -61,37 +55,11 @@ import {
   INITIAL_CAMERA,
   screenToWorld,
   useRafCamera,
-  type Camera,
+  wheelZoomFactor,
   type Point,
-  type PendingMove,
 } from "./view.ts"
 
-interface DragState {
-  mode: "pan" | "move" | "marquee"
-  pointerId: number
-  origin: Point
-  camera: Camera
-  worldOrigin: Point
-  itemOrigins: Map<string, Point>
-}
-
-export interface ProjectMapProps {
-  projects: Array<ProjectMapProject>
-  query: string
-  onQueryChange: (query: string) => void
-  onOpenProject: (project: ProjectMapProject) => void
-  onOpenSettings: () => void
-  onAddFolder: () => void
-  busy?: boolean
-  error?: string
-  store: ProjectMapStore
-  pageId: string
-  onPageChange: (pageId: string) => void
-  viewer: ProjectMapViewer
-  viewId?: string
-  initialCamera?: Camera
-  onCameraChange?: (camera: Camera) => void
-}
+export type { ProjectMapProps } from "./ProjectMapProps.ts"
 
 // eslint-disable-next-line max-lines-per-function
 export function ProjectMap({
@@ -115,8 +83,8 @@ export function ProjectMap({
   const viewId = providedViewId ?? generatedViewId
   const panelId = `${generatedViewId}-panel`
   const viewport = useRef<HTMLDivElement>(null)
-  const drag = useRef<DragState | undefined>(undefined)
-  const pendingMove = useRef<PendingMove | undefined>(undefined)
+  const drag = useRef<ProjectMapDragState | undefined>(undefined)
+  const pendingMove = useRef<ProjectMapPendingMove | undefined>(undefined)
   const moveFrame = useRef<number | undefined>(undefined)
   const nextId = useRef(0)
   // Retained and transferred boards must not reuse another mount's IDs.
@@ -136,7 +104,14 @@ export function ProjectMap({
     () => store.getSnapshot(pageId),
     [pageId, store, storeRevision],
   )
-  const { items, comments, messages, pages, presence: collaborators } = snapshot
+  const {
+    projectName,
+    items,
+    comments,
+    messages,
+    pages,
+    presence: collaborators,
+  } = snapshot
   const updatePage = useCallback(
     (update: (draft: ProjectMapPageDraft) => void) =>
       store.transact(pageId, update),
@@ -168,7 +143,7 @@ export function ProjectMap({
     )
   }, [setItems])
   const scheduleMove = useCallback(
-    (next: PendingMove) => {
+    (next: ProjectMapPendingMove) => {
       pendingMove.current = next
       if (moveFrame.current !== undefined) return
       moveFrame.current = requestAnimationFrame(() => {
@@ -313,7 +288,7 @@ export function ProjectMap({
   const onWheel = (event: WheelEvent<HTMLDivElement>) => {
     event.preventDefault()
     if (event.ctrlKey || event.metaKey) {
-      zoomAt(Math.exp(-event.deltaY * 0.002), {
+      zoomAt(wheelZoomFactor(event.deltaY), {
         x: event.clientX,
         y: event.clientY,
       })
@@ -643,10 +618,14 @@ export function ProjectMap({
           projects={projects}
           busy={busy}
           onOpenProject={onOpenProject}
+          projectName={projectName}
+          onProjectRename={(name) => store.renameProject(name)}
           pages={pages}
           pageId={pageId}
           onPageChange={onPageChange}
           onAddPage={() => onPageChange(store.addPage().id)}
+          onPageRename={(id, name) => store.renamePage(id, name)}
+          onPageMove={(id, targetId) => store.movePage(id, targetId)}
           presence={collaborators}
           comments={comments}
           {...(activeCommentId ? { activeCommentId } : {})}

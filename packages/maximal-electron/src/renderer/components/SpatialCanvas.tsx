@@ -41,6 +41,10 @@ interface Positioned {
   y: number;
 }
 
+interface SpatialCanvasGridCamera extends Positioned {
+  zoom: number;
+}
+
 interface Sized extends Positioned {
   width: number;
   height: number;
@@ -80,29 +84,37 @@ export function SpatialCanvas({
   );
 }
 
-/** Keeps the dot grid anchored to the camera, coarsening it at low zoom. */
+function gridStyle({
+  x,
+  y,
+  zoom,
+}: SpatialCanvasGridCamera): CSSProperties {
+  const spacing = 16 + 4 * Math.tanh(Math.log(Math.max(zoom, Number.EPSILON)) * 0.35);
+  const offset = (translation: number) =>
+    ((translation % spacing) + spacing) % spacing;
+  return {
+    backgroundPosition: `${offset(x)}px ${offset(y)}px`,
+    backgroundSize: `${spacing}px ${spacing}px`,
+  };
+}
+
+/** Keeps the dot grid smoothly anchored and scaled with the camera. */
 export const SpatialCanvasViewport = forwardRef<
   HTMLDivElement,
   ComponentPropsWithoutRef<"div"> & {
     tool: string;
-    camera?: Positioned & { zoom: number };
+    gridCamera?: SpatialCanvasGridCamera;
+    camera?: SpatialCanvasGridCamera;
   }
 >(function SpatialCanvasViewport({
   tool,
   camera = { x: 0, y: 0, zoom: 1 },
+  gridCamera,
   style,
   children,
   ...props
 }, ref) {
-  const gridScale = camera.zoom * 2 ** Math.max(0, Math.ceil(Math.log2(1 / camera.zoom)));
-  const radius = `var(--shell-spatial-grid-radius) * ${Math.max(1, camera.zoom)}`;
-  const spacing = `calc(var(--shell-space-4) * ${gridScale})`;
-  const gridStyle: CSSProperties = {
-    backgroundImage: `radial-gradient(circle, currentColor calc(${radius} - var(--shell-spatial-grid-edge)), transparent calc(${radius} + var(--shell-spatial-grid-edge)))`,
-    backgroundPosition: `calc(${camera.x}px - var(--shell-space-4) * ${gridScale} / 2) calc(${camera.y}px - var(--shell-space-4) * ${gridScale} / 2)`,
-    backgroundSize: `${spacing} ${spacing}`,
-  };
-
+  const activeGridCamera = gridCamera ?? camera;
   return (
     <div
       {...props}
@@ -111,7 +123,11 @@ export const SpatialCanvasViewport = forwardRef<
       data-tool={tool}
       style={style}
     >
-      <div className="spatial-canvas__grid" aria-hidden="true" style={gridStyle} />
+      <span
+        className="spatial-canvas__grid"
+        style={gridStyle(activeGridCamera)}
+        aria-hidden="true"
+      />
       {children}
     </div>
   );

@@ -14,6 +14,7 @@ export interface AppearanceThemeFile {
   preset: AppearancePreset
   colors?: {
     accent?: string
+    spatialCanvasBackground?: string
   }
 }
 
@@ -69,11 +70,17 @@ export const APPEARANCE_PRESETS: ReadonlyArray<{
 const STORAGE_KEY = 'maximal.appearance.v1'
 const CHANGE_EVENT = 'maximal:appearance-changed'
 const HEX_COLOR = /^#[0-9a-f]{6}$/i
+
+function isHexColor(value: unknown): value is string {
+  // Stryker disable next-line ConditionalExpression: the regex rejects every non-string JSON value after coercion.
+  return typeof value === 'string' && HEX_COLOR.test(value)
+}
 const MODES = new Set<AppearanceMode>(['system', 'light', 'dark'])
 const PRESETS = new Set<AppearancePreset>(APPEARANCE_PRESETS.map(({ value }) => value))
 const OVERRIDDEN_TOKENS = [
   '--shell-background',
   '--shell-canvas',
+  '--shell-spatial-canvas-background',
   '--shell-raised',
   '--shell-text',
   '--shell-text-muted',
@@ -152,12 +159,25 @@ export function parseAppearanceTheme(raw: string): AppearanceThemeFile {
   if (accent !== undefined && (typeof accent !== 'string' || !HEX_COLOR.test(accent))) {
     throw new Error('Theme accent must be a six-digit hex color.')
   }
+  const spatialCanvasBackground = colors?.spatialCanvasBackground
+  if (
+    spatialCanvasBackground !== undefined
+    && !isHexColor(spatialCanvasBackground)
+  ) {
+    throw new Error('Spatial canvas background must be a six-digit hex color.')
+  }
+  const normalizedColors = {
+    ...(typeof accent === 'string' ? { accent: accent.toUpperCase() } : {}),
+    ...(typeof spatialCanvasBackground === 'string'
+      ? { spatialCanvasBackground: spatialCanvasBackground.toUpperCase() }
+      : {}),
+  }
   return {
     schema: DEFAULT_APPEARANCE.schema,
     name: parsed.name.trim(),
     appearance: parsed.appearance as AppearanceMode,
     preset: parsed.preset as AppearancePreset,
-    ...(typeof accent === 'string' ? { colors: { accent: accent.toUpperCase() } } : {}),
+    ...(Object.keys(normalizedColors).length > 0 ? { colors: normalizedColors } : {}),
   }
 }
 
@@ -244,6 +264,18 @@ export function appearanceAccent(theme: AppearanceThemeFile): string {
   return mode === 'light' ? '#2563EB' : '#5198A6'
 }
 
+export function appearanceSpatialCanvasBackground(
+  theme: AppearanceThemeFile,
+): string {
+  if (theme.colors?.spatialCanvasBackground !== undefined) {
+    return theme.colors.spatialCanvasBackground
+  }
+  const mode = effectiveMode(theme.appearance)
+  const canvas = presetTokens(theme.preset, mode)['--shell-canvas']
+  if (canvas !== undefined) return canvas
+  return mode === 'light' ? '#EEF0F4' : '#1C1F26'
+}
+
 export function applyAppearance(theme: AppearanceThemeFile): void {
   const root = document.documentElement
   const mode = effectiveMode(theme.appearance)
@@ -253,6 +285,10 @@ export function applyAppearance(theme: AppearanceThemeFile): void {
   for (const [token, value] of Object.entries(presetTokens(theme.preset, mode))) {
     root.style.setProperty(token, value)
   }
+  root.style.setProperty(
+    '--shell-spatial-canvas-background',
+    appearanceSpatialCanvasBackground(theme),
+  )
   if (theme.colors?.accent !== undefined) {
     root.style.setProperty('--shell-accent', theme.colors.accent)
     root.style.setProperty(

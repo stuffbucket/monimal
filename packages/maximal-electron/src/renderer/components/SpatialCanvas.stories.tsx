@@ -51,7 +51,7 @@ export const Board: Story = {
     await expect(grid.backgroundImage).toContain('radial-gradient');
     await expect(grid.backgroundImage).toContain('0.75px');
     await expect(grid.backgroundImage).toContain('1.25px');
-    await expect(grid.backgroundPosition).toBe('232px 132px');
+    await expect(grid.backgroundPosition).toBe('0px 12px');
     await expect(grid.backgroundSize).toBe('16px 16px');
     await expect(grid.pointerEvents).toBe('none');
     const channels = (value: string) => Array.from(
@@ -67,7 +67,7 @@ export const Board: Story = {
     ))).toBeGreaterThan(30);
     if (document.documentElement.dataset['theme'] === 'light') {
       await expect(dots).toEqual([196, 196, 196]);
-      await expect(background).toEqual([245, 245, 245]);
+      await expect(background).toEqual([238, 240, 244]);
     }
   },
   parameters: {

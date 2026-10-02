@@ -40,10 +40,14 @@ interface ProjectMapChromeProps {
   projects: Array<ProjectMapProject>
   busy: boolean
   onOpenProject: (project: ProjectMapProject) => void
+  projectName: string
+  onProjectRename: (name: string) => void
   pages: Array<ProjectMapPage>
   pageId: string
   onPageChange: (pageId: string) => void
   onAddPage: () => void
+  onPageRename: (pageId: string, name: string) => void
+  onPageMove: (pageId: string, targetPageId: string) => void
   presence: Array<ProjectMapPresence>
   comments: Array<ProjectMapComment>
   activeCommentId?: string
@@ -162,7 +166,11 @@ function MapHeader({
       <SpatialCanvasCorner>
         <Menu
           trigger={
-            <SpatialCanvasHeaderAction kind="menu" label="Maximal menu" />
+            <SpatialCanvasHeaderAction
+              className="spatial-canvas__project-menu-trigger"
+              kind="menu"
+              label="Maximal menu"
+            />
           }
           items={[
             {
@@ -178,11 +186,15 @@ function MapHeader({
           ]}
         />
         <SpatialCanvasPages
+          projectName={chrome.projectName}
+          onProjectRename={chrome.onProjectRename}
           pages={chrome.pages}
           activePageId={chrome.pageId}
           panelId={chrome.panelId}
           onPageChange={chrome.onPageChange}
           onAddPage={chrome.onAddPage}
+          onPageRename={chrome.onPageRename}
+          onPageMove={chrome.onPageMove}
         />
       </SpatialCanvasCorner>
       <PresenceActions

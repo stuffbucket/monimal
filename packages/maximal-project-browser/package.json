@@ -19,6 +19,7 @@
     "analyze": "bun ../maximal-core/scripts/analyze.ts",
     "build": "tsup src/index.ts --format esm --dts --clean --target es2022 --external react --external @maximal/maximal-electron --out-dir dist",
     "lint": "eslint",
+    "mutate": "stryker run",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
@@ -29,6 +30,7 @@
   },
   "devDependencies": {
     "@maximal/eslint-config": "workspace:*",
+    "@stryker-mutator/core": "^10.0.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.5",
     "@typescript/native": "npm:typescript@^7.0.2",

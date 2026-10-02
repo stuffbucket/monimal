@@ -1376,6 +1376,24 @@ describe('renderer recovery', () => {
     fakeWindow.webContents.emit('render-process-gone', {}, { reason, exitCode })
   }
 
+  it('logs renderer console errors with their diagnostic context', () => {
+    fakeWindow.webContents.emit('console-message', {
+      level: 'error',
+      lineNumber: 42,
+      sourceId: 'renderer.js',
+      message: 'Maximum update depth exceeded',
+    })
+
+    expect(loggerError).toHaveBeenCalledWith(
+      {
+        lineNumber: 42,
+        sourceId: 'renderer.js',
+        rendererMessage: 'Maximum update depth exceeded',
+      },
+      'Renderer console error',
+    )
+  })
+
   function expectNoRecovery(): void {
     expect(fakeWindow.webContents.reload).not.toHaveBeenCalled()
     expect(showMessageBox).not.toHaveBeenCalled()

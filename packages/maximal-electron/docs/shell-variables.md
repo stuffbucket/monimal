@@ -139,7 +139,7 @@ description of what each one draws.
 ## Fallback
 
 Each of these has a value in the CSS. Set one when the design system differs
-from it. Fourteen fall back to another `--shell-*` rather than to a literal,
+from it. Fifteen fall back to another `--shell-*` rather than to a literal,
 which is where legibility survives an unset value but meaning does not:
 `--shell-danger` resolving to `--shell-hover` draws a destructive control that
 looks exactly like an ordinary hovered one.
@@ -163,6 +163,7 @@ looks exactly like an ordinary hovered one.
 | `--shell-position` | `fixed` | how the `ShellLayout` root meets the window; `static` lays it out inside the consumer's own container instead |
 | `--shell-radius-small` | `4px` | tab close affordance, tooltip, segmented control, menu item |
 | `--shell-scrim` | `rgb(0 0 0 / 0.34)` | the layer a modal dims the window with |
+| `--shell-spatial-canvas-background` | `--shell-canvas` | spatial canvas and project-browser surfaces |
 | `--shell-spatial-grid-background-light` | `--shell-canvas` | the spatial canvas surface in light mode |
 | `--shell-spatial-grid-dot-light` | `--shell-text-subtle` | spatial grid dots in light mode |
 | `--shell-spatial-grid-dot-dark` | `--shell-text-subtle` | spatial grid dots in dark mode |

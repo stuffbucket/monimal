@@ -16,6 +16,7 @@ import { MenuBarOnlyDialog } from './MenuBarOnlyDialog'
 import { useAssistantOverlay } from './useAssistantOverlay'
 import { useGeneralDesktopSettings } from './useGeneralDesktopSettings'
 import { TerminalTypographySettings } from './TerminalTypographySettings'
+import { SpatialCanvasPaletteSettings } from './SpatialCanvasPaletteSettings'
 import { useMenuBarPresence } from './useMenuBarPresence'
 
 interface GeneralSectionProps {
@@ -199,6 +200,7 @@ export function ColorPalettesSection({
 }: GeneralSectionProps): ReactElement {
   return (
     <section className="settings-section">
+      <SpatialCanvasPaletteSettings />
       <TerminalTypographySettings
         capabilities={capabilities.terminalTypography}
         surface="palette"

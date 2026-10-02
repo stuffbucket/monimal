@@ -6,10 +6,16 @@
  */
 
 @layer sb-shell.base {
+.sb-shell .spatial-canvas-surface__overlay,
+.sb-shell .spatial-canvas-surface,
+.sb-shell .spatial-canvas,
 .sb-shell .spatial-canvas__viewport {
-  background-color: light-dark(
-    var(--shell-spatial-grid-background-light, var(--shell-canvas)),
-    var(--shell-canvas)
+  background-color: var(
+    --shell-spatial-canvas-background,
+    light-dark(
+      var(--shell-spatial-grid-background-light, var(--shell-canvas)),
+      var(--shell-canvas)
+    )
   );
 }
 

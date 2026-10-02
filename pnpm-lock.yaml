@@ -1273,6 +1273,9 @@ importers:
       '@maximal/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@stryker-mutator/core':
+        specifier: ^10.0.0
+        version: 10.0.0(@types/node@26.4.0)
       '@types/react':
         specifier: ^19.2.17
         version: 19.2.18

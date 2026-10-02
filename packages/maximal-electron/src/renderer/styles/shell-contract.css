@@ -30,6 +30,7 @@
   --shell-background: var(--bg-app);
   --shell-border: var(--border-subtle);
   --shell-canvas: var(--bg-canvas);
+  --shell-spatial-canvas-background: var(--bg-canvas);
   --shell-hover: var(--bg-hover);
   --shell-raised: var(--bg-raised);
   --shell-text: var(--text-primary);

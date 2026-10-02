@@ -41,6 +41,7 @@ const THEME_CSS = `
   /* Main document surface / active tab. One step lighter than
      --shell-background so the canvas reads as its own layer. */
   --shell-canvas: #1c1f26;
+  --shell-spatial-canvas-background: #1c1f26;
 
   /* Tooltips and other floating surfaces. Lighter again. */
   --shell-raised: #262a33;
@@ -149,6 +150,7 @@ const THEME_CSS = `
   color-scheme: light;
   --shell-background: #ffffff;
   --shell-canvas: #eef0f4;
+  --shell-spatial-canvas-background: #eef0f4;
   --shell-raised: #ffffff;
   --shell-text: #12141a;
   --shell-text-muted: #46505e;

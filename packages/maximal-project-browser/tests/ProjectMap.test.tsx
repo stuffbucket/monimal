@@ -31,6 +31,17 @@ function requiredElement(container: ParentNode, selector: string): HTMLElement {
   return element
 }
 
+function expectedGridStyle(x: number, y: number, zoom: number) {
+  const spacing =
+    16 + 4 * Math.tanh(Math.log(Math.max(zoom, Number.EPSILON)) * 0.35)
+  const offset = (translation: number) =>
+    ((translation % spacing) + spacing) % spacing
+  return {
+    position: `${offset(x)}px ${offset(y)}px`,
+    size: `${spacing}px ${spacing}px`,
+  }
+}
+
 function typeTextarea(textarea: HTMLTextAreaElement, value: string): void {
   Object.getOwnPropertyDescriptor(
     HTMLTextAreaElement.prototype,
@@ -194,12 +205,9 @@ it("keeps the shared grid and scene on the same camera during pan and zoom", asy
   const viewport = requiredElement(container, ".spatial-canvas__viewport")
   const scene = requiredElement(container, ".spatial-canvas__scene")
   const grid = requiredElement(container, ".spatial-canvas__grid")
-  expect(grid.style.backgroundPosition).toBe(
-    "calc(340px - var(--shell-space-4) * 1 / 2) calc(100px - var(--shell-space-4) * 1 / 2)",
-  )
-  expect(grid.style.backgroundSize).toBe(
-    "calc(var(--shell-space-4) * 1) calc(var(--shell-space-4) * 1)",
-  )
+  let expectedGrid = expectedGridStyle(340, 100, 1)
+  expect(grid.style.backgroundPosition).toBe(expectedGrid.position)
+  expect(grid.style.backgroundSize).toBe(expectedGrid.size)
 
   await act(async () => {
     viewport.dispatchEvent(
@@ -211,9 +219,8 @@ it("keeps the shared grid and scene on the same camera during pan and zoom", asy
     )
     await new Promise((resolve) => setTimeout(resolve, 0))
   })
-  expect(grid.style.backgroundPosition).toBe(
-    "calc(310px - var(--shell-space-4) * 1 / 2) calc(120px - var(--shell-space-4) * 1 / 2)",
-  )
+  expectedGrid = expectedGridStyle(310, 120, 1)
+  expect(grid.style.backgroundPosition).toBe(expectedGrid.position)
   expect(scene.style.transform).toBe("translate3d(310px, 120px, 0) scale(1)")
 
   await act(async () => {
@@ -221,17 +228,14 @@ it("keeps the shared grid and scene on the same camera during pan and zoom", asy
       new WheelEvent("wheel", {
         bubbles: true,
         ctrlKey: true,
-        deltaY: -Math.log(2) / 0.002,
+        deltaY: -Math.log(2) / 0.0014,
       }),
     )
     await new Promise((resolve) => setTimeout(resolve, 0))
   })
-  expect(grid.style.backgroundSize).toBe(
-    "calc(var(--shell-space-4) * 2) calc(var(--shell-space-4) * 2)",
-  )
-  expect(grid.style.backgroundPosition).toBe(
-    "calc(620px - var(--shell-space-4) * 2 / 2) calc(240px - var(--shell-space-4) * 2 / 2)",
-  )
+  expectedGrid = expectedGridStyle(620, 240, 2)
+  expect(grid.style.backgroundSize).toBe(expectedGrid.size)
+  expect(grid.style.backgroundPosition).toBe(expectedGrid.position)
   expect(scene.style.transform).toBe("translate3d(620px, 240px, 0) scale(2)")
 })
 
@@ -284,15 +288,10 @@ it("renders independent pages, board tools, presence, comments, and chat", () =>
   expect(container.querySelector('[title="Map agent · agent"]')).not.toBeNull()
   expect(
     container.querySelector(".spatial-canvas__page-title")?.textContent,
-  ).toContain("Projects")
-  expect(
-    container.querySelector('[aria-label="Pages: Projects"]'),
-  ).not.toBeNull()
+  ).toContain("Page 1")
+  expect(container.querySelector('[aria-label="Pages: Page 1"]')).not.toBeNull()
   act(() => requiredElement(container, ".spatial-canvas__page-title").click())
   expect(container.querySelector('[aria-label="Map pages"]')).not.toBeNull()
-  act(() =>
-    requiredElement(container, '[aria-label="Pages: Projects"]').click(),
-  )
 
   const stickyTool = requiredElement(
     container,

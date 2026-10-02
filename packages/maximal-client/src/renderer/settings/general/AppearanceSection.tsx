@@ -19,6 +19,7 @@ import {
 import {
   APPEARANCE_PRESETS,
   appearanceAccent,
+  appearanceSpatialCanvasBackground,
   parseAppearanceTheme,
   readAppearance,
   saveAppearance,
@@ -80,7 +81,26 @@ function ThemeFileControls({
             onChange={(event) =>
               onThemeChange({
                 ...theme,
-                colors: { accent: event.target.value.toUpperCase() },
+                colors: {
+                  ...theme.colors,
+                  accent: event.target.value.toUpperCase(),
+                },
+              })}
+          />
+        </label>
+        <label className="appearance-color">
+          <span>Spatial canvas</span>
+          <input
+            type="color"
+            value={appearanceSpatialCanvasBackground(theme)}
+            aria-label="Spatial canvas background"
+            onChange={(event) =>
+              onThemeChange({
+                ...theme,
+                colors: {
+                  ...theme.colors,
+                  spatialCanvasBackground: event.target.value.toUpperCase(),
+                },
               })}
           />
         </label>
