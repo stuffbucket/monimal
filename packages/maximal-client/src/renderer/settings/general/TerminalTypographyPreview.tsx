@@ -4,6 +4,7 @@ import {
   terminalThickenStrokeEm,
   type TerminalTypography,
 } from '@maximal/maximal-terminal/renderer'
+import { useQuery } from '@tanstack/react-query'
 import {
   useEffect,
   useMemo,
@@ -15,8 +16,6 @@ import {
 const PREVIEW_WIDTH = 1200
 const PREVIEW_HEIGHT = 620
 const MAX_RASTER_SCALE = 4
-const RAMP_CACHE_LIMIT = 64
-const rampCache = new Map<string, string>()
 
 export function previewRasterScale(devicePixelRatio: number): number {
   return Number.isFinite(devicePixelRatio) && devicePixelRatio > 0
@@ -179,14 +178,6 @@ function rampCacheKey(
   ])
 }
 
-function cacheRamp(key: string, source: string): void {
-  rampCache.delete(key)
-  rampCache.set(key, source)
-  if (rampCache.size <= RAMP_CACHE_LIMIT) return
-  const oldest = rampCache.keys().next().value
-  if (oldest !== undefined) rampCache.delete(oldest)
-}
-
 async function renderRampPng(
   typography: TerminalTypography,
   rasterScale: number,
@@ -306,46 +297,29 @@ export function TerminalTypographyPreview({
       : rampCacheKey(typography, rasterScale),
     [rasterScale, typography],
   )
-  const [source, setSource] = useState<string | null>(
-    () => key === null ? null : (rampCache.get(key) ?? null),
-  )
-  const [failedKey, setFailedKey] = useState<string | null>(null)
-  const cachedSource = key === null ? undefined : rampCache.get(key)
-  const displayedSource = cachedSource ?? source
-  const failed = key !== null && failedKey === key
+  const rampQuery = useQuery({
+    queryKey: ['terminal-typography', 'preview-ramp', key],
+    queryFn: async () => {
+      if (typography === null) {
+        throw new Error('Terminal typography is required to render a preview.')
+      }
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 32))
+      const source = await renderRampPng(typography, rasterScale)
+      if (source === null) {
+        throw new Error('The terminal typography preview could not be rendered.')
+      }
+      return source
+    },
+    enabled: !compact && key !== null,
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: 5 * 60 * 1_000,
+  })
+  const displayedSource = rampQuery.data
+  const failed = key !== null && rampQuery.isError
   const rendering = !compact
     && key !== null
-    && cachedSource === undefined
+    && rampQuery.isPending
     && !failed
-
-  useEffect(() => {
-    if (compact || typography === null || key === null) return
-    const cached = rampCache.get(key)
-    if (cached !== undefined) return
-    let active = true
-    const timer = window.setTimeout(() => {
-      void renderRampPng(typography, rasterScale).then(
-        (next) => {
-          if (!active) return
-          if (next === null) {
-            setFailedKey(key)
-            return
-          }
-          cacheRamp(key, next)
-          setFailedKey(null)
-          setSource(next)
-        },
-        () => {
-          if (!active) return
-          setFailedKey(key)
-        },
-      )
-    }, 32)
-    return () => {
-      active = false
-      window.clearTimeout(timer)
-    }
-  }, [compact, key, rasterScale, typography])
 
   if (compact) return <CompactTypographyPreview typography={typography} />
 

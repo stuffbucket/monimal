@@ -1,8 +1,10 @@
 import { act } from 'react'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { createRoot } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { WorkspaceRail } from './WorkspaceRail'
+import { createMaximalQueryClient } from '../query-client'
 
 let container: HTMLElement | null = null
 
@@ -18,10 +20,12 @@ describe('WorkspaceRail', () => {
     const root = createRoot(container)
     act(() => {
       root.render(
-        <WorkspaceRail
-          current="overview"
-          onSelect={vi.fn()}
-        />,
+        <QueryClientProvider client={createMaximalQueryClient()}>
+          <WorkspaceRail
+            current="overview"
+            onSelect={vi.fn()}
+          />
+        </QueryClientProvider>,
       )
     })
 
@@ -48,10 +52,12 @@ describe('WorkspaceRail', () => {
     const onSelect = vi.fn()
     act(() => {
       root.render(
-        <WorkspaceRail
-          current="overview"
-          onSelect={onSelect}
-        />,
+        <QueryClientProvider client={createMaximalQueryClient()}>
+          <WorkspaceRail
+            current="overview"
+            onSelect={onSelect}
+          />
+        </QueryClientProvider>,
       )
     })
 
@@ -70,10 +76,12 @@ describe('WorkspaceRail', () => {
     const onSelect = vi.fn()
     act(() => {
       root.render(
-        <WorkspaceRail
-          current="overview"
-          onSelect={onSelect}
-        />,
+        <QueryClientProvider client={createMaximalQueryClient()}>
+          <WorkspaceRail
+            current="overview"
+            onSelect={onSelect}
+          />
+        </QueryClientProvider>,
       )
     })
 

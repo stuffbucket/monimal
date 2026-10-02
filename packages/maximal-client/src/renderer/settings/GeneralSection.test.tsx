@@ -14,9 +14,13 @@ import {
   ThemesSection,
 } from './AppearanceSections'
 import { GeneralSection } from './GeneralSection'
-import { TerminalTypographySettings as TerminalAppearanceSettings } from './general/TerminalTypographySettings'
+import {
+  terminalFontCatalogQueryKey,
+  TerminalTypographySettings as TerminalAppearanceSettings,
+} from './general/TerminalTypographySettings'
 import { appearancePreferenceQueryKey } from './general/useAppearancePreference'
 import { menuBarModeQueryKey } from './general/useMenuBarPresence'
+import { terminalTypographyQueryKey } from './general/useTerminalTypographyQuery'
 import { materialPreferenceQueryKey } from '../useMaterialPreference'
 
 vi.mock('./general/TerminalTypographyPreview', () => ({
@@ -252,6 +256,18 @@ async function renderGeneral(
   const options = typeof optionsOrSurface === 'string'
     ? {}
     : optionsOrSurface
+  if (surface === 'typography' || surface === 'palette') {
+    client.setQueryData(
+      terminalTypographyQueryKey,
+      await capabilities.terminalTypography.get(),
+    )
+  }
+  if (surface === 'typography') {
+    client.setQueryData(
+      terminalFontCatalogQueryKey,
+      await capabilities.terminalTypography.fonts(),
+    )
+  }
   if (options.seedMenuBar !== false) {
     client.setQueryData(
       menuBarModeQueryKey,

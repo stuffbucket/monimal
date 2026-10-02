@@ -1,3 +1,4 @@
+import { QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { describe, expect, it } from 'vitest'
@@ -9,6 +10,7 @@ import {
   thickenStrokeWidth,
   variationSampleStyle,
 } from './TerminalTypographyPreview'
+import { createMaximalQueryClient } from '../../query-client'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
@@ -84,18 +86,20 @@ describe('terminal typography preview', () => {
     const container = document.createElement('div')
     const root = createRoot(container)
     act(() => root.render(
-      <TerminalTypographyPreview typography={{
-        fontFamily: 'Placeholder Test',
-        fontSize: 13,
-        fontWeight: 400,
-        fontVariations: {},
-        cellHeight: 0,
-        tracking: 0,
-        baseline: 0,
-        thicken: false,
-        thickenStrength: 5,
-        ligatures: true,
-      }} />,
+      <QueryClientProvider client={createMaximalQueryClient()}>
+        <TerminalTypographyPreview typography={{
+          fontFamily: 'Placeholder Test',
+          fontSize: 13,
+          fontWeight: 400,
+          fontVariations: {},
+          cellHeight: 0,
+          tracking: 0,
+          baseline: 0,
+          thicken: false,
+          thickenStrength: 5,
+          ligatures: true,
+        }} />
+      </QueryClientProvider>,
     ))
 
     expect(container.querySelector(

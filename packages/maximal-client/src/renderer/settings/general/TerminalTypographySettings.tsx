@@ -5,7 +5,14 @@ import {
   SettingsGroup,
   SettingsItem,
 } from '@maximal/maximal-electron/renderer'
-import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactElement,
+} from 'react'
 
 import type {
   SettingsCapabilities,
@@ -16,6 +23,16 @@ import { TerminalFontDownloads } from './TerminalFontDownloads'
 import { TerminalPaletteControls } from './TerminalPaletteControls'
 import { TerminalTypographyControls } from './TerminalTypographyControls'
 import { TerminalTypographyPreview } from './TerminalTypographyPreview'
+import {
+  terminalTypographyQueryKey,
+  useTerminalTypographyQuery,
+} from './useTerminalTypographyQuery'
+
+export const terminalFontCatalogQueryKey = [
+  'settings',
+  'terminal',
+  'font-catalog',
+] as const
 
 function errorMessage(cause: unknown, fallback: string): string {
   if (!(cause instanceof Error)) return fallback
@@ -201,9 +218,33 @@ export function TerminalTypographySettings({
   capabilities: SettingsCapabilities['terminalTypography']
   surface: 'typography' | 'palette'
 }): ReactElement {
-  const [settings, setSettings] = useState<TypographySettings | null>(null)
-  const [catalog, setCatalog] = useState<TerminalFontCatalog | null>(null)
-  const [settingsError, setSettingsError] = useState<string>()
+  const queryClient = useQueryClient()
+  const settingsQuery = useTerminalTypographyQuery(capabilities)
+  const fontCatalogQuery = useQuery({
+    queryKey: terminalFontCatalogQueryKey,
+    queryFn: () => capabilities.fonts(),
+    enabled: surface === 'typography',
+  })
+  const [localSettings, setLocalSettings] =
+    useState<TypographySettings | null>(null)
+  const settings = localSettings ?? settingsQuery.data ?? null
+  const catalog = useMemo<TerminalFontCatalog | null>(
+    () => surface !== 'typography'
+      ? null
+      : fontCatalogQuery.data ?? (fontCatalogQuery.error === null
+        ? null
+        : {
+            status: 'unavailable',
+            fonts: [],
+            downloads: [],
+            message: errorMessage(
+              fontCatalogQuery.error,
+              'The terminal could not list the fonts installed on this host.',
+            ),
+          }),
+    [fontCatalogQuery.data, fontCatalogQuery.error, surface],
+  )
+  const [updateError, setUpdateError] = useState<string>()
   const [fontError, setFontError] = useState<string>()
   const [fontNotice, setFontNotice] = useState<string>()
   const [previewError, setPreviewError] = useState<string>()
@@ -214,44 +255,17 @@ export function TerminalTypographySettings({
   const saveQueue = useRef(Promise.resolve())
 
   useEffect(() => {
-    let active = true
-    void capabilities.get().then(
-      (loaded) => {
-        if (!active) return
-        persisted.current = loaded
-        settingsRef.current = loaded
-        setSettings(loaded)
-      },
-      (cause: unknown) => {
-        if (active) setSettingsError(errorMessage(
-          cause,
-          'Terminal typography settings could not be loaded.',
-        ))
-      },
-    )
-    if (surface === 'typography') {
-      void capabilities.fonts().then(
-        (loaded) => {
-          if (active) setCatalog(loaded)
-        },
-        (cause: unknown) => {
-          if (!active) return
-          setCatalog({
-            status: 'unavailable',
-            fonts: [],
-            downloads: [],
-            message: errorMessage(
-              cause,
-              'The terminal could not list the fonts installed on this host.',
-            ),
-          })
-        },
-      )
+    settingsRef.current = settings
+    if (persisted.current === null && settings !== null) {
+      persisted.current = settings
     }
-    return () => {
-      active = false
-    }
-  }, [capabilities, surface])
+  }, [settings])
+  const settingsError = updateError ?? (settingsQuery.error === null
+    ? undefined
+    : errorMessage(
+        settingsQuery.error,
+        'Terminal typography settings could not be loaded.',
+      ))
   const fontOptions = useMemo(
     () => availableFontOptions(catalog, settings), [catalog, settings],
   )
@@ -260,14 +274,16 @@ export function TerminalTypographySettings({
     updateRevision.current += 1
     const next = { ...settingsRef.current, ...patch }
     settingsRef.current = next
-    setSettings(next)
+    setLocalSettings(next)
+    queryClient.setQueryData(terminalTypographyQueryKey, next)
   }
   const update = (patch: Partial<TypographySettings>): void => {
     if (settingsRef.current === null) return
     const next = { ...settingsRef.current, ...patch }
     settingsRef.current = next
-    setSettings(next)
-    setSettingsError(undefined)
+    setLocalSettings(next)
+    queryClient.setQueryData(terminalTypographyQueryKey, next)
+    setUpdateError(undefined)
     const revision = updateRevision.current + 1
     updateRevision.current = revision
     saveQueue.current = saveQueue.current.then(async () => {
@@ -276,13 +292,15 @@ export function TerminalTypographySettings({
         persisted.current = saved
         if (updateRevision.current !== revision) return
         settingsRef.current = saved
-        setSettings(saved)
+        setLocalSettings(saved)
+        queryClient.setQueryData(terminalTypographyQueryKey, saved)
       } catch (cause) {
         if (updateRevision.current !== revision) return
         const fallback = persisted.current ?? next
         settingsRef.current = fallback
-        setSettings(fallback)
-        setSettingsError(errorMessage(
+        setLocalSettings(fallback)
+        queryClient.setQueryData(terminalTypographyQueryKey, fallback)
+        setUpdateError(errorMessage(
           cause,
           'Terminal typography settings could not be saved.',
         ))
@@ -306,7 +324,7 @@ export function TerminalTypographySettings({
           `${selectedFont.label} was installed, but it is not available in the terminal font list.`,
         )
       }
-      setCatalog(installedCatalog)
+      queryClient.setQueryData(terminalFontCatalogQueryKey, installedCatalog)
       setFontNotice(
         `${selectedFont?.label ?? 'The font'} is installed and available in Family.`,
       )

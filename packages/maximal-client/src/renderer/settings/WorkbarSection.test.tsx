@@ -1,31 +1,34 @@
 import { act } from 'react'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { createRoot } from 'react-dom/client'
 import { afterEach, describe, expect, it } from 'vitest'
 import * as Tooltip from '@radix-ui/react-tooltip'
 
 import { WorkspaceRail } from '../frame/WorkspaceRail'
+import { createMaximalQueryClient } from '../query-client'
 import { WorkbarSection } from './WorkbarSection'
 
 let container: HTMLElement | null = null
 
 afterEach(() => {
-  localStorage.clear()
   container?.remove()
   container = null
 })
 
 describe('WorkbarSection', () => {
-  it('updates workbar visibility and persisted ordering', () => {
+  it('updates shared workbar visibility and ordering', async () => {
     container = document.createElement('div')
     container.className = 'sb-shell'
     document.body.appendChild(container)
     const root = createRoot(container)
     act(() => {
       root.render(
-        <Tooltip.Provider>
-          <WorkspaceRail current="home" onSelect={() => undefined} />
-          <WorkbarSection />
-        </Tooltip.Provider>,
+        <QueryClientProvider client={createMaximalQueryClient()}>
+          <Tooltip.Provider>
+            <WorkspaceRail current="home" onSelect={() => undefined} />
+            <WorkbarSection />
+          </Tooltip.Provider>
+        </QueryClientProvider>,
       )
     })
 
@@ -33,13 +36,19 @@ describe('WorkbarSection', () => {
       '[aria-label="Show Browsers in workbar"]',
     )
     expect(browserSwitch).not.toBeNull()
-    act(() => browserSwitch?.click())
+    await act(async () => {
+      browserSwitch?.click()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
     expect(container.querySelector('[data-testid="nav-browsers"]')).toBeNull()
 
     const moveProjectsUp = container.querySelector<HTMLButtonElement>(
       '[aria-label="Move Projects up"]',
     )
-    act(() => moveProjectsUp?.click())
+    await act(async () => {
+      moveProjectsUp?.click()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
     expect([...container.querySelectorAll<HTMLElement>('.workbar__item')]
       .map((item) => item.title)).toEqual([
         'Projects',
@@ -48,12 +57,6 @@ describe('WorkbarSection', () => {
         'Traffic',
         'Terminals',
       ])
-
-    const saved = JSON.parse(
-      localStorage.getItem('maximal.workbar.layout') ?? '{}',
-    ) as { order: string[]; visible: string[] }
-    expect(saved.order.slice(0, 2)).toEqual(['projects', 'home'])
-    expect(saved.visible).not.toContain('browsers')
 
     act(() => root.unmount())
   })
