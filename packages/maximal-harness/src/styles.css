@@ -85,7 +85,7 @@ body,
   pointer-events: none;
 }
 
-.mh-card--candy::before {
+.mh-card-candy::before {
   content: '';
   position: absolute;
   z-index: 1;
@@ -216,19 +216,19 @@ body,
 }
 
 .mh-control-menu {
-  width: max(220px, var(--radix-dropdown-menu-trigger-width));
-  max-width: min(360px, var(--radix-dropdown-menu-content-available-width));
+  width: min(360px, 100vw);
+  min-width: 220px;
   border-color: var(--shell-border-strong, var(--shell-border));
   background: var(--shell-background);
   font-size: var(--shell-text-sm, 0.8125rem);
 }
 
 .mh-control-menu--models {
-  width: max(280px, var(--radix-dropdown-menu-trigger-width));
+  min-width: 280px;
 }
 
 .mh-control-menu--permissions {
-  width: min(340px, var(--radix-dropdown-menu-content-available-width));
+  width: min(340px, 100vw);
 }
 
 .mh-control-menu.mh-control-menu--permissions .menu__item-description {
@@ -369,7 +369,7 @@ body,
   opacity: 0.72;
 }
 
-.mh-composer__button--send:not(:disabled) {
+.mh-composer__button-send:not(:disabled) {
   border-color: var(--shell-accent);
   background: var(--shell-accent);
   color: var(--shell-accent-contrast);
@@ -548,7 +548,7 @@ body,
 }
 
 .mh-card__answer:hover,
-.mh-card__answer--scrolling {
+.mh-card__answer-scrolling {
   scrollbar-color: var(--shell-text-muted) var(--shell-canvas);
 }
 
@@ -568,7 +568,7 @@ body,
 }
 
 .mh-card__answer:hover::-webkit-scrollbar-thumb,
-.mh-card__answer--scrolling::-webkit-scrollbar-thumb {
+.mh-card__answer-scrolling::-webkit-scrollbar-thumb {
   background: var(--shell-text-muted);
 }
 
@@ -797,12 +797,12 @@ body,
   background: var(--shell-text-muted);
 }
 
-.mh-tool--running .mh-tool__indicator {
+.mh-tool-running .mh-tool__indicator {
   background: var(--shell-accent);
   animation: mh-tool-pulse 1s ease-in-out infinite alternate;
 }
 
-.mh-tool--running::after {
+.mh-tool-running::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -1065,8 +1065,8 @@ body,
     animation: none;
   }
 
-  .mh-tool--running .mh-tool__indicator,
-  .mh-card--candy::before {
+  .mh-tool-running .mh-tool__indicator,
+  .mh-card-candy::before {
     animation: none;
   }
 }
@@ -1106,7 +1106,7 @@ body,
   background: var(--shell-hover);
 }
 
-.mh-overlay-body .mh-composer__button--send:not(:disabled) {
+.mh-overlay-body .mh-composer__button-send:not(:disabled) {
   border-color: var(--shell-accent);
   background: var(--shell-accent);
 }

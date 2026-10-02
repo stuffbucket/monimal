@@ -293,7 +293,7 @@ describe('Overlay', () => {
     expect(byTestId('overlay-status').textContent).toBe('Running read…');
     expect(byTestId('overlay-tools').textContent).toContain('Reading context⌄readrunning');
     expect(byTestId('overlay-tools').querySelector('details')?.open).toBe(true);
-    expect(byTestId('overlay-tools').querySelector('.mh-tool--running')).toBeTruthy();
+    expect(byTestId('overlay-tools').querySelector('.mh-tool-running')).toBeTruthy();
 
     act(() => fake.tool.emit({ id: 'tool-1', name: 'read', phase: 'end' }));
     expect(byTestId('overlay-status').textContent).toBe('Thinking…');

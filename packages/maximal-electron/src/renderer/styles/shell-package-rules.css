@@ -1388,7 +1388,7 @@
 
 .sb-shell .menu {
   min-width: 220px;
-  max-height: min(360px, var(--shell-menu-available-height));
+  max-height: min(360px, 100vh);
   overflow-y: auto;
   padding: var(--shell-space-1);
   background: var(--shell-raised);

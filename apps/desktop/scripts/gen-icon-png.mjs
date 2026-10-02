@@ -30,9 +30,9 @@ import {
 const source = resolve('build/icon.icns')
 const output = resolve('build/icon.png')
 const trayOutputs = [
-  { path: resolve('resources/tray/tray.png'), size: 32, template: false },
-  { path: resolve('resources/tray/trayTemplate.png'), size: 18, template: true },
-  { path: resolve('resources/tray/trayTemplate@2x.png'), size: 36, template: true },
+  { path: resolve('resources/tray/tray.png'), size: 22, template: false },
+  { path: resolve('resources/tray/trayTemplate.png'), size: 22, template: true },
+  { path: resolve('resources/tray/trayTemplate@2x.png'), size: 44, template: true },
 ]
 
 function verifyTrayGlyph(path) {

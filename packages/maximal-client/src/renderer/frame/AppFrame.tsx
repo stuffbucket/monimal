@@ -157,7 +157,7 @@ export function AppFrame({
                   label="Assistant"
                   testId="open-assistant"
                 >
-                  <Sparkles size={15} />
+                  <Sparkles size={16} />
                 </IconButton>
               )}
               items={[

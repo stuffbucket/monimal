@@ -713,7 +713,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
         modal={false}
         title={HARNESS_COPY.overlay.title}
         className={`sb-shell mh-card${showStage ? ' mh-card--expanded' : ''}${
-          preferences.candy ? ' mh-card--candy shell-candy-surface' : ''
+          preferences.candy ? ' mh-card-candy shell-candy-surface' : ''
         } mh-card--font-${preferences.outputFont}`}
         testId="overlay-card"
         onKeyDown={onKeyDown}
@@ -772,7 +772,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
         {showStage && (
           <div className="mh-card__stage" data-testid="overlay-stage">
             <div
-              className={`mh-card__answer${scrolling ? ' mh-card__answer--scrolling' : ''}`}
+              className={`mh-card__answer${scrolling ? ' mh-card__answer-scrolling' : ''}`}
               ref={answerBox}
               data-testid="overlay-answer"
               onScroll={(event) => {
@@ -879,7 +879,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                 <div className="mh-tool-list" aria-label="Tool activity" data-testid="overlay-tools">
                   {tools.map((entry) => (
                     <details
-                      className={`mh-tool mh-tool--${entry.state}`}
+                      className={`mh-tool mh-tool-${entry.state}`}
                       key={entry.id}
                       open={entry.state === 'running'}
                     >
@@ -1232,7 +1232,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
             </button>
             <button
               type="button"
-              className="mh-composer__button mh-composer__button--send"
+              className="mh-composer__button mh-composer__button-send"
               aria-label={busy ? 'Stop response' : 'Send message'}
               title={busy ? 'Stop response' : 'Send message'}
               disabled={!busy && (!ready || (prompt.trim().length === 0 && attachments.length === 0))}

@@ -236,6 +236,13 @@ export function ShellLayout<T extends Tab>({
       const collapsed = panel === 'left' ? leftCollapsed : rightCollapsed;
       if (collapsed) handle.resize(panel === 'left' ? leftSize.default : rightSize.default);
       else handle.collapse();
+      const nextLayout = layoutForPanels(
+        documentGroup.current?.getLayout(),
+        documentPanelIds,
+      );
+      if (nextLayout !== undefined) {
+        layout.onLayoutChanged(nextLayout, { isUserInteraction: true });
+      }
       if (panel === 'left') setLeftCollapsed(!collapsed);
       else setRightCollapsed(!collapsed);
     },
@@ -243,6 +250,9 @@ export function ShellLayout<T extends Tab>({
       leftCollapsed,
       leftPanel,
       leftSize.default,
+      documentGroup,
+      documentPanelIds,
+      layout,
       rightCollapsed,
       rightPanel,
       rightSize.default,

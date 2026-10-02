@@ -220,7 +220,7 @@ svg {
 
 .menu {
   min-width: 220px;
-  max-height: min(360px, var(--radix-dropdown-menu-content-available-height));
+  max-height: min(360px, 100vh);
   overflow-y: auto;
   padding: var(--space-1);
   border-radius: var(--radius-input);

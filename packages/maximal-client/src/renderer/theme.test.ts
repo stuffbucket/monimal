@@ -21,7 +21,10 @@ function installedContract() {
 function definedThemeVariables(): Set<string> {
   const source = readFileSync(resolve(import.meta.dirname, 'theme.ts'), 'utf8')
   return new Set(
-    [...source.matchAll(/^\s*(--shell-[a-z0-9-]+)\s*:/gm)].map((match) => match[1] ?? ''),
+    [
+      ...source.matchAll(/^\s*(--shell-[a-z0-9-]+)\s*:/gm),
+      ...source.matchAll(/\bstyle\.setProperty\(\s*['"](--shell-[a-z0-9-]+)['"]/g),
+    ].map((match) => match[1] ?? ''),
   )
 }
 
