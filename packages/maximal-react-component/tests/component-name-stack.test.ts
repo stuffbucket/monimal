@@ -14,6 +14,11 @@ const layers: ReadonlyArray<ComponentLayer> = [
   { name: "App", path: "/workspace/App.tsx:1:1" },
   { name: "Panel", path: "/workspace/Panel.tsx:2:1" },
 ]
+const deepLayers: ReadonlyArray<ComponentLayer> = [
+  ...layers,
+  { name: "Section", path: "/workspace/Section.tsx:3:1" },
+  { name: "Button", path: "/workspace/Button.tsx:4:1" },
+]
 
 function click(target: EventTarget, detail = 0): void {
   target.dispatchEvent(new MouseEvent("click", { bubbles: true, detail }))
@@ -78,13 +83,34 @@ describe("component name stack", () => {
     expect(container.title).toBe("App › Panel")
   })
 
+  it("shows the selected component and at most two parents", () => {
+    const container = document.createElement("div")
+    renderComponentNames(container, deepLayers, {
+      expanded: true,
+      selectedIndex: 3,
+    })
+
+    expect(
+      Array.from(container.querySelectorAll("button")).map((entry) => ({
+        index: entry.dataset["layerIndex"],
+        padding: entry.style.paddingLeft,
+        text: entry.textContent,
+      })),
+    ).toEqual([
+      { index: "1", padding: "0px", text: "Panel" },
+      { index: "2", padding: "10px", text: "Section" },
+      { index: "3", padding: "20px", text: "Button" },
+    ])
+    expect(container.title).toBe("App › Panel › Section › Button")
+  })
+
   it("selects only the final single-click after the double-click delay", () => {
     vi.useFakeTimers()
     const windowObject = globalThis.window
     const container = document.createElement("div")
     renderComponentNames(container, layers, {
       expanded: true,
-      selectedIndex: 0,
+      selectedIndex: 1,
     })
     const select = vi.fn(() => true)
     const preview = vi.fn()
@@ -120,7 +146,7 @@ describe("component name stack", () => {
     const container = document.createElement("div")
     renderComponentNames(container, layers, {
       expanded: true,
-      selectedIndex: 0,
+      selectedIndex: 1,
     })
     const open = vi.fn()
     const select = vi.fn(() => true)
@@ -152,7 +178,7 @@ describe("component name stack", () => {
     const container = document.createElement("div")
     renderComponentNames(container, layers, {
       expanded: true,
-      selectedIndex: 0,
+      selectedIndex: 1,
     })
     const open = vi.fn()
     const select = vi.fn(() => true)
@@ -217,7 +243,7 @@ describe("component stack controls", () => {
     )
     renderComponentNames(container, layers, {
       expanded: true,
-      selectedIndex: 0,
+      selectedIndex: 1,
     })
     const onOpen = vi.fn()
     const onPreview = vi.fn()

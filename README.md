@@ -26,8 +26,9 @@ Run workspace workflows from the repository root:
 | Build the workspace | `pnpm build` |
 | Run native build, type, and lint checks | `pnpm check:static` |
 | Run checks affected by the current branch | `pnpm check:affected` |
-| Run the complete gate | `pnpm check` |
+| Run the complete affected gate | `pnpm check` |
 | Run isolated affected native tests | `pnpm test` |
+| Run the complete native test graph | `pnpm run test:all` |
 | Run the pinned Docker test graph | `pnpm run test:docker` |
 | Package the desktop app | `pnpm package` |
 | Exercise every workspace packager | `pnpm package:all` |

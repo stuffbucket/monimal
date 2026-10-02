@@ -301,13 +301,15 @@ jobs:
           }
           echo "sidecar embeds $SHA, core $(node -p "require('./packages/maximal-core/package.json').version")"
 
-      # GitHub-hosted runners execute the complete installed test graph through
-      # the same isolated native wrapper used locally. Docker remains an explicit
-      # final gate and is never built by ordinary CI.
-      - name: Test workspace on disposable runner
+      # The required pull-request gate runs the affected installed test graph
+      # through the same isolated native wrapper used locally. The non-blocking
+      # Full test graph workflow covers every package and cancels stale runs
+      # when a pull request receives another commit.
+      - name: Test affected workspace on disposable runner
+        if: github.event_name == 'pull_request'
         env:
           MONIMAL_PERF_MARKERS: 1
-        run: pnpm run test:all -- --trace=${{ inputs.test_trace || 'off' }}
+        run: pnpm test -- --trace=${{ inputs.test_trace || 'off' }}
 
       # Pull requests can restore main's cache, but caches created under a PR
       # merge ref are invisible to main. Save only the exact tested main SHA so

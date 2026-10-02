@@ -1,6 +1,7 @@
 import type { ComponentLayer } from "./types.js"
 
 const CLICK_DELAY = 200
+const MAX_VISIBLE_COMPONENTS = 3
 export const EXPANDED_STACK_ICON = "m6 9 6 6 6-6"
 const COLLAPSED_STACK_ICON = "m9 18 6-6-6-6"
 
@@ -12,9 +13,18 @@ export function renderComponentNames(
     selectedIndex: number
   },
 ): void {
+  const firstVisibleIndex = Math.max(
+    0,
+    options.selectedIndex - (MAX_VISIBLE_COMPONENTS - 1),
+  )
   const visibleLayers =
     options.expanded ?
-      layers.map((layer, index) => ({ index, layer }))
+      layers
+        .slice(firstVisibleIndex, options.selectedIndex + 1)
+        .map((layer, offset) => ({
+          index: firstVisibleIndex + offset,
+          layer,
+        }))
     : [
         {
           index: options.selectedIndex,
@@ -32,7 +42,9 @@ export function renderComponentNames(
       `Select ${layer.name}; double-click to open source`,
     )
     link.textContent = layer.name
-    link.style.paddingLeft = `${String(options.expanded ? index * 10 : 0)}px`
+    link.style.paddingLeft = `${String(
+      options.expanded ? (index - firstVisibleIndex) * 10 : 0,
+    )}px`
     return link
   })
   container.replaceChildren(...entries)
