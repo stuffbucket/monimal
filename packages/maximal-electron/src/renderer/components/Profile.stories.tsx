@@ -1,5 +1,5 @@
-import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, userEvent, within } from 'storybook/test';
+import type { Meta, StoryObj } from '@maximal/maximal-storybook';
+import { expect, fn, userEvent, within } from '@maximal/maximal-storybook/test';
 
 import type { Account } from '../lib/account.js';
 
@@ -79,7 +79,7 @@ export const LongDisplayName: Story = {
  * The menu itself, and what it reaches.
  *
  * Closed again at the end. An open Radix popup marks the rest of the document
- * `aria-hidden`, and `npm run storybook:check` runs axe over whatever the play
+ * `aria-hidden`, and `pnpm storybook:check` runs axe over whatever the play
  * function leaves behind.
  */
 export const MenuEntries: Story = {

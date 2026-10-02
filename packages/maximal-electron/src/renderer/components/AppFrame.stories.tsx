@@ -1,12 +1,12 @@
-import type { Meta, StoryObj } from '@storybook/react-vite';
+import type { Meta, StoryObj } from '@maximal/maximal-storybook';
 
 import {
   AppFrame,
   SurfaceRail,
   SurfaceRight,
-  SurfaceStatus,
   SurfaceTop,
 } from './AppFrame.js';
+import { Status } from './Status.js';
 
 const meta = {
   title: 'Shell/AppFrame',
@@ -26,13 +26,12 @@ export const Default: StoryObj = {
         onSelectTab={() => undefined}
         withLeft
         withRight
-        withStatus
       >
         <SurfaceTop><div className="banner">Connected</div></SurfaceTop>
         <SurfaceRail>{(collapsed) => <nav className="nav">{collapsed ? null : 'Sections'}</nav>}</SurfaceRail>
         <main className="canvas">Document content</main>
         <SurfaceRight><aside className="inspector">Inspector</aside></SurfaceRight>
-        <SurfaceStatus><span>Ready</span></SurfaceStatus>
+        <Status id="ready" dismissible={false}><span>Ready</span></Status>
       </AppFrame>
     </div>
   ),

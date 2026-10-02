@@ -6,8 +6,10 @@ import {
   createContext,
   useContext,
   useId,
+  useRef,
   useState,
   type FocusEvent,
+  type KeyboardEvent,
   type ReactNode,
 } from 'react';
 
@@ -267,6 +269,7 @@ const FIELD_STYLES = `
 .sb-shell .slider__label {
   position: absolute;
   transform: translateX(calc(-1 * var(--shell-field-half)));
+  white-space: nowrap;
 }
 
 .sb-shell .slider__label[data-edge='start'] {
@@ -297,6 +300,13 @@ const FIELD_STYLES = `
   width: 100%;
 }
 
+.sb-shell .switch > span:not(.switch__track) {
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-base);
+  font-weight: var(--shell-weight-md);
+  line-height: var(--shell-leading-base);
+}
+
 .sb-shell .switch__track {
   position: relative;
   box-sizing: border-box;
@@ -322,12 +332,17 @@ const FIELD_STYLES = `
   left: var(--shell-field-action-inset);
   width: calc(var(--shell-control-sm) - var(--shell-space-2));
   height: calc(var(--shell-control-sm) - var(--shell-space-2));
+  box-sizing: border-box;
+  border: 1px solid var(--shell-border-strong);
   border-radius: var(--shell-field-half);
   background: var(--shell-text);
-  transition: transform var(--shell-switch-duration) ease-out;
+  transition:
+    border-color var(--shell-switch-duration) ease-out,
+    transform var(--shell-switch-duration) ease-out;
 }
 
 .sb-shell .switch__track[data-on='true'] .switch__thumb {
+  border-color: var(--shell-border-strong);
   background: var(--shell-accent-contrast, var(--shell-background));
   transform: translateX(var(--shell-space-3));
 }
@@ -496,6 +511,20 @@ function sliderIndex(value: number, options: readonly SliderOption[]): number {
   return closestIndex;
 }
 
+export function directionalSliderIndex(
+  position: number,
+  direction: number,
+  maximum: number,
+): number {
+  const bounded = Math.min(Math.max(position, 0), maximum);
+  const lower = Math.floor(bounded);
+  const upper = Math.ceil(bounded);
+  const midpoint = lower + ((upper - lower) / 2);
+  if (bounded < midpoint) return lower;
+  if (bounded > midpoint) return upper;
+  return direction < 0 ? lower : upper;
+}
+
 /** A discrete slider whose detents and labels share one positioning model. */
 export function Slider({
   label,
@@ -504,6 +533,9 @@ export function Slider({
   onChange,
   onCommit = onChange,
   disabled,
+  showLabels = true,
+  showDetents = true,
+  directionalSnap = false,
   testId,
   ...field
 }: {
@@ -513,6 +545,9 @@ export function Slider({
   onChange: (next: number) => void;
   onCommit?: (next: number) => void;
   disabled?: boolean;
+  showLabels?: boolean;
+  showDetents?: boolean;
+  directionalSnap?: boolean;
   testId?: string;
 } & Partial<FieldControl>) {
   useFieldStyles();
@@ -521,57 +556,109 @@ export function Slider({
   const selectedIndex = sliderIndex(value, options);
   const selected = options[selectedIndex];
   const maximum = options.length - 1;
+  const lastPosition = useRef(selectedIndex);
+  const averageDirection = useRef(0);
+  const emittedIndex = useRef(selectedIndex);
+  emittedIndex.current = selectedIndex;
   const position = (index: number): string =>
     `${maximum === 0 ? 0 : (index / maximum) * 100}%`;
   const optionAt = (index: number): SliderOption =>
     options[index] ?? options[0]!;
+  const selectPosition = (
+    next: number,
+    commit: boolean,
+  ): void => {
+    const delta = next - lastPosition.current;
+    if (delta !== 0) {
+      averageDirection.current = (averageDirection.current * 0.75) + delta;
+    }
+    lastPosition.current = next;
+    const index = directionalSnap
+      ? directionalSliderIndex(next, averageDirection.current, maximum)
+      : Math.round(next);
+    const option = optionAt(index);
+    if (index !== emittedIndex.current) {
+      emittedIndex.current = index;
+      onChange(option.value);
+    }
+    if (commit) onCommit(option.value);
+  };
+  const onSliderKeyDown = (event: KeyboardEvent): void => {
+    if (!directionalSnap) return;
+    const movements: Record<string, number> = {
+      ArrowDown: -1,
+      ArrowLeft: -1,
+      ArrowRight: 1,
+      ArrowUp: 1,
+      PageDown: -1,
+      PageUp: 1,
+    };
+    let next = selectedIndex + (movements[event.key] ?? 0);
+    if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = maximum;
+    else if (movements[event.key] === undefined) return;
+    event.preventDefault();
+    selectPosition(Math.min(Math.max(next, 0), maximum), true);
+  };
 
   return (
-    <div className="slider" data-testid={testId}>
+    <div
+      className="slider"
+      data-labels={showLabels ? undefined : 'hidden'}
+      data-testid={testId}
+    >
       <SliderPrimitive.Root
         className="slider__root"
         value={[selectedIndex]}
         min={0}
         max={maximum}
-        step={1}
+        step={directionalSnap ? 0.01 : 1}
         disabled={disabled}
-        onValueChange={([next = 0]) => onChange(optionAt(next).value)}
-        onValueCommit={([next = 0]) => onCommit(optionAt(next).value)}
+        onValueChange={([next = 0]) => selectPosition(next, false)}
+        onValueCommit={([next = 0]) => selectPosition(next, true)}
       >
         <SliderPrimitive.Track className="slider__track">
           <SliderPrimitive.Range className="slider__range" />
         </SliderPrimitive.Track>
-        <div className="slider__detents" aria-hidden="true">
-          {options.map((option, index) => (
-            <span
-              key={option.value}
-              className="slider__mark"
-              hidden={index <= selectedIndex}
-              style={{ left: position(index) }}
-            />
-          ))}
-        </div>
+        {showDetents ? (
+          <div className="slider__detents" aria-hidden="true">
+            {options.map((option, index) => (
+              <span
+                key={option.value}
+                className="slider__mark"
+                hidden={index <= selectedIndex}
+                style={{ left: position(index) }}
+              />
+            ))}
+          </div>
+        ) : null}
         <SliderPrimitive.Thumb
           {...field}
           className="slider__thumb"
           aria-label={label}
+          aria-valuemin={options[0]?.value}
+          aria-valuemax={options[maximum]?.value}
+          aria-valuenow={selected?.value}
           aria-valuetext={selected?.label}
+          onKeyDown={onSliderKeyDown}
         />
       </SliderPrimitive.Root>
-      <ol className="slider__labels" aria-hidden="true">
-        {options.map((option, index) => (
-          <li
-            key={option.value}
-            className="slider__label"
-            data-edge={
-              index === 0 ? 'start' : index === maximum ? 'end' : undefined
-            }
-            style={{ left: position(index) }}
-          >
-            {option.label}
-          </li>
-        ))}
-      </ol>
+      {showLabels ? (
+        <ol className="slider__labels" aria-hidden="true">
+          {options.map((option, index) => (
+            <li
+              key={option.value}
+              className="slider__label"
+              data-edge={
+                index === 0 ? 'start' : index === maximum ? 'end' : undefined
+              }
+              style={{ left: position(index) }}
+            >
+              {option.label}
+            </li>
+          ))}
+        </ol>
+      ) : null}
     </div>
   );
 }
@@ -582,6 +669,7 @@ export function Textarea({
   onChange,
   placeholder,
   disabled,
+  autoFocus,
   rows = 3,
   onBlur,
   onKeyDown,
@@ -592,6 +680,7 @@ export function Textarea({
   onChange: (next: string) => void;
   placeholder?: string;
   disabled?: boolean;
+  autoFocus?: boolean;
   rows?: number;
   onBlur?: (event: React.FocusEvent<HTMLTextAreaElement>) => void;
   onKeyDown?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
@@ -605,6 +694,7 @@ export function Textarea({
       value={value}
       placeholder={placeholder}
       disabled={disabled}
+      autoFocus={autoFocus}
       onChange={(event) => onChange(event.target.value)}
       onBlur={onBlur}
       onKeyDown={onKeyDown}

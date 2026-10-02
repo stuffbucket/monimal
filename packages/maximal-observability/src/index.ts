@@ -12,6 +12,7 @@ export {
   formatBytes,
   formatCount,
   formatDuration,
+  formatStatusTimestamp,
   formatTimestamp,
 } from "./format.ts"
 export {

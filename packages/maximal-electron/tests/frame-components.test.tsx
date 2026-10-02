@@ -6,10 +6,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   AppFrame,
+  Status,
+  StatusProvider,
+  StatusViewport,
   SurfaceActivity,
   SurfaceRail,
   SurfaceRight,
-  SurfaceStatus,
   SurfaceTop,
   WindowChrome,
   useTabPanelId,
@@ -60,14 +62,13 @@ describe('AppFrame', () => {
         withActivity
         withLeft
         withRight
-        withStatus
       >
         <IdentityProbe />
         <SurfaceTop><p data-testid="top">top</p></SurfaceTop>
         <SurfaceActivity><p data-testid="activity">activity</p></SurfaceActivity>
         <SurfaceRail>{(collapsed) => <p data-testid="rail">{String(collapsed)}</p>}</SurfaceRail>
         <SurfaceRight><p data-testid="right">right</p></SurfaceRight>
-        <SurfaceStatus><p data-testid="status">status</p></SurfaceStatus>
+        <Status id="status" dismissible={false}><p data-testid="status">status</p></Status>
       </AppFrame>,
     );
 
@@ -105,6 +106,50 @@ describe('AppFrame', () => {
     expect(shell.querySelector('.activity-rail')).toBeNull();
     expect(shell.querySelector('#right')).toBeNull();
     expect(shell.querySelector('.statusbar')).toBeNull();
+  });
+
+  it('orders, pages, and dismisses registered statuses', () => {
+    const shell = render(
+      <AppFrame
+        layoutId="consumer"
+        tabs={[{ id: 'document', title: 'Document' }]}
+        activeTab="document"
+        onSelectTab={vi.fn()}
+      >
+        <Status id="later" order={20}><span>Later</span></Status>
+        <Status id="first" order={10} dismissible={false}><span>First</span></Status>
+      </AppFrame>,
+    );
+
+    expect(shell.querySelector('.status-viewport__content')?.textContent).toBe('First');
+    expect(shell.querySelector('[aria-label="Dismiss status"]')).toBeNull();
+    expect(shell.querySelector('.status-viewport__position')?.textContent).toBe('1 / 2');
+
+    act(() => {
+      shell.querySelector<HTMLButtonElement>('[aria-label="Next status"]')?.click();
+    });
+    expect(shell.querySelector('.status-viewport__content')?.textContent).toBe('Later');
+    expect(shell.querySelector('[aria-label="Dismiss status"]')).not.toBeNull();
+
+    act(() => {
+      shell.querySelector<HTMLButtonElement>('[aria-label="Dismiss status"]')?.click();
+    });
+    expect(shell.querySelector('.status-viewport__content')?.textContent).toBe('First');
+    expect(shell.querySelector('.status-viewport__position')).toBeNull();
+  });
+});
+
+describe('StatusProvider', () => {
+  it('supports a viewport outside AppFrame', () => {
+    const shell = render(
+      <StatusProvider>
+        <Status id="standalone" dismissible={false}>Standalone banner</Status>
+        <StatusViewport />
+      </StatusProvider>,
+    );
+
+    expect(shell.querySelector('.status-viewport__content')?.textContent)
+      .toBe('Standalone banner');
   });
 });
 

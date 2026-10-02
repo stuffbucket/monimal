@@ -1,5 +1,5 @@
-import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, userEvent, within } from 'storybook/test';
+import type { Meta, StoryObj } from '@maximal/maximal-storybook';
+import { expect, userEvent, within } from '@maximal/maximal-storybook/test';
 
 import { Button } from '../controls/Button.js';
 import { CopyButton } from '../CopyButton.js';

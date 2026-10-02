@@ -61,6 +61,7 @@ describe('preload bridge allowlist', () => {
       'shutdown',
       'systemNotifications',
       'terminal',
+      'terminalTypography',
     ])
     expect(Object.keys(bridge.appearance).sort()).toEqual([
       'get',
@@ -195,6 +196,14 @@ describe('preload bridge allowlist', () => {
       'snapshot',
       'updateRoot',
     ])
+    expect(Object.keys(bridge.terminalTypography).sort()).toEqual([
+      'fonts',
+      'get',
+      'installFont',
+      'onChange',
+      'openPreview',
+      'update',
+    ])
     expect(Object.keys(bridge.terminal).sort()).toEqual([
       'acknowledge',
       'copy',
@@ -312,6 +321,22 @@ describe('preload bridge allowlist', () => {
       lighting: 'timezone',
       timezone: 'UTC',
     })
+    await bridge.terminalTypography.get()
+    await bridge.terminalTypography.update({
+      fontFamily: 'ui-monospace',
+      fontSize: 13,
+      fontWeight: 400,
+      fontVariations: {},
+      cellHeight: 0,
+      tracking: 0,
+      baseline: 0,
+      thicken: false,
+      thickenStrength: 50,
+      ligatures: true,
+    })
+    await bridge.terminalTypography.fonts()
+    await bridge.terminalTypography.installFont('intel-one-mono')
+    await bridge.terminalTypography.openPreview()
     await bridge.harness.show()
     await bridge.harness.hide()
     await bridge.harness.provider()
@@ -450,6 +475,25 @@ describe('preload bridge allowlist', () => {
           timezone: 'UTC',
         },
       ],
+      [BRIDGE_CHANNELS.terminalTypographyGet],
+      [
+        BRIDGE_CHANNELS.terminalTypographyUpdate,
+        {
+          fontFamily: 'ui-monospace',
+          fontSize: 13,
+          fontWeight: 400,
+          fontVariations: {},
+          cellHeight: 0,
+          tracking: 0,
+          baseline: 0,
+          thicken: false,
+          thickenStrength: 50,
+          ligatures: true,
+        },
+      ],
+      [BRIDGE_CHANNELS.terminalTypographyFonts],
+      [BRIDGE_CHANNELS.terminalTypographyInstallFont, 'intel-one-mono'],
+      [BRIDGE_CHANNELS.terminalTypographyOpenPreview],
       [BRIDGE_CHANNELS.harnessShow],
       [BRIDGE_CHANNELS.harnessHide],
       [BRIDGE_CHANNELS.harnessProvider],
@@ -598,6 +642,40 @@ describe('preload bridge allowlist', () => {
     )
     expect(off).toHaveBeenCalledWith(
       BRIDGE_CHANNELS.localModelsChanged,
+      handler,
+    )
+  })
+
+  it('wraps terminal typography changes and removes only its own listener', () => {
+    const listener = vi.fn()
+    const unsubscribe = bridge.terminalTypography.onChange(listener)
+    const handler = on.mock.calls[0]?.[1] as (
+      event: unknown,
+      payload: unknown,
+    ) => void
+    const typography = {
+      fontFamily: 'JetBrainsMono Nerd Font',
+      fontSize: 14,
+      fontWeight: 500,
+      fontVariations: {},
+      cellHeight: 10,
+      tracking: 5,
+      baseline: -10,
+      thicken: true,
+      thickenStrength: 75,
+      ligatures: false,
+    }
+
+    handler({ raw: 'electron-event' }, typography)
+    expect(listener).toHaveBeenCalledWith(typography)
+
+    unsubscribe()
+    expect(on).toHaveBeenCalledWith(
+      BRIDGE_CHANNELS.terminalTypographyChanged,
+      handler,
+    )
+    expect(off).toHaveBeenCalledWith(
+      BRIDGE_CHANNELS.terminalTypographyChanged,
       handler,
     )
   })

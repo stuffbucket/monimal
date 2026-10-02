@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { ProjectSearchResult } from '@maximal/project-catalog'
+import { TooltipProvider } from '@maximal/maximal-electron/renderer'
 import type { MaximalHost } from '../../shared/host'
 import { ProjectBrowser } from './ProjectBrowser'
 
@@ -73,32 +74,37 @@ async function renderBrowser({
   onOpenChange = vi.fn(),
   onOpenProject = vi.fn(async () => {}),
   onOpenSettings = vi.fn(),
+  embedded = false,
 }: {
   api?: MaximalHost['projects']
   open?: boolean
   onOpenChange?: (open: boolean) => void
   onOpenProject?: (project: ProjectSearchResult) => Promise<void>
   onOpenSettings?: () => void
+  embedded?: boolean
 } = {}): Promise<HTMLElement> {
   const container = document.createElement('div')
   document.body.append(container)
   reactRoot = createRoot(container)
   await act(async () => {
     reactRoot?.render(
-      <ProjectBrowser
-        open={open}
-        onOpenChange={onOpenChange}
-        onOpenProject={onOpenProject}
-        onOpenSettings={onOpenSettings}
-        projectsApi={api}
-      />,
+      <TooltipProvider>
+        <ProjectBrowser
+          open={open}
+          onOpenChange={onOpenChange}
+          onOpenProject={onOpenProject}
+          onOpenSettings={onOpenSettings}
+          projectsApi={api}
+          embedded={embedded}
+        />
+      </TooltipProvider>,
     )
   })
   return document.body
 }
 
 async function runTimers(): Promise<void> {
-  await act(async () => vi.runAllTimersAsync())
+  await act(async () => vi.advanceTimersByTimeAsync(100))
 }
 
 async function typeQuery(input: HTMLInputElement, value: string): Promise<void> {
@@ -109,7 +115,36 @@ async function typeQuery(input: HTMLInputElement, value: string): Promise<void> 
   })
 }
 
+function openSearch(container: ParentNode): HTMLInputElement {
+  act(() => {
+    container.querySelector<HTMLButtonElement>(
+      '[aria-label="Search projects"]',
+    )?.click()
+  })
+  const input = container.querySelector<HTMLInputElement>(
+    'input[aria-label="Search projects"]',
+  )
+  if (!input) throw new Error('Expected the project search input')
+  return input
+}
+
+async function openProject(button: HTMLButtonElement): Promise<void> {
+  await act(async () => {
+    button.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+  })
+}
+
 describe('ProjectBrowser', () => {
+  it('fills an application-frame surface without mounting a dialog', async () => {
+    const container = await renderBrowser({ embedded: true })
+    const browser = container.querySelector('[data-testid="project-browser"]')
+
+    expect(browser?.tagName).toBe('SECTION')
+    expect(browser?.getAttribute('aria-label')).toBe('Open project')
+    expect(browser?.classList.contains('spatial-canvas-surface--embedded')).toBe(true)
+    expect(container.querySelector('[role="dialog"]')).toBeNull()
+  })
+
   it('renders its search contract and empty result state', async () => {
     vi.useFakeTimers()
     const search = vi.fn(async () => [])
@@ -117,17 +152,24 @@ describe('ProjectBrowser', () => {
     await runTimers()
 
     expect(search).toHaveBeenCalledWith('', 75)
-    expect(container.querySelector('[data-testid="project-browser"]')).not.toBeNull()
-    expect(container.querySelector('[aria-label="Search projects"]')
-      ?.getAttribute('placeholder')).toBe('Search by name, path, or remote')
-    expect(container.querySelector('[role="listbox"]')?.getAttribute('aria-label')).toBe('Projects')
+    expect(container.querySelector('[data-testid="project-browser"]')
+      ?.classList.contains('spatial-canvas-surface')).toBe(true)
+    expect(container.querySelector('[data-testid="project-browser"]')
+      ?.classList.contains('dialog')).toBe(false)
+    expect(container.querySelector('input[aria-label="Search projects"]')).toBeNull()
+    const searchInput = openSearch(container)
+    expect(searchInput.getAttribute('placeholder')).toBe('Search projects')
+    expect(searchInput.closest('aside[aria-label="Search projects"]')
+      ?.getAttribute('data-edge')).toBe('true')
+    expect(container.querySelector('.spatial-canvas__presence input')).toBeNull()
+    expect(container.textContent).toContain('No projects available')
+    expect(container.querySelector('[role="tabpanel"]')?.getAttribute('aria-label'))
+      .toBe('Project map canvas')
+    expect(container.querySelector('[role="application"]')).toBeNull()
     expect(container.textContent).toContain('Open project')
     expect(container.textContent).toContain('Search local folders and repositories.')
-    expect(container.textContent).toContain(
-      'No projects found. Add a discovery folder in Projects settings.',
-    )
-    expect(container.textContent).toContain('Projects settings')
-    expect(container.textContent).toContain('Add folder')
+    expect(container.textContent).not.toContain('0 on map')
+    expect(container.querySelector('[aria-label="Maximal menu"]')).not.toBeNull()
   })
 
   it('debounces query changes and rejects stale successes and failures', async () => {
@@ -150,8 +192,8 @@ describe('ProjectBrowser', () => {
       }),
     })
     await runTimers()
-    expect(container.querySelectorAll('[role="option"]')).toHaveLength(0)
-    const input = container.querySelector<HTMLInputElement>('[aria-label="Search projects"]')!
+    expect(container.querySelectorAll('.spatial-canvas__project')).toHaveLength(0)
+    const input = openSearch(container)
 
     await typeQuery(input, 'new')
     expect(search).toHaveBeenCalledTimes(1)
@@ -209,15 +251,17 @@ describe('ProjectBrowser', () => {
     })
     await runTimers()
 
-    const projects = [...container.querySelectorAll<HTMLButtonElement>('[role="option"]')]
+    const projects = [
+      ...container.querySelectorAll<HTMLButtonElement>('.spatial-canvas__project'),
+    ]
     expect(projects).toHaveLength(2)
     expect(projects[0]?.disabled).toBe(true)
-    expect(projects[0]?.querySelector('.project-browser__meta')?.textContent)
+    expect(projects[0]?.querySelector('.spatial-canvas__project-meta')?.textContent)
       .toBe('folder · Restricted mode')
     expect(projects[1]?.disabled).toBe(true)
-    expect(projects[1]?.querySelector('.project-browser__meta')?.textContent)
+    expect(projects[1]?.querySelector('.spatial-canvas__project-meta')?.textContent)
       .toBe('repository · missing')
-    expect(projects[0]?.getAttribute('aria-selected')).toBe('false')
+    expect(projects[0]?.getAttribute('aria-pressed')).toBe('false')
     expect(projects[0]?.textContent).toContain('/work/restricted')
     expect(container.textContent).not.toContain('No projects found')
   })
@@ -237,9 +281,9 @@ describe('ProjectBrowser', () => {
       onOpenChange,
     })
     await runTimers()
-    const button = container.querySelector<HTMLButtonElement>('[role="option"]')!
+    const button = container.querySelector<HTMLButtonElement>('.spatial-canvas__project')!
 
-    await act(async () => button.click())
+    await openProject(button)
     expect(button.disabled).toBe(true)
     expect(onOpenProject).toHaveBeenCalledWith(expect.objectContaining({ id: 'ready' }))
     expect(opened).not.toHaveBeenCalled()
@@ -269,15 +313,15 @@ describe('ProjectBrowser', () => {
       onOpenChange,
     })
     await runTimers()
-    const button = container.querySelector<HTMLButtonElement>('[role="option"]')!
+    const button = container.querySelector<HTMLButtonElement>('.spatial-canvas__project')!
 
-    await act(async () => button.click())
+    await openProject(button)
     expect(container.textContent).toContain('launch failed')
     expect(button.disabled).toBe(false)
     expect(opened).not.toHaveBeenCalled()
     expect(onOpenChange).not.toHaveBeenCalled()
 
-    await act(async () => button.click())
+    await openProject(button)
     expect(container.textContent).toContain('visit failed')
     expect(button.disabled).toBe(false)
     expect(onOpenChange).not.toHaveBeenCalled()
@@ -294,16 +338,30 @@ describe('ProjectBrowser', () => {
       onOpenSettings,
     })
     await runTimers()
-    const buttons = [...container.querySelectorAll<HTMLButtonElement>('button')]
-    const settings = buttons.find((button) => button.textContent === 'Projects settings')!
-    const add = buttons.find((button) => button.textContent === 'Add folder')!
+    const menu = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Maximal menu"]',
+    )!
+    const openMenu = async () => {
+      await act(async () => {
+        menu.dispatchEvent(new MouseEvent('pointerdown', {
+          bubbles: true,
+          button: 0,
+        }))
+      })
+    }
+    const menuItem = (label: string) =>
+      [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+        .find((item) => item.textContent === label)!
 
-    await act(async () => settings.click())
+    await openMenu()
+    await act(async () => menuItem('Project settings').click())
     expect(onOpenSettings).toHaveBeenCalledOnce()
-    await act(async () => add.click())
+    await openMenu()
+    await act(async () => menuItem('Add project folder').click())
     expect(addRoot).toHaveBeenCalledOnce()
     expect(container.textContent).toContain('picker failed')
-    await act(async () => add.click())
+    await openMenu()
+    await act(async () => menuItem('Add project folder').click())
     expect(addRoot).toHaveBeenCalledTimes(2)
   })
 
@@ -367,7 +425,7 @@ describe('ProjectBrowser', () => {
       )
     })
     await runTimers()
-    const input = document.body.querySelector<HTMLInputElement>('[aria-label="Search projects"]')!
+    const input = openSearch(document.body)
     await typeQuery(input, 'delayed')
     await act(async () => {
       reactRoot?.render(

@@ -113,7 +113,16 @@
       "root": "packages/maximal-electron",
       "dependsOn": [
         "@maximal/eslint-config",
+        "@maximal/maximal-storybook",
         "@maximal/maximal-terminal"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@maximal/maximal-storybook": {
+      "root": "packages/maximal-storybook",
+      "dependsOn": [
+        "@maximal/eslint-config"
       ],
       "cycleEdges": [],
       "duplicatePairs": []
@@ -130,6 +139,15 @@
       "root": "packages/maximal-data-visualization",
       "dependsOn": [
         "@maximal/eslint-config"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@maximal/maximal-project-browser": {
+      "root": "packages/maximal-project-browser",
+      "dependsOn": [
+        "@maximal/eslint-config",
+        "@maximal/maximal-electron"
       ],
       "cycleEdges": [],
       "duplicatePairs": []
@@ -214,6 +232,7 @@
         "@maximal/maximal-observability",
         "@maximal/maximal-observability-contract",
         "@maximal/maximal-ollama",
+        "@maximal/maximal-project-browser",
         "@maximal/project-catalog",
         "@maximal/maximal-search",
         "@maximal/maximal-terminal"

@@ -9,7 +9,7 @@ import { TabBar, type Tab } from '../src/renderer/components/TabBar.js';
  *
  * Markup rather than a browser: the question is what the component decides, not
  * where the pixels land. `TabBar.stories.tsx` shows the pixels and
- * `npm run storybook:check` runs axe over them.
+ * `pnpm storybook:check` runs axe over them.
  */
 
 function strip(tabs: Tab[], icon?: (tab: Tab) => typeof SquareTerminal | undefined) {

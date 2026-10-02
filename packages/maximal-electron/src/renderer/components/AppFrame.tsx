@@ -10,6 +10,11 @@ import {
 import { createPortal } from 'react-dom';
 
 import { ShellLayout, type ShellLayoutProps } from './ShellLayout.js';
+import {
+  StatusProvider,
+  StatusViewport,
+  useStatuses,
+} from './Status.js';
 import { getTabPanelId, getTabTriggerId, type Tab } from './TabBar.js';
 
 interface FrameContextValue {
@@ -20,7 +25,6 @@ interface FrameContextValue {
   activity: HTMLElement | null;
   rail: HTMLElement | null;
   right: HTMLElement | null;
-  status: HTMLElement | null;
 }
 
 const FrameContext = createContext<FrameContextValue | null>(null);
@@ -69,12 +73,6 @@ export function SurfaceRight({ children }: { children: ReactNode }): ReactElemen
   return right === null ? null : createPortal(children, right);
 }
 
-/** Portal content into the optional status bar. */
-export function SurfaceStatus({ children }: { children: ReactNode }): ReactElement | null {
-  const { status } = useFrame();
-  return status === null ? null : createPortal(children, status);
-}
-
 function RailCollapse({
   collapsed,
   onChange,
@@ -94,24 +92,21 @@ export type AppFrameProps<T extends Tab> = Omit<
   withActivity?: boolean;
   withLeft?: boolean;
   withRight?: boolean;
-  withStatus?: boolean;
 };
 
-/** A shell layout with portal-backed regions selected by its consumer. */
-export function AppFrame<T extends Tab>({
+function AppFrameLayout<T extends Tab>({
   children,
   withActivity = false,
   withLeft = false,
   withRight = false,
-  withStatus = false,
   ...shell
 }: AppFrameProps<T>): ReactElement {
   const [top, setTop] = useState<HTMLElement | null>(null);
   const [activity, setActivity] = useState<HTMLElement | null>(null);
   const [rail, setRail] = useState<HTMLElement | null>(null);
   const [right, setRight] = useState<HTMLElement | null>(null);
-  const [status, setStatus] = useState<HTMLElement | null>(null);
   const [railCollapsed, setRailCollapsed] = useState(false);
+  const statuses = useStatuses();
   const tabIdBase = `${shell.layoutId}-documents`;
   const frame = useMemo<FrameContextValue>(() => ({
     railCollapsed,
@@ -121,8 +116,7 @@ export function AppFrame<T extends Tab>({
     activity,
     rail,
     right,
-    status,
-  }), [activity, railCollapsed, shell.activeTab, status, rail, right, tabIdBase, top]);
+  }), [activity, railCollapsed, shell.activeTab, rail, right, tabIdBase, top]);
 
   return (
     <FrameContext.Provider value={frame}>
@@ -142,10 +136,17 @@ export function AppFrame<T extends Tab>({
         right={withRight
           ? <div ref={setRight} className="app-frame__slot app-frame__slot--fill" />
           : undefined}
-        status={withStatus
-          ? <div ref={setStatus} className="app-frame__slot app-frame__slot--contents" />
-          : undefined}
+        status={statuses.length > 0 ? <StatusViewport /> : null}
       />
     </FrameContext.Provider>
+  );
+}
+
+/** A shell layout with portal-backed regions and a content-driven status host. */
+export function AppFrame<T extends Tab>(props: AppFrameProps<T>): ReactElement {
+  return (
+    <StatusProvider>
+      <AppFrameLayout {...props} />
+    </StatusProvider>
   );
 }

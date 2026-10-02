@@ -5,11 +5,10 @@ import { AppWorkspace } from '@maximal/maximal-client/renderer/AppWorkspace'
 import { DEFAULT_MATERIAL_PREFERENCE } from '@maximal/maximal-client/renderer/material-preference'
 import { MaximalQueryProvider } from '@maximal/maximal-client/renderer/query-client'
 import { useMaterialPreference } from '@maximal/maximal-client/renderer/useMaterialPreference'
-import { ProjectBrowser } from '@maximal/maximal-client/renderer/projects/ProjectBrowser'
-import type { ProjectSearchResult } from '@maximal/project-catalog'
 import { ThirdPartyLicensesDialog } from '@maximal/maximal-client/renderer/ThirdPartyLicensesDialog'
 import { useAccountStatus } from '@maximal/maximal-client/renderer/useAccountStatus'
 import type { SettingsSectionRequest } from '@maximal/maximal-client/renderer/settings/Settings'
+import { TerminalTypographyPreviewWindow } from '@maximal/maximal-client/renderer/settings/TerminalTypographyPreviewWindow'
 import { createCoreSettingsCapabilities } from '@maximal/maximal-client/renderer/settings/capabilities'
 import { readDetachedTerminal } from '@maximal/maximal-client/renderer/terminal/window-transfer'
 import { createObservabilitySource } from '@maximal/maximal-client/renderer/traffic/source'
@@ -41,12 +40,24 @@ import { useAppearancePreference } from './useAppearancePreference'
  */
 
 export function App(): ReactElement {
+  if (new URLSearchParams(window.location.search).has('terminalTypographyPreview')) {
+    return <TypographyPreviewApp />
+  }
   return (
     <MaximalQueryProvider>
       <UnsavedChangesProvider>
         <AppContent />
       </UnsavedChangesProvider>
     </MaximalQueryProvider>
+  )
+}
+
+function TypographyPreviewApp(): ReactElement {
+  const settings = useMemo(() => createCoreSettingsCapabilities(), [])
+  return (
+    <TerminalTypographyPreviewWindow
+      capabilities={settings.terminalTypography}
+    />
   )
 }
 
@@ -60,7 +71,6 @@ function AppContent(): ReactElement {
   const { openSettings } = terminalTabsState
   const accountStatus = useAccountStatus(settings)
   const [sectionRequest, setSectionRequest] = useState<SettingsSectionRequest | null>(null)
-  const [projectBrowserOpen, setProjectBrowserOpen] = useState(false)
   const requestNavigation = useGuardedNavigation()
 
   useEffect(
@@ -89,31 +99,9 @@ function AppContent(): ReactElement {
         terminalState={terminalTabsState}
         requestNavigation={requestNavigation}
         openSettingsSection={(id) => setSectionRequest({ id })}
-        onOpenProjects={() => setProjectBrowserOpen(true)}
       />
       {/* Detached windows display transferred sessions; only the workspace launches new ones. */}
       {!detachedWindow && <WorkspaceTerminalLauncher terminalState={terminalTabsState} />}
-      {!detachedWindow ? (
-        <ProjectBrowser
-          open={projectBrowserOpen}
-          onOpenChange={setProjectBrowserOpen}
-          onOpenProject={async (project: ProjectSearchResult) => {
-            const result = await window.maximal.terminal.launch({
-              profileId: 'local',
-              cwd: project.path,
-              cols: 100,
-              rows: 30,
-            })
-            terminalTabsState.rememberProfile('local')
-            terminalTabsState.onTerminalLaunched(result)
-          }}
-          onOpenSettings={() => {
-            setProjectBrowserOpen(false)
-            terminalTabsState.openSettings()
-            setSectionRequest({ id: 'settings-projects-heading' })
-          }}
-        />
-      ) : null}
       <ThirdPartyLicensesDialog />
     </ObservabilityProvider>
   )

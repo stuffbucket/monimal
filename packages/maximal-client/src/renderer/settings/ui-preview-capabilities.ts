@@ -5,6 +5,9 @@ import {
   type SearchProvider,
 } from '@maximal/maximal-search'
 
+import terminalFontDownloads from '../../shared/terminal-font-downloads.json' with { type: 'json' }
+import { TERMINAL_THICKEN_DEFAULT } from '../../shared/host'
+
 import type {
   AccountsListResponse,
   ConnectorSettingValue,
@@ -15,6 +18,8 @@ import type {
   SearchSettingsResponse,
   SearchSettingsUpdateRequest,
   SettingsCapabilities,
+  TerminalFontCatalog,
+  TerminalTypographySettings,
 } from './capabilities'
 
 const OLLAMA_ENDPOINT = 'http://127.0.0.1:11434'
@@ -230,6 +235,71 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
   let menuBarEnabled = false
   let menuBarAttempt: MenuBarModeAttempt | null = null
   let menuBarAttemptSequence = 0
+  let terminalTypography: TerminalTypographySettings = {
+    fontFamily: 'JetBrainsMono Nerd Font Mono',
+    fontSize: 13,
+    fontWeight: 400,
+    fontVariations: {},
+    cellHeight: 0,
+    tracking: 0,
+    baseline: 0,
+    thicken: false,
+    thickenStrength: TERMINAL_THICKEN_DEFAULT,
+    ligatures: true,
+  }
+  const typographyListeners = new Set<
+    (settings: TerminalTypographySettings) => void
+  >()
+  const installedFontIds = new Set([
+    'fira-code',
+    'hack',
+    'jetbrains-mono',
+  ])
+  const terminalFontCatalog = (): TerminalFontCatalog => ({
+    status: 'available',
+    fonts: [
+      'FiraCode Nerd Font Mono',
+      'Hack Nerd Font Mono',
+      'JetBrainsMono Nerd Font Mono',
+      'MesloLGS NF',
+      ...terminalFontDownloads
+        .filter(({ id }) => installedFontIds.has(id))
+        .map(({ family }) => family),
+    ].filter((family, index, families) => families.indexOf(family) === index),
+    fontWeights: {
+      'FiraCode Nerd Font Mono': [300, 400, 500, 600, 700],
+      'Hack Nerd Font Mono': [400, 700],
+      'JetBrainsMono Nerd Font Mono': [300, 400, 500, 600, 700],
+      'MesloLGS NF': [400, 700],
+      'AtkynsonMono Nerd Font Mono': [300, 400, 500, 700],
+      'IntoneMono Nerd Font Mono': [300, 400, 500, 600, 700],
+      '0xProto Nerd Font Mono': [400, 700],
+    },
+    fontAxes: {
+      'JetBrainsMono Nerd Font Mono': [
+        { tag: 'wght', minimum: 100, default: 400, maximum: 900 },
+        { tag: 'GRAD', minimum: -100, default: 0, maximum: 150 },
+        { tag: 'WONK', minimum: 0, default: 0, maximum: 1 },
+      ],
+    },
+    downloads: terminalFontDownloads.map(({
+      id,
+      label,
+      family,
+      downloadSize,
+      license,
+      sourceUrl,
+    }) => ({
+      id,
+      label,
+      family,
+      downloadSize,
+      license,
+      sourceUrl,
+      installed: installedFontIds.has(id),
+    })),
+    ghosttyPath: '/Applications/Ghostty.app/Contents/MacOS/ghostty',
+  })
   const menuBarState = (): MenuBarModeState => ({
     enabled: menuBarEnabled,
     pending: menuBarAttempt !== null,
@@ -442,6 +512,36 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
       removeRoot: unavailable,
       refresh: () => Promise.resolve({ roots: [], projects: [], refreshing: false }),
       subscribe: () => () => undefined,
+    },
+    terminalTypography: {
+      get: () => Promise.resolve(terminalTypography),
+      update: (settings) => {
+        terminalTypography = settings
+        typographyListeners.forEach((listener) => listener(settings))
+        return Promise.resolve(terminalTypography)
+      },
+      fonts: () => Promise.resolve(terminalFontCatalog()),
+      installFont: async (fontId) => {
+        await new Promise((resolve) => setTimeout(resolve, 600))
+        installedFontIds.add(fontId)
+        return terminalFontCatalog()
+      },
+      openPreview: () => {
+        const url = new URL(window.location.href)
+        url.search = '?terminalTypographyPreview=true'
+        const preview = window.open(
+          url,
+          'maximal-terminal-typography-preview',
+          'popup,width=1180,height=760',
+        )
+        return preview === null
+          ? Promise.reject(new Error('The browser blocked the preview window.'))
+          : Promise.resolve()
+      },
+      subscribe: (listener) => {
+        typographyListeners.add(listener)
+        return () => typographyListeners.delete(listener)
+      },
     },
     connections: {
       list: unavailable,

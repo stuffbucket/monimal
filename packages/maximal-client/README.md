@@ -32,8 +32,10 @@ for the feature package.
 
 [`src/renderer/frame/AppFrame.tsx`](src/renderer/frame/AppFrame.tsx) owns the single `ShellLayout`. Overview,
 Traffic, and Settings are its document tabs. Feature surfaces render their main
-content normally and use `SurfaceRail`, `SurfaceRight`, `SurfaceStatus`, and
-`SurfaceTop` portals for host-owned shell slots.
+content normally and use `SurfaceRail`, `SurfaceRight`, and `SurfaceTop`
+portals for host-owned shell slots. Status content uses keyed
+`Status` registrations; the frame creates its status bar only while at least
+one registration is visible and supplies paging and per-status dismissal.
 
 Terminal documents use the right slot for the context-window inspector. Its
 selection is keyed by the focused terminal leaf, while the shell persists the

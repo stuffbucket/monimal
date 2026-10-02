@@ -13,12 +13,17 @@ export {
   SurfaceActivity,
   SurfaceRail,
   SurfaceRight,
-  SurfaceStatus,
   SurfaceTop,
   useTabPanelId,
   useTabTriggerId,
   type AppFrameProps,
 } from './components/AppFrame.js';
+export {
+  Status,
+  StatusProvider,
+  StatusViewport,
+  type StatusProps,
+} from './components/Status.js';
 export {
   PartitionedSortableList,
   type PartitionedSortableItem,
@@ -88,6 +93,49 @@ export {
   type WindowChromeProps,
 } from './components/WindowChrome.js';
 export {
+  SpatialCanvas,
+  SpatialCanvasCommentAnchor,
+  SpatialCanvasCommentCursor,
+  SpatialCanvasCommentPin,
+  SpatialCanvasConnectorLayer,
+  SpatialCanvasCursor,
+  SpatialCanvasItem,
+  SpatialCanvasMarquee,
+  SpatialCanvasProjectCard,
+  SpatialCanvasScene,
+  SpatialCanvasViewport,
+  type SpatialCanvasCursorState,
+  type SpatialCanvasLine,
+} from './components/SpatialCanvas.js';
+export {
+  SpatialCanvasCommentComposer,
+  SpatialCanvasCommentThreadCard,
+  SpatialCanvasCommentThread,
+  SpatialCanvasPanelHeader,
+  type SpatialCanvasCommentEntry,
+} from './components/SpatialCanvasDiscussion.js';
+export { SpatialCanvasSurface } from './components/SpatialCanvasSurface.js';
+export {
+  SpatialCanvasSearchResult,
+  SpatialCanvasSearchResults,
+} from './components/SpatialCanvasSearch.js';
+export {
+  SpatialCanvasAvatar,
+  SpatialCanvasControlGroup,
+  SpatialCanvasCorner,
+  SpatialCanvasFloatingPanel,
+  SpatialCanvasHeaderAction,
+  SpatialCanvasPages,
+  SpatialCanvasPresence,
+  SpatialCanvasSidePanel,
+  SpatialCanvasToolButton,
+  SpatialCanvasTopBar,
+  SpatialCanvasZoomControls,
+  type SpatialCanvasHeaderActionKind,
+  type SpatialCanvasPage,
+  type SpatialCanvasToolKind,
+} from './components/SpatialCanvasChrome.js';
+export {
   fill,
   SHELL_CONTENT,
   ShellContentContext,
@@ -114,6 +162,7 @@ export {
   InspectorPanel,
   Menu,
   Note,
+  NumberInput,
   RadioGroup,
   Row,
   ScrollArea,
@@ -124,7 +173,10 @@ export {
   Tag,
   TextInput,
   Textarea,
+  TooltipProvider,
+  TypefaceControls,
   Toolbar,
+  UnitValueInput,
   UnsavedChangesDialog,
   ViewModeSwitch,
   type ButtonSize,
@@ -134,6 +186,11 @@ export {
   type Option,
   type SliderOption,
   type TileProps,
+  type MeasurementUnit,
+  type TypefaceMetric,
+  type TypefaceSelectField,
+  type TypefaceWeightField,
+  type UnitValueInputProps,
   type ViewMode,
 } from './components/controls/index.js';
 export {

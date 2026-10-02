@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, userEvent, within } from 'storybook/test';
+import type { Meta, StoryObj } from '@maximal/maximal-storybook';
+import { expect, userEvent, within } from '@maximal/maximal-storybook/test';
 
 import { LOREM_CONTENT } from '../../lib/content-lorem.js';
 import { ShellContentProvider } from '../../lib/content.js';

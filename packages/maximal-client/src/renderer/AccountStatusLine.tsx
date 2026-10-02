@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react'
 import { Button } from '@maximal/maximal-electron/renderer'
 
-import { SurfaceStatus } from './frame/AppFrame'
+import { Status } from './frame/AppFrame'
 import type { AuthStatus } from './settings/capabilities'
 import { useShutdownStatus } from './useShutdownStatus'
 
@@ -30,20 +30,20 @@ export function AccountStatusLine({
     const pending = shutdown.operations.filter(({ phase }) => phase === 'waiting')
     const progress = pending.map(({ label, detail }) => detail ?? label).join(' · ')
     return (
-      <SurfaceStatus>
+      <Status id="account" dismissible={false}>
         <span aria-live="polite">Shutting down: {progress || 'finishing work'}</span>
         {pending.length > 0 ? (
           <Button onClick={() => void window.maximal.shutdown.force()}>
             Force quit
           </Button>
         ) : null}
-      </SurfaceStatus>
+      </Status>
     )
   }
 
   return (
-    <SurfaceStatus>
+    <Status id="account" dismissible={false}>
       <span aria-live="polite">{statusText(status)}</span>
-    </SurfaceStatus>
+    </Status>
   )
 }

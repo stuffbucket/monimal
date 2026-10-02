@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
  * not a wrong colour but an invalid declaration — no border rather than a grey
  * one.
  *
- * Derived from `.storybook/consumer.css`, the one worked example of a host
+ * Derived from maximal-storybook's `consumer.css`, the worked example of a host
  * defining the contract. The first version was generated from
  * `REQUIRED_TOKENS`, which was the old local token list: that
  * minted `--shell-` plus each short name, a third vocabulary nothing defines
@@ -22,7 +22,10 @@ import { describe, expect, it } from 'vitest';
 
 const STYLES = new URL('../src/renderer/styles/', import.meta.url);
 const contract = readFileSync(new URL('shell-contract.css', STYLES), 'utf8');
-const consumer = readFileSync(new URL('../.storybook/consumer.css', import.meta.url), 'utf8');
+const consumer = readFileSync(
+  new URL('../../maximal-storybook/.storybook/consumer.css', import.meta.url),
+  'utf8',
+);
 
 /** `--shell-bg-panel: var(--bg-panel);` */
 const ALIAS = /^\s*(--shell-[a-z0-9-]+)\s*:\s*var\(\s*(--[a-z0-9-]+)\s*\)\s*;/gm;

@@ -1,8 +1,8 @@
 import consumerCss from './consumer.css?inline';
-import shellCss from '../src/renderer/styles/shell.css?inline';
-import structuralTokensCss from '../src/renderer/styles/shell-structural-tokens.css?inline';
-import packageRulesCss from '../src/renderer/styles/shell-package-rules.css?inline';
-import tokensCss from '../src/renderer/styles/tokens.css?inline';
+import shellCss from '../../maximal-electron/src/renderer/styles/shell.css?inline';
+import structuralTokensCss from '../../maximal-electron/src/renderer/styles/shell-structural-tokens.css?inline';
+import packageRulesCss from '../../maximal-electron/src/renderer/styles/shell-package-rules.css?inline';
+import tokensCss from '../../maximal-electron/src/renderer/styles/tokens.css?inline';
 
 /**
  * Which stylesheet a story is drawn with.
@@ -110,12 +110,12 @@ export function applyShellRoot(_mode: ShellMode, element: HTMLElement): void {
 /**
  * The mode a run starts in.
  *
- * `scripts/storybook-check.mjs` drives the preview by URL and knows nothing
+ * `../scripts/storybook-check.mjs` drives the preview by URL and knows nothing
  * about this global, so the environment is how a whole run is put in package
  * mode: `STORYBOOK_SHELL_MODE=package npm run storybook:check`. The toolbar
  * still switches a single story either way.
  */
 export function initialShellMode(): ShellMode {
-  const requested = import.meta.env['STORYBOOK_SHELL_MODE'] as string | undefined;
+  const requested: unknown = import.meta.env['STORYBOOK_SHELL_MODE'];
   return requested === 'package' ? 'package' : 'app';
 }

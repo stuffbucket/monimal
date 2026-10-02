@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import type { Decorator, Preview } from '@storybook/react-vite';
 
-import { TooltipProvider } from '../src/renderer/components/controls/Overlays.js';
+import { TooltipProvider } from '../../maximal-electron/src/renderer/components/controls/Overlays.js';
 
 // Neither stylesheet is imported for its side effect. `shell-mode.ts` holds
 // both and installs one, because the two cannot share a document: see the
@@ -42,7 +42,7 @@ const withTheme: Decorator = (Story, context) => {
  * rule under `.sb-shell`. Two defects lived in that gap — a portalled surface
  * that no shipped rule could reach, and status colours the package cannot
  * draw — and both were invisible here, because an unscoped stylesheet with a
- * palette in it makes every story look finished. See `docs/storybook.md`.
+ * palette in it makes every story look finished. See `../docs/storybook.md`.
  *
  * The mode installs its stylesheet and, in package mode, marks the story root
  * with the class the shipped rules are scoped under. Nothing else changes.

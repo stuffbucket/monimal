@@ -80,6 +80,15 @@ vi.mock('@maximal/maximal-electron/renderer', () => ({
   Dialog: ({ children, open, title }: { children: ReactNode; open: boolean; title: string }) =>
     open ? <div role="dialog" aria-label={title}>{children}</div> : null,
   Note: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  SpatialCanvasSurface: ({
+    children,
+    open,
+    testId,
+  }: {
+    children: ReactNode
+    open: boolean
+    testId?: string
+  }) => open ? <div data-testid={testId}>{children}</div> : null,
   UnsavedChangesDialog: () => null,
   TerminalLauncher: ({ open, onLaunched }: {
     open: boolean
@@ -139,6 +148,7 @@ vi.mock('@maximal/maximal-client/renderer/settings/capabilities', () => ({
       ),
       onMaterialChange: vi.fn(() => () => {}),
     },
+    terminalTypography: { preview: true },
     onOpenRequest: (listener: (sectionId: string | null) => void) => {
       capabilityState.openSettings = listener
       return vi.fn()
@@ -164,6 +174,14 @@ vi.mock('./CozyBackground', () => ({
     />
   ),
 }))
+vi.mock(
+  '@maximal/maximal-client/renderer/settings/TerminalTypographyPreviewWindow',
+  () => ({
+    TerminalTypographyPreviewWindow: () => (
+      <div data-testid="terminal-typography-preview-window" />
+    ),
+  }),
+)
 vi.mock('../../../../../packages/maximal-client/src/renderer/overview/Overview', () => ({
   Overview: () => <div data-testid="overview">Overview content</div>,
 }))
@@ -219,6 +237,10 @@ vi.mock('../../../../../packages/maximal-client/src/renderer/terminal/Terminal',
 vi.mock('../../../../../packages/maximal-client/src/renderer/terminal/transport', () => ({
   terminalTransport: { list: terminalList, terminate: terminalTerminate },
 }))
+vi.mock('../../../../../packages/maximal-client/src/renderer/projects/ProjectBrowser', () => ({
+  ProjectBrowser: ({ embedded, open }: { embedded?: boolean; open: boolean }) =>
+    open ? <div data-testid="project-browser" data-embedded={String(embedded)} /> : null,
+}))
 vi.mock('../../../../../packages/maximal-client/src/renderer/frame/AppFrame', () => ({
   PRODUCT_TABS: [
     { id: 'overview', title: 'Overview', kind: 'overview' },
@@ -230,13 +252,15 @@ vi.mock('../../../../../packages/maximal-client/src/renderer/frame/AppFrame', ()
   SurfaceRail: ({ children }: { children: (collapsed: boolean) => ReactNode }) => (
     <aside>{children(false)}</aside>
   ),
-  SurfaceStatus: ({ children }: { children: ReactNode }) => <footer>{children}</footer>,
+  Status: ({ children }: { children: ReactNode }) => <footer>{children}</footer>,
   AppFrame: ({
     activeTab,
     children,
     onCloseTab,
     onNewTab,
+    onOpenProjects,
     onSelectTab,
+    surface,
     tabTransfer,
     tabs,
   }: {
@@ -244,7 +268,9 @@ vi.mock('../../../../../packages/maximal-client/src/renderer/frame/AppFrame', ()
     children: ReactNode
     onCloseTab?: (id: string) => void
     onNewTab?: () => void
+    onOpenProjects?: () => void
     onSelectTab: (id: string) => void
+    surface: string
     tabTransfer?: {
       contextMenu?: (tab: { id: string; title: string; kind: string }) => Array<{
         id: string
@@ -257,6 +283,7 @@ vi.mock('../../../../../packages/maximal-client/src/renderer/frame/AppFrame', ()
     <div
       data-testid="app-frame"
       data-view={activeTab}
+      data-surface={surface}
       data-available-views={tabs.map((tab) => tab.id).join(',')}
     >
       <output data-testid="tab-state">
@@ -267,6 +294,7 @@ vi.mock('../../../../../packages/maximal-client/src/renderer/frame/AppFrame', ()
         ? <button onClick={() => onCloseTab('settings')}>Close Settings</button>
         : null}
       {onNewTab ? <button onClick={onNewTab}>New terminal</button> : null}
+      {onOpenProjects ? <button onClick={onOpenProjects}>Open projects</button> : null}
       {tabs.flatMap((tab) => (tabTransfer?.contextMenu?.(tab) ?? []).map((item) => (
         <button key={`${tab.id}-${item.id}`} onClick={item.onSelect}>
           {item.label} {tab.title}
@@ -404,6 +432,17 @@ async function renderApp(): Promise<HTMLElement> {
   return container
 }
 
+it('mounts only the terminal typography preview in its dedicated window', async () => {
+  window.history.replaceState({}, '', '/?terminalTypographyPreview=true')
+
+  const shell = await renderApp()
+
+  expect(shell.querySelector('[data-testid="terminal-typography-preview-window"]'))
+    .not.toBeNull()
+  expect(shell.querySelector('[data-testid="settings"]')).toBeNull()
+  expect(shell.querySelector('[data-testid="overview"]')).toBeNull()
+})
+
 describe('App routing', () => {
   it('applies the saved native material preference to the document', async () => {
     appearanceState.vibrancyEnabled = true
@@ -448,6 +487,22 @@ describe('App routing', () => {
     expect(shell.querySelector('[data-testid="traffic"]')).not.toBeNull()
     expect(createObservabilitySource).toHaveBeenCalledTimes(1)
     expect(observabilitySource).toEqual({ source: 'stable-observability-source' })
+  })
+
+  it('nests the project browser into the active application frame surface', async () => {
+    const shell = await renderApp()
+    const openProjects = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Open projects',
+    )
+    if (openProjects === undefined) throw new Error('Open projects action was not rendered')
+
+    act(() => openProjects.click())
+
+    expect(shell.querySelector('[data-testid="project-browser"]')?.getAttribute('data-embedded'))
+      .toBe('true')
+    expect(shell.querySelector('[data-testid="overview"]')).toBeNull()
+    expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-surface'))
+      .toBe('projects')
   })
 
   it('opens the launcher from the title bar and mounts the session as a document tab', async () => {

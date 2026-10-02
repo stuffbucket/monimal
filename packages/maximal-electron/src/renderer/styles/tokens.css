@@ -50,13 +50,13 @@
   --space-7: 48px;
 
   /* ---- Radii ---- */
-  --radius-input: 6px;
-  --radius-card: 8px;
+  --radius-input: 4px;
+  --radius-card: 4px;
   --radius-chip: 4px;
   --radius-pill: 9999px;
   /* A panel, not a control. Off the scale above on purpose: the overlay card
      is the one surface large enough that 8px reads as a sharp corner. */
-  --radius-dialog: 14px;
+  --radius-dialog: 4px;
 
   /* ---- Sizing ---- */
   --size-titlebar: 40px;
@@ -67,6 +67,9 @@
   --icon-optical-map-scale: 1.111111;
   --icon-optical-terminal-scale: 1.111111;
   --icon-optical-folder-offset-y: 0.5px;
+  --icon-stroke: 1.5;
+  --tab-min: 72px;
+  --tab-max: 168px;
 
   /*
    * ---- Control heights ----
@@ -113,9 +116,6 @@
    * One ring. This was written out five times in three different geometries,
    * so a control's focus outline depended on which stylesheet it landed in.
    */
-  /* Lucide draws at 2. That reads as heavy next to text at these sizes. */
-  --icon-stroke: 1.5;
-
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;
   --focus-ring-color: var(--accent);

@@ -1,0 +1,18 @@
+diff --git a/dist/graphics-layer.js b/dist/graphics-layer.js
+index 7eb6aaa8fc2b8879ccbe62bc1ffca98de39b5be3..c15b2a28c5b9610b648497423bb415ccfaf2ee79 100644
+--- a/dist/graphics-layer.js
++++ b/dist/graphics-layer.js
+@@ -416,8 +416,11 @@ export class GraphicsLayer {
+         if (!destination)
+             return false;
+         const { width: destinationWidth, height: destinationHeight } = destination;
+-        const pixelWidth = Math.max(1, Math.ceil(destinationWidth));
+-        const pixelHeight = Math.max(1, Math.ceil(destinationHeight));
++        const devicePixelRatio = finitePositive(globalThis.devicePixelRatio)
++            ? Math.min(globalThis.devicePixelRatio, 4)
++            : 1;
++        const pixelWidth = Math.max(1, Math.ceil(destinationWidth * devicePixelRatio));
++        const pixelHeight = Math.max(1, Math.ceil(destinationHeight * devicePixelRatio));
+         if (!Number.isSafeInteger(pixelWidth) ||
+             !Number.isSafeInteger(pixelHeight) ||
+             pixelWidth > MAX_CANVAS_DIMENSION ||

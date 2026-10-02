@@ -11,8 +11,8 @@ import {
   Users,
 } from 'lucide-react';
 import { useState } from 'react';
-import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect } from 'storybook/test';
+import type { Meta, StoryObj } from '@maximal/maximal-storybook';
+import { expect } from '@maximal/maximal-storybook/test';
 
 import { NavRail, type NavRailSection } from './NavRail.js';
 

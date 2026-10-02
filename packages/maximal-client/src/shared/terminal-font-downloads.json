@@ -1,0 +1,62 @@
+[
+  {
+    "id": "intel-one-mono",
+    "label": "Intel One Mono",
+    "family": "IntoneMono Nerd Font Mono",
+    "archiveName": "IntelOneMono.zip",
+    "downloadSize": 32279622,
+    "sha256": "72258950f9338c41eb640db9d6f4117026b95c47afdf87a96baaf106b7904b41",
+    "license": "OFL-1.1",
+    "sourceUrl": "https://github.com/intel/intel-one-mono"
+  },
+  {
+    "id": "atkinson-hyperlegible-mono",
+    "label": "Atkinson Hyperlegible Mono",
+    "family": "AtkynsonMono Nerd Font Mono",
+    "archiveName": "AtkinsonHyperlegibleMono.zip",
+    "downloadSize": 35478410,
+    "sha256": "e68f8183f4fc475c55d85a3be3260b24c6ffa423e4c4c0b4fa3ed2ff1f9bd69b",
+    "license": "OFL-1.1",
+    "sourceUrl": "https://github.com/googlefonts/atkinson-hyperlegible"
+  },
+  {
+    "id": "0xproto",
+    "label": "0xProto",
+    "family": "0xProto Nerd Font Mono",
+    "archiveName": "0xProto.zip",
+    "downloadSize": 12361708,
+    "sha256": "8951412356611266734e2e9904173d437b804af1ffce4fe1804feef4fe9c8c3b",
+    "license": "OFL-1.1",
+    "sourceUrl": "https://github.com/0xType/0xProto"
+  },
+  {
+    "id": "fira-code",
+    "label": "Fira Code",
+    "family": "FiraCode Nerd Font Mono",
+    "archiveName": "FiraCode.zip",
+    "downloadSize": 28602426,
+    "sha256": "239395baf60c89b2eaf4862b6b09db0ef95605cd3e8eef51c00345822a81a665",
+    "license": "OFL-1.1",
+    "sourceUrl": "https://github.com/tonsky/FiraCode"
+  },
+  {
+    "id": "hack",
+    "label": "Hack",
+    "family": "Hack Nerd Font Mono",
+    "archiveName": "Hack.zip",
+    "downloadSize": 18694868,
+    "sha256": "fa24da7de7cefe7766614d27762570b20453c852fc1d5b657111666df9a5e449",
+    "license": "MIT",
+    "sourceUrl": "https://github.com/source-foundry/Hack"
+  },
+  {
+    "id": "jetbrains-mono",
+    "label": "JetBrains Mono",
+    "family": "JetBrainsMono Nerd Font Mono",
+    "archiveName": "JetBrainsMono.zip",
+    "downloadSize": 133975870,
+    "sha256": "fab782a66f7d3019da64f6572db9fc5d3a4bcb19f9fa13e2d8a62e3693d6396e",
+    "license": "OFL-1.1",
+    "sourceUrl": "https://github.com/JetBrains/JetBrainsMono"
+  }
+]

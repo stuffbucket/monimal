@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect } from 'storybook/test';
+import type { Meta, StoryObj } from '@maximal/maximal-storybook';
+import { expect } from '@maximal/maximal-storybook/test';
 
 import type { TerminalEmulator, TerminalTheme } from '@maximal/maximal-terminal/renderer';
 import type {

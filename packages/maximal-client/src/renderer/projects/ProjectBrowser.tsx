@@ -1,15 +1,41 @@
-import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react'
-
 import {
-  Button,
-  Dialog,
-  Note,
-  TextInput,
-} from '@maximal/maximal-electron/renderer'
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactElement,
+} from 'react'
+
+import { SpatialCanvasSurface } from '@maximal/maximal-electron/renderer'
+import {
+  ProjectMap,
+  createYProjectMapStore,
+  type ProjectMapProject,
+  type ProjectMapStore,
+  type ProjectMapViewer,
+} from '@maximal/maximal-project-browser'
 import type { ProjectSearchResult } from '@maximal/project-catalog'
 
 import { describeError } from '../shared/errors'
 import type { MaximalHost } from '../../shared/host'
+
+function useOwnedMapStoreCleanup(
+  ownedMapStore: ProjectMapStore,
+  externalMapStore?: ProjectMapStore,
+): void {
+  const [lifecycleState] = useState({ generation: 0 })
+  useEffect(() => {
+    const lifecycle = ++lifecycleState.generation
+    return () => {
+      queueMicrotask(() => {
+        if (!externalMapStore && lifecycleState.generation === lifecycle) {
+          ownedMapStore.destroy()
+        }
+      })
+    }
+  }, [externalMapStore, lifecycleState, ownedMapStore])
+}
 
 export function ProjectBrowser({
   open,
@@ -17,18 +43,35 @@ export function ProjectBrowser({
   onOpenProject,
   onOpenSettings,
   projectsApi = window.maximal.projects,
+  mapStore,
+  embedded = false,
+  viewer = {
+    id: 'local',
+    name: 'You',
+    initials: 'YO',
+    color: '#0d99ff',
+    kind: 'human',
+  },
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   onOpenProject: (project: ProjectSearchResult) => Promise<void>
   onOpenSettings: () => void
   projectsApi?: MaximalHost['projects']
+  mapStore?: ProjectMapStore
+  embedded?: boolean
+  viewer?: ProjectMapViewer
 }): ReactElement {
   const [query, setQuery] = useState('')
   const [projects, setProjects] = useState<ProjectSearchResult[]>([])
   const [error, setError] = useState<string>()
   const [busy, setBusy] = useState(false)
+  const [ownedMapStore] = useState(createYProjectMapStore)
+  const store = mapStore ?? ownedMapStore
+  const [pageId, setPageId] = useState('projects')
   const latestSearch = useRef<symbol | undefined>(undefined)
+
+  useOwnedMapStoreCleanup(ownedMapStore, mapStore)
 
   const search = useCallback(async (value: string): Promise<void> => {
     const request = Symbol()
@@ -70,54 +113,46 @@ export function ProjectBrowser({
     }
   }
 
+  const mapProjects = useMemo<ProjectMapProject[]>(() => projects.map((project) => ({
+      id: project.id,
+      name: project.name,
+      path: project.path,
+      kind: project.kind,
+      available: project.availability === 'available',
+      trusted: project.trusted,
+      pinned: project.pinned,
+    })),
+    [projects],
+  )
+
   return (
-    <Dialog
+    <SpatialCanvasSurface
       open={open}
       onOpenChange={onOpenChange}
       title="Open project"
       description="Search local folders and repositories."
-      className="dialog project-browser"
       testId="project-browser"
+      embedded={embedded}
     >
-      <TextInput
-        aria-label="Search projects"
-        value={query}
-        placeholder="Search by name, path, or remote"
-        onChange={setQuery}
-      />
-      <div className="project-browser__results" role="listbox" aria-label="Projects">
-        {projects.map((project) => (
-          <button
-            key={project.id}
-            type="button"
-            role="option"
-            aria-selected="false"
-            className="project-browser__result"
-            disabled={busy || !project.trusted || project.availability !== 'available'}
-            onClick={() => void openProject(project)}
-          >
-            <span className="project-browser__name">{project.name}</span>
-            <span className="project-browser__path">{project.path}</span>
-            <span className="project-browser__meta">
-              {project.kind}
-              {!project.trusted ? ' · Restricted mode' : ''}
-              {project.availability !== 'available' ? ` · ${project.availability}` : ''}
-            </span>
-          </button>
-        ))}
-        {projects.length === 0 && !error ? (
-          <Note>No projects found. Add a discovery folder in Projects settings.</Note>
-        ) : null}
-      </div>
-      {error ? <Note status="failed" live="assertive">{error}</Note> : null}
-      <div className="project-browser__actions">
-        <Button onClick={onOpenSettings}>Projects settings</Button>
-        <Button variant="primary" onClick={() =>
+      <ProjectMap
+        projects={mapProjects}
+        query={query}
+        onQueryChange={setQuery}
+        busy={busy}
+        error={error}
+        store={store}
+        pageId={pageId}
+        onPageChange={setPageId}
+        viewer={viewer}
+        onOpenProject={(project) => {
+          const result = projects.find((candidate) => candidate.id === project.id)
+          if (result) void openProject(result)
+        }}
+        onOpenSettings={onOpenSettings}
+        onAddFolder={() =>
           void projectsApi.addRoot().catch((cause: unknown) =>
-            setError(describeError(cause)))}>
-          Add folder
-        </Button>
-      </div>
-    </Dialog>
+            setError(describeError(cause)))}
+      />
+    </SpatialCanvasSurface>
   )
 }

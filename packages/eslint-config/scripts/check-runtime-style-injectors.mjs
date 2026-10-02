@@ -24,8 +24,32 @@ export const allowedAdhocStyles = new Map([
   ],
   ['packages/maximal-client/src/renderer/base.ts', { injectors: 1 }],
   [
+    'packages/maximal-client/src/renderer/frame/WorkspaceRail.tsx',
+    { inlineAttributes: 1 },
+  ],
+  [
+    'packages/maximal-client/src/renderer/frame/app-frame-styles.ts',
+    { injectors: 1 },
+  ],
+  [
     'packages/maximal-client/src/renderer/settings/accounts/CopilotPlanDetails.tsx',
     { inlineAttributes: 6 },
+  ],
+  [
+    'packages/maximal-client/src/renderer/settings/general/TerminalColorPicker.tsx',
+    { inlineAttributes: 3 },
+  ],
+  [
+    'packages/maximal-client/src/renderer/settings/general/TerminalPaletteControls.tsx',
+    { inlineAttributes: 3 },
+  ],
+  [
+    'packages/maximal-client/src/renderer/settings/general/TerminalTypographyBasics.tsx',
+    { inlineAttributes: 1 },
+  ],
+  [
+    'packages/maximal-client/src/renderer/settings/general/TerminalTypographyPreview.tsx',
+    { inlineAttributes: 3 },
   ],
   [
     'packages/maximal-client/src/renderer/settings/settings-styles.ts',
@@ -49,6 +73,18 @@ export const allowedAdhocStyles = new Map([
     { inlineAttributes: 1 },
   ],
   [
+    'packages/maximal-electron/src/renderer/components/SpatialCanvas.tsx',
+    { inlineAttributes: 8 },
+  ],
+  [
+    'packages/maximal-electron/src/renderer/components/SpatialCanvasChrome.tsx',
+    { inlineAttributes: 1 },
+  ],
+  [
+    'packages/maximal-electron/src/renderer/components/SpatialCanvasDiscussion.tsx',
+    { inlineAttributes: 4 },
+  ],
+  [
     'packages/maximal-electron/src/renderer/components/TabBar.tsx',
     { inlineAttributes: 1 },
   ],
@@ -63,6 +99,10 @@ export const allowedAdhocStyles = new Map([
   [
     'packages/maximal-harness/src/renderer/Overlay.tsx',
     { inlineAttributes: 1 },
+  ],
+  [
+    'packages/maximal-terminal/src/renderer/emulator.ts',
+    { injectors: 1 },
   ],
 ])
 

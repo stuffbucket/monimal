@@ -6,6 +6,7 @@
   "private": true,
   "exports": {
     "./shared/host": "./src/shared/host.ts",
+    "./shared/terminal-font-downloads": "./src/shared/terminal-font-downloads.json",
     "./shared/settings-sections": "./src/shared/settings-sections.ts",
     "./renderer/AppWorkspace": "./src/renderer/AppWorkspace.tsx",
     "./renderer/query-client": "./src/renderer/query-client.tsx",
@@ -14,6 +15,7 @@
     "./renderer/useAccountStatus": "./src/renderer/useAccountStatus.ts",
     "./renderer/settings/Settings": "./src/renderer/settings/Settings.tsx",
     "./renderer/settings/capabilities": "./src/renderer/settings/capabilities.ts",
+    "./renderer/settings/TerminalTypographyPreviewWindow": "./src/renderer/settings/general/TerminalTypographyPreviewWindow.tsx",
     "./renderer/terminal/window-transfer": "./src/renderer/terminal/window-transfer.ts",
     "./renderer/traffic/source": "./src/renderer/traffic/source.ts",
     "./renderer/useTerminalTabs": "./src/renderer/useTerminalTabs.ts",
@@ -27,7 +29,9 @@
   },
   "scripts": {
     "analyze": "bun ../maximal-core/scripts/analyze.ts",
+    "prebuild": "pnpm run generate:font-specimens",
     "build": "tsc --noEmit",
+    "generate:font-specimens": "node scripts/generate-font-specimens.mjs",
     "typecheck": "node ../../scripts/run-workspace-task.mjs typecheck",
     "typecheck:inner": "tsc --noEmit",
     "lint": "node ../../scripts/run-workspace-task.mjs lint",
@@ -60,6 +64,7 @@
     "@maximal/maximal-observability": "workspace:*",
     "@maximal/maximal-observability-contract": "workspace:*",
     "@maximal/maximal-ollama": "workspace:*",
+    "@maximal/maximal-project-browser": "workspace:*",
     "@maximal/project-catalog": "workspace:*",
     "@maximal/maximal-search": "workspace:*",
     "@maximal/maximal-terminal": "workspace:*",

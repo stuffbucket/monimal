@@ -3,14 +3,20 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 import {
-  getJsonDocumentStore,
+  getNamedJsonDocumentStore,
   getSettingsStore,
   loadSettings,
 } from '@maximal/maximal-settings'
 import {
   MATERIAL_PRESET_VALUES,
   type PersistedMaterialPreference,
+  TERMINAL_THICKEN_DEFAULT,
+  type TerminalTypographySettings,
 } from '@maximal/maximal-client/shared/host'
+import {
+  DEFAULT_TERMINAL_PALETTE_SETTINGS,
+  type TerminalPaletteSettings,
+} from '@maximal/maximal-terminal/renderer'
 import { TMUX_SESSION_PREFIX_PATTERN } from '@maximal/maximal-terminal'
 import { z } from 'zod'
 
@@ -18,6 +24,80 @@ const materialTimezones = new Set([
   'UTC',
   ...Intl.supportedValuesOf('timeZone'),
 ])
+const terminalColourSchema = z.string().regex(/^#[0-9a-f]{6}$/iu)
+const terminalPaletteSchema = z.object({
+  background: terminalColourSchema,
+  foreground: terminalColourSchema,
+  cursor: terminalColourSchema,
+  selectionBackground: terminalColourSchema,
+  black: terminalColourSchema,
+  red: terminalColourSchema,
+  green: terminalColourSchema,
+  yellow: terminalColourSchema,
+  blue: terminalColourSchema,
+  magenta: terminalColourSchema,
+  cyan: terminalColourSchema,
+  white: terminalColourSchema,
+  brightBlack: terminalColourSchema,
+  brightRed: terminalColourSchema,
+  brightGreen: terminalColourSchema,
+  brightYellow: terminalColourSchema,
+  brightBlue: terminalColourSchema,
+  brightMagenta: terminalColourSchema,
+  brightCyan: terminalColourSchema,
+  brightWhite: terminalColourSchema,
+})
+export const terminalPaletteSettingsSchema: z.ZodType<TerminalPaletteSettings> =
+  z.object({
+    mode: z.enum(['auto', 'light', 'dark']),
+    light: terminalPaletteSchema,
+    dark: terminalPaletteSchema,
+    minimumContrast: z.number().multipleOf(0.25).min(1).max(21),
+    effects: z.object({
+      opacity: z.number().multipleOf(0.01).min(0).max(1),
+      blur: z.number().int().min(0).max(64),
+      tint: terminalColourSchema,
+      tintAmount: z.number().multipleOf(0.01).min(0).max(1),
+      tone: z.number().multipleOf(0.01).min(-1).max(1),
+      blendMode: z.enum([
+        'normal',
+        'multiply',
+        'screen',
+        'overlay',
+        'darken',
+        'lighten',
+      ]),
+      stamp: z.boolean(),
+      compensate: z.boolean(),
+    }),
+  })
+
+export const terminalTypographySettingsSchema = z.object({
+  fontFamily: z.string().trim().min(1).max(256),
+  fontSize: z.number().multipleOf(0.25).min(1).max(255),
+  fontWeight: z.number().int().multipleOf(25).min(50).max(1000),
+  fontVariations: z.record(
+    z.string().regex(/^[\x20-\x7e]{4}$/u),
+    z.number().finite().min(-10_000).max(10_000),
+  ).default({}),
+  cellHeight: z.number().multipleOf(0.1).min(-50).max(100),
+  tracking: z.number().multipleOf(0.1).min(-20).max(50).default(0),
+  baseline: z.number().multipleOf(0.1).min(-20).max(20).default(0),
+  thicken: z.boolean().default(false),
+  thickenStrength: z.number().int().min(0).max(100)
+    .default(TERMINAL_THICKEN_DEFAULT),
+  ligatures: z.boolean(),
+  fontFeatures: z.record(
+    z.string().regex(/^[\x20-\x7e]{4}$/u),
+    z.boolean(),
+  ).default({}),
+  palette: terminalPaletteSettingsSchema
+    .default(DEFAULT_TERMINAL_PALETTE_SETTINGS),
+}).transform((value) => ({
+  ...value,
+  thicken: value.thicken && value.thickenStrength > 0,
+  thickenStrength: value.thicken ? value.thickenStrength : 0,
+}))
 
 const applicationSettingsSchema = z.object({
   agentApproval: z.enum(['all', 'writes', 'none']),
@@ -28,6 +108,7 @@ const applicationSettingsSchema = z.object({
   terminalDiagnostics: z.boolean(),
   terminalSessionPrefix: z.string().regex(TMUX_SESSION_PREFIX_PATTERN),
   terminalTmuxStatus: z.enum(['off', 'on', 'inherit']),
+  terminalTypography: terminalTypographySettingsSchema.transform((value) => value),
   ollamaStartOnLaunch: z.boolean(),
   vibrancyEnabled: z.boolean(),
   backgroundEffectsEnabled: z.boolean(),
@@ -50,6 +131,7 @@ const applicationSettingsPersistence = {
   terminalDiagnostics: 'user',
   terminalSessionPrefix: 'user',
   terminalTmuxStatus: 'user',
+  terminalTypography: 'user',
   ollamaStartOnLaunch: 'user',
   vibrancyEnabled: 'user',
   backgroundEffectsEnabled: 'user',
@@ -80,9 +162,10 @@ function applicationSettingsDefaults(
   const homeDirectory = context.homeDirectory ?? homedir()
   let legacy: Record<string, unknown>
   try {
-    legacy = getJsonDocumentStore({
+    legacy = getNamedJsonDocumentStore({
       namespace: 'maximal-legacy-preferences',
-      filePath: join(userDataDirectory, 'preferences.json'),
+      directoryPath: userDataDirectory,
+      documentName: 'preferences',
     }).read() ?? {}
   } catch {
     legacy = {}
@@ -98,6 +181,20 @@ function applicationSettingsDefaults(
     terminalDiagnostics: applicationSettingsSchema.shape.terminalDiagnostics.catch(false),
     terminalSessionPrefix: applicationSettingsSchema.shape.terminalSessionPrefix.catch('maximal'),
     terminalTmuxStatus: applicationSettingsSchema.shape.terminalTmuxStatus.catch('off'),
+    terminalTypography: terminalTypographySettingsSchema.catch({
+      fontFamily: 'ui-monospace',
+      fontSize: 13,
+      fontWeight: 400,
+      fontVariations: {},
+      cellHeight: 0,
+      tracking: 0,
+      baseline: 0,
+      thicken: false,
+      thickenStrength: 0,
+      ligatures: true,
+      fontFeatures: {},
+      palette: DEFAULT_TERMINAL_PALETTE_SETTINGS,
+    }),
     ollamaStartOnLaunch: applicationSettingsSchema.shape.ollamaStartOnLaunch.catch(false),
     vibrancyEnabled: applicationSettingsSchema.shape.vibrancyEnabled.catch(false),
     backgroundEffectsEnabled: applicationSettingsSchema.shape.backgroundEffectsEnabled.catch(false),
@@ -123,6 +220,7 @@ function applicationSettingsOptions(
     applicationName: 'maximal', environmentPrefix: 'MAXIMAL',
     schema: applicationSettingsSchema,
     defaults: applicationSettingsDefaults(userDataDirectory, context),
+    userFile: join(userDataDirectory, 'settings.json'),
     project: context.projectTrusted === true,
     environment: context.environment ?? process.env,
     argv: context.argv ?? process.argv.slice(1),
@@ -273,5 +371,26 @@ export function materialPreferenceFrom(
     motion: settings.materialMotion,
     lighting: settings.materialLighting,
     timezone: settings.materialTimezone,
+  }
+}
+
+export async function setTerminalTypography(
+  userDataDirectory: string,
+  settings: TerminalTypographySettings,
+): Promise<TerminalTypographySettings> {
+  const value = terminalTypographySettingsSchema.parse(settings)
+  const store = applicationSettingsStore(userDataDirectory)
+  try {
+    return (await store.create('terminalTypography', value))
+      .settings.terminalTypography
+  } catch (error) {
+    if (
+      !(error instanceof Error)
+      || error.message !== 'Setting already exists in its configured layer: terminalTypography'
+    ) {
+      throw error
+    }
+    return (await store.update('terminalTypography', value))
+      .settings.terminalTypography
   }
 }

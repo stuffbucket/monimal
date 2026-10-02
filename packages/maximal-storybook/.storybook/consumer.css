@@ -93,7 +93,7 @@
  * And every name whose shipped value already equals this design system's
  * token, where setting it would add a line that says nothing:
  * `--shell-control-height`, `--shell-disabled-opacity`, `--shell-focus`,
- * `--shell-icon-stroke`, `--shell-input-border`,
+ * `--shell-input-border`,
  * `--shell-nav-heading-height`, `--shell-radius`, `--shell-radius-dialog`,
  * `--shell-radius-large`, `--shell-radius-small`, `--shell-scrim`,
  * `--shell-space-1` to `--shell-space-5`, and `--shell-titlebar-height`.

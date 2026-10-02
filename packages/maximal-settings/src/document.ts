@@ -14,6 +14,12 @@ export interface JsonDocumentOptions {
   filePath: string
 }
 
+export interface NamedJsonDocumentOptions {
+  namespace: string
+  directoryPath: string
+  documentName: string
+}
+
 export interface JsonDocumentStore {
   readonly filePath: string
   read(): JsonDocument | undefined
@@ -175,4 +181,20 @@ export function getJsonDocumentStore(
   })
   registry.set(filePath, { namespace: options.namespace, store })
   return store
+}
+
+export function getNamedJsonDocumentStore(
+  options: NamedJsonDocumentOptions,
+): JsonDocumentStore {
+  if (
+    !options.documentName
+    || basename(options.documentName) !== options.documentName
+    || extname(options.documentName) !== ""
+  ) {
+    throw new Error("A simple document name without an extension is required")
+  }
+  return getJsonDocumentStore({
+    namespace: options.namespace,
+    filePath: join(options.directoryPath, `${options.documentName}.json`),
+  })
 }

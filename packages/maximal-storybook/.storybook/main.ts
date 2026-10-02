@@ -19,7 +19,7 @@ import type { StorybookConfig } from '@storybook/react-vite';
  */
 const config: StorybookConfig = {
   stories: [
-    '../src/renderer/**/*.stories.tsx',
+    '../../maximal-electron/src/renderer/**/*.stories.tsx',
     '../../maximal-harness/src/renderer/**/*.stories.tsx',
   ],
   addons: [
@@ -40,7 +40,7 @@ const config: StorybookConfig = {
    * toolbar switch. `scripts/storybook-check.mjs` drives the preview by URL
    * and knows nothing about a global, so this is how a whole check runs
    * against the shipped stylesheet: `STORYBOOK_SHELL_MODE=package npm run
-   * storybook:check`. See `.storybook/shell-mode.ts`.
+   * storybook:check`. See `shell-mode.ts`.
    */
   env: (config) => ({
     ...config,

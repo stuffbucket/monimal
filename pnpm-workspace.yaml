@@ -39,3 +39,6 @@ allowBuilds:
 # Required by Electron Forge and Rolldown.
 publicHoistPattern:
   - "*"
+
+patchedDependencies:
+  '@wterm/dom@0.4.1': patches/@wterm__dom@0.4.1.patch

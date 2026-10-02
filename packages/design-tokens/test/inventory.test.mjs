@@ -1,5 +1,15 @@
 import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
+import { execFileSync } from 'node:child_process';
+import {
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 
 import {
@@ -7,6 +17,8 @@ import {
   iconSourceIssues,
   ratchetChanges,
   readIconMetrics,
+  scanTokenSources,
+  runtimePropertyDeclarations,
 } from '../scripts/inventory.mjs';
 
 test('DTCG inventory preserves CSS identity and observed declarations', () => {
@@ -31,6 +43,39 @@ test('ratchet reports additions and stale baseline entries', () => {
   assert.deepEqual(ratchetChanges(current, recorded), {
     added: [{ id: 'new' }],
     gone: [{ id: 'gone' }],
+  });
+
+  test('token scan ignores tracked files deleted from the working tree', () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'maximal-token-scan-'));
+    try {
+      mkdirSync(path.join(root, 'apps', 'fixture'), { recursive: true });
+      const kept = path.join(root, 'apps', 'fixture', 'kept.css');
+      const deleted = path.join(root, 'apps', 'fixture', 'deleted.css');
+      const keptToken = ['--', 'kept-token'].join('');
+      const deletedToken = ['--', 'deleted-token'].join('');
+      writeFileSync(kept, `:root { ${keptToken}: 1; }\n`);
+      writeFileSync(deleted, `:root { ${deletedToken}: 1; }\n`);
+      execFileSync('git', ['init', '--quiet'], { cwd: root });
+      execFileSync('git', ['add', 'apps'], { cwd: root });
+      unlinkSync(deleted);
+
+      const scan = scanTokenSources(root);
+
+      assert.equal(scan.tokens.has(keptToken), true);
+      assert.equal(scan.tokens.has(deletedToken), false);
+    } finally {
+      rmSync(root, { recursive: true });
+    }
+  });
+
+  test('runtime style properties satisfy dynamic CSS declarations', () => {
+    assert.deepEqual(
+      [...runtimePropertyDeclarations(`
+        host.style.setProperty('--term-selection', theme.selection);
+        host.style.setProperty("--maximal-term-baseline", baseline);
+      `)],
+      ['--term-selection', '--maximal-term-baseline'],
+    );
   });
 });
 

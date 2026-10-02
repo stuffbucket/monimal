@@ -15,6 +15,9 @@ overrides:
 
 pnpmfileChecksum: sha256-c+AMCI7sgMcePT9QVtWjbEvQm0PUu/woz6wvvVqIEEU=
 
+patchedDependencies:
+  '@wterm/dom@0.4.1': 526bb087ac48bac1a1aadf80da6ebadd1e606837b6f7f88993d88e68f4757162
+
 importers:
 
   .:
@@ -427,6 +430,9 @@ importers:
       '@maximal/maximal-ollama':
         specifier: workspace:*
         version: link:../maximal-ollama
+      '@maximal/maximal-project-browser':
+        specifier: workspace:*
+        version: link:../maximal-project-browser
       '@maximal/maximal-search':
         specifier: workspace:*
         version: link:../maximal-search
@@ -462,7 +468,7 @@ importers:
         version: 5.103.2(react@19.2.8)
       '@wterm/dom':
         specifier: 0.4.1
-        version: 0.4.1
+        version: 0.4.1(patch_hash=526bb087ac48bac1a1aadf80da6ebadd1e606837b6f7f88993d88e68f4757162)
       '@wterm/ghostty':
         specifier: 0.4.1
         version: 0.4.1
@@ -813,12 +819,12 @@ importers:
       '@maximal/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@maximal/maximal-storybook':
+        specifier: workspace:*
+        version: link:../maximal-storybook
       '@maximal/maximal-terminal':
         specifier: workspace:*
         version: link:../maximal-terminal
-      '@playwright/test':
-        specifier: ^1.62.0
-        version: 1.62.1
       '@radix-ui/react-collapsible':
         specifier: 1.1.20
         version: 1.1.20(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -843,15 +849,6 @@ importers:
       '@radix-ui/react-visually-hidden':
         specifier: 1.2.11
         version: 1.2.11(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@storybook/addon-a11y':
-        specifier: 10.5.10
-        version: 10.5.10(storybook@10.5.10(@types/react@19.2.18)(prettier@3.9.6)(react@19.2.8))
-      '@storybook/addon-docs':
-        specifier: 10.5.10
-        version: 10.5.10(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(esbuild@0.28.2)(rollup@4.62.4)(storybook@10.5.10(@types/react@19.2.18)(prettier@3.9.6)(react@19.2.8))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26)(uglify-js@3.19.3))
-      '@storybook/react-vite':
-        specifier: 10.5.10
-        version: 10.5.10(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(@typescript/typescript6@6.0.2)(esbuild@0.28.2)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rollup@4.62.4)(storybook@10.5.10(@types/react@19.2.18)(prettier@3.9.6)(react@19.2.8))(supports-color@8.1.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26)(uglify-js@3.19.3))
       '@stryker-mutator/core':
         specifier: ^10.0.0
         version: 10.0.0(@types/node@26.4.0)
@@ -872,7 +869,7 @@ importers:
         version: typescript@7.0.2
       '@wterm/dom':
         specifier: 0.4.1
-        version: 0.4.1
+        version: 0.4.1(patch_hash=526bb087ac48bac1a1aadf80da6ebadd1e606837b6f7f88993d88e68f4757162)
       '@wterm/ghostty':
         specifier: 0.4.1
         version: 0.4.1
@@ -882,9 +879,6 @@ importers:
       '@xterm/xterm':
         specifier: 6.0.0
         version: 6.0.0
-      axe-core:
-        specifier: 4.13.0
-        version: 4.13.0
       electron:
         specifier: 44.1.0
         version: 44.1.0(supports-color@8.1.1)
@@ -909,9 +903,6 @@ importers:
       react-resizable-panels:
         specifier: 4.12.3
         version: 4.12.3(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      storybook:
-        specifier: 10.5.10
-        version: 10.5.10(@types/react@19.2.18)(prettier@3.9.6)(react@19.2.8)
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
         version: '@typescript/typescript6@6.0.2'
@@ -1261,6 +1252,52 @@ importers:
         specifier: ^5.0.1
         version: 5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
 
+  packages/maximal-project-browser:
+    dependencies:
+      '@maximal/maximal-electron':
+        specifier: workspace:*
+        version: link:../maximal-electron
+      y-protocols:
+        specifier: 1.0.7
+        version: 1.0.7(yjs@13.6.27)
+      yjs:
+        specifier: 13.6.27
+        version: 13.6.27
+    devDependencies:
+      '@maximal/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.5
+        version: 19.2.5(@types/react@19.2.18)
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      jsdom:
+        specifier: ^30.0.1
+        version: 30.0.1
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+
   packages/maximal-react-component:
     devDependencies:
       '@maximal/eslint-config':
@@ -1416,6 +1453,57 @@ importers:
         specifier: 2.9.0
         version: 2.9.0
 
+  packages/maximal-storybook:
+    devDependencies:
+      '@maximal/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@playwright/test':
+        specifier: ^1.62.0
+        version: 1.62.1
+      '@storybook/addon-a11y':
+        specifier: 10.5.10
+        version: 10.5.10(storybook@10.5.10(@types/react@19.2.18)(prettier@3.9.6)(react@19.2.8))
+      '@storybook/addon-docs':
+        specifier: 10.5.10
+        version: 10.5.10(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(esbuild@0.28.2)(rollup@4.62.4)(storybook@10.5.10(@types/react@19.2.18)(prettier@3.9.6)(react@19.2.8))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26)(uglify-js@3.19.3))
+      '@storybook/react-vite':
+        specifier: 10.5.10
+        version: 10.5.10(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(@typescript/typescript6@6.0.2)(esbuild@0.28.2)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rollup@4.62.4)(storybook@10.5.10(@types/react@19.2.18)(prettier@3.9.6)(react@19.2.8))(supports-color@8.1.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26)(uglify-js@3.19.3))
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.5
+        version: 19.2.5(@types/react@19.2.18)
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      axe-core:
+        specifier: 4.13.0
+        version: 4.13.0
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      storybook:
+        specifier: 10.5.10
+        version: 10.5.10(@types/react@19.2.18)(prettier@3.9.6)(react@19.2.8)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+      vite:
+        specifier: ^8.2.2
+        version: 8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)
+
   packages/maximal-systemone:
     dependencies:
       zod:
@@ -1466,7 +1554,7 @@ importers:
         version: typescript@7.0.2
       '@wterm/dom':
         specifier: 0.4.1
-        version: 0.4.1
+        version: 0.4.1(patch_hash=526bb087ac48bac1a1aadf80da6ebadd1e606837b6f7f88993d88e68f4757162)
       '@wterm/ghostty':
         specifier: 0.4.1
         version: 0.4.1
@@ -7140,6 +7228,9 @@ packages:
   ismobilejs@1.1.1:
     resolution: {integrity: sha1-xWygro5Sskyg8iul7zIVot27qg4=}
 
+  isomorphic.js@0.2.5:
+    resolution: {integrity: sha1-E+7PNvLbpT6F01XhG/nUIIxvf4g=}
+
   jest-worker@27.5.1:
     resolution: {integrity: sha1-jRRvCQDolzsQa29zzB6ajLhvjbA=}
     engines: {node: '>= 10.13.0'}
@@ -7324,6 +7415,11 @@ packages:
   levn@0.4.1:
     resolution: {integrity: sha1-rkViwAdHO5MqYgDUAyaN0v/8at4=}
     engines: {node: '>= 0.8.0'}
+
+  lib0@0.2.117:
+    resolution: {integrity: sha1-bD+SZHXSiQSvBbWQcDy7vClHVxY=}
+    engines: {node: '>=16'}
+    hasBin: true
 
   lifecycle-utils@2.1.0:
     resolution: {integrity: sha1-RHxoSao2aSoNIyeTfI8tOxQR9Ns=}
@@ -8861,7 +8957,7 @@ packages:
     engines: {node: '>=0.10.0'}
 
   style-dictionary@https://codeload.github.com/style-dictionary/style-dictionary/tar.gz/489abdfcf6c4a23c35e9d4e85ae93b9c02d9cf4a:
-    resolution: {integrity: sha512-eTH0SOtKX0bTK3NQsW6hp7pXRw17MDmM0X56szflqaWAcTyXWQyRjwnEA+dH6tQgtzhsmxMYQO42qmTcHazfSQ==, tarball: https://codeload.github.com/style-dictionary/style-dictionary/tar.gz/489abdfcf6c4a23c35e9d4e85ae93b9c02d9cf4a}
+    resolution: {gitHosted: true, integrity: sha512-eTH0SOtKX0bTK3NQsW6hp7pXRw17MDmM0X56szflqaWAcTyXWQyRjwnEA+dH6tQgtzhsmxMYQO42qmTcHazfSQ==, tarball: https://codeload.github.com/style-dictionary/style-dictionary/tar.gz/489abdfcf6c4a23c35e9d4e85ae93b9c02d9cf4a}
     version: 5.5.5
     engines: {node: '>=22.0.0'}
     hasBin: true
@@ -9535,6 +9631,12 @@ packages:
   xmlchars@2.2.0:
     resolution: {integrity: sha1-Bg/hvLf5x2/ioX24apvDq4lCEMs=}
 
+  y-protocols@1.0.7:
+    resolution: {integrity: sha1-ZjHEkudbeLOmE1OmAGfm+KTDjV8=}
+    engines: {node: '>=16.0.0', npm: '>=8.0.0'}
+    peerDependencies:
+      yjs: ^13.0.0
+
   y18n@5.0.8:
     resolution: {integrity: sha1-f0k00PfKjFb5UxSTndzS3ZHOHVU=}
     engines: {node: '>=10'}
@@ -9569,6 +9671,10 @@ packages:
   yargs@18.1.0:
     resolution: {integrity: sha1-zX6YxwPvUWlbu/Bi7VjyjpQpG1Y=}
     engines: {node: ^20.19.0 || ^22.12.0 || >=23}
+
+  yjs@13.6.27:
+    resolution: {integrity: sha1-iJm+kp1X2gWgqhEtBEpcIEOTq3s=}
+    engines: {node: '>=16.0.0', npm: '>=8.0.0'}
 
   yocto-queue@0.1.0:
     resolution: {integrity: sha1-ApTrPe4FAo0x7hpfosVWpqrxChs=}
@@ -13437,7 +13543,7 @@ snapshots:
 
   '@wterm/core@0.4.1': {}
 
-  '@wterm/dom@0.4.1':
+  '@wterm/dom@0.4.1(patch_hash=526bb087ac48bac1a1aadf80da6ebadd1e606837b6f7f88993d88e68f4757162)':
     dependencies:
       '@wterm/core': 0.4.1
 
@@ -15282,6 +15388,8 @@ snapshots:
 
   ismobilejs@1.1.1: {}
 
+  isomorphic.js@0.2.5: {}
+
   jest-worker@27.5.1:
     dependencies:
       '@types/node': 26.4.0
@@ -15471,6 +15579,10 @@ snapshots:
     dependencies:
       prelude-ls: 1.2.1
       type-check: 0.4.0
+
+  lib0@0.2.117:
+    dependencies:
+      isomorphic.js: 0.2.5
 
   lifecycle-utils@2.1.0: {}
 
@@ -17758,6 +17870,11 @@ snapshots:
 
   xmlchars@2.2.0: {}
 
+  y-protocols@1.0.7(yjs@13.6.27):
+    dependencies:
+      lib0: 0.2.117
+      yjs: 13.6.27
+
   y18n@5.0.8: {}
 
   yallist@3.1.1: {}
@@ -17790,6 +17907,10 @@ snapshots:
       string-width: 8.2.2
       y18n: 5.0.8
       yargs-parser: 22.0.0
+
+  yjs@13.6.27:
+    dependencies:
+      lib0: 0.2.117
 
   yocto-queue@0.1.0: {}
 

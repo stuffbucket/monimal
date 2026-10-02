@@ -7,11 +7,14 @@ import {
   type TabTransferOptions,
 } from '@maximal/maximal-electron/renderer'
 
+import { WORKBAR_ITEMS, type WorkbarItemId } from './workbar-layout'
+import { ensureAppFrameStyles } from './app-frame-styles'
+
 export {
+  Status,
   SurfaceActivity,
   SurfaceRail,
   SurfaceRight,
-  SurfaceStatus,
   SurfaceTop,
   useTabPanelId,
   useTabTriggerId,
@@ -24,9 +27,14 @@ const LEFT_PANEL_SIZE = {
   max: '320px',
   collapsed: '0',
 }
+const COLLAPSED_LAYOUTS = {
+  both: { left: 0, main: 100, right: 0 },
+  left: { left: 0, main: 100 },
+  right: { main: 100, right: 0 },
+}
 
-export type View = 'overview' | 'traffic' | 'settings'
-export type Surface = View | 'browser' | 'terminal'
+export type View = WorkbarItemId | 'settings'
+export type Surface = View | 'browser' | 'projects' | 'terminal'
 
 export interface AppTab extends Tab {
   kind: Surface
@@ -40,10 +48,13 @@ export interface AppTab extends Tab {
   canRunInBackground?: boolean
 }
 
-export const PRODUCT_TABS: AppTab[] = [
-  { id: 'overview', title: 'Overview', icon: 'document', kind: 'overview', closable: false },
-  { id: 'traffic', title: 'Traffic', icon: 'folder', kind: 'traffic', closable: false },
-]
+export const PRODUCT_TABS: AppTab[] = WORKBAR_ITEMS.map((item) => ({
+  id: item.id,
+  title: item.label,
+  icon: item.icon === 'map' ? 'document' : item.icon,
+  kind: item.id,
+  closable: false,
+}))
 
 export const SETTINGS_TAB: AppTab = {
   id: 'settings',
@@ -78,11 +89,22 @@ export function AppFrame({
   onOpenProjects?: () => void
   children: ReactNode
 }): ReactElement {
+  ensureAppFrameStyles()
+  const workbarIds = new Set<Surface>(WORKBAR_ITEMS.map(({ id }) => id))
+  const documentTabs = tabs.filter((tab) => !workbarIds.has(tab.kind))
+  const documentLabel = tabs.find(({ id }) => id === activeTab)?.title
+  const withLeft = surface !== 'terminal' && surface !== 'browser'
+  const withRight = surface === 'overview' || surface === 'traffic' || surface === 'terminal'
+  const initialDocumentLayout = withLeft
+    ? (withRight ? COLLAPSED_LAYOUTS.both : COLLAPSED_LAYOUTS.left)
+    : (withRight ? COLLAPSED_LAYOUTS.right : undefined)
+
   return (
     <PackageAppFrame
       layoutId={LAYOUT_ID}
-      tabs={tabs}
+      tabs={documentTabs}
       activeTab={activeTab}
+      documentLabel={documentLabel}
       onSelectTab={onSelectTab}
       onCloseTab={onCloseTab}
       onNewTab={onNewTab}
@@ -120,11 +142,11 @@ export function AppFrame({
           ) : null}
         </>
       ) : undefined}
+      initialDocumentLayout={initialDocumentLayout}
       leftSize={LEFT_PANEL_SIZE}
       withActivity
-      withLeft={surface !== 'terminal' && surface !== 'browser'}
-      withRight={surface === 'overview' || surface === 'traffic' || surface === 'terminal'}
-      withStatus={surface !== 'terminal' && surface !== 'browser'}
+      withLeft={withLeft}
+      withRight={withRight}
     >
       {children}
     </PackageAppFrame>

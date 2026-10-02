@@ -19,6 +19,26 @@ describe('SETTINGS_SECTIONS', () => {
     // The label is product copy: it reaches the native menu and the rail.
     expect(SETTINGS_SECTIONS.every(({ label }) => label.trim() !== '')).toBe(true)
   })
+
+  it('orders model and appearance sections before Interaction', () => {
+    expect(SETTINGS_SECTIONS.map(({ label }) => label)).toEqual([
+      'Accounts',
+      'Cloud Models',
+      'Local models',
+      'Typography',
+      'Color Palettes',
+      'Shaders',
+      'Themes',
+      'Interaction',
+      'Workbar',
+      'Projects',
+      'Connections',
+      'Search',
+      'Usage',
+      'Logs',
+      'Diagnostics',
+    ])
+  })
 })
 
 describe('isSettingsSectionId', () => {
@@ -50,5 +70,11 @@ describe('settingsSectionIdFrom', () => {
       'settings-models-heading',
     )
     expect(settingsSectionIdFrom('settings-language-heading')).toBeNull()
+  })
+
+  it('maps the legacy Appearance destination to Typography', () => {
+    expect(settingsSectionIdFrom('settings-general-heading')).toBe(
+      'settings-typography-heading',
+    )
   })
 })

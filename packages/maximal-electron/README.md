@@ -29,6 +29,9 @@ graph and package contents.
 
 The renderer export provides reusable shell layout, navigation, controls,
 settings surfaces, terminal tabs, and renderer-safe helpers.
+`TypefaceControls` composes compact family, style, weight, and metric fields;
+`UnitValueInput` keeps presentation units in the UI while committing normalized
+canonical values and restoring an automatic value when cleared.
 
 Consumers MUST import
 `@maximal/maximal-electron/renderer/styles.css` and define their own
@@ -83,7 +86,7 @@ Run commands from the repository root with pnpm.
 | Export verification | `pnpm --filter @maximal/maximal-electron verify:exports` |
 | Neutrality verification | `pnpm --filter @maximal/maximal-electron verify:neutral` |
 | Documentation verification | `pnpm --filter @maximal/maximal-electron verify:docs` |
-| Storybook | `pnpm --filter @maximal/maximal-electron storybook` |
-| Storybook browser checks | `pnpm --filter @maximal/maximal-electron storybook:check` |
+| Storybook | `pnpm storybook` |
+| Storybook browser checks | `pnpm storybook:check` |
 
 Application-level Electron behavior MUST be validated in `apps/desktop/e2e`.

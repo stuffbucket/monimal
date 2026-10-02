@@ -14,6 +14,7 @@ const defaultPatterns = [
 const nonSettingsEnvironmentReaders = new Set([
   "apps/desktop/src/main/adapters/harness.ts::environment:MAXIMAL_DISABLE_GLOBAL_KEYBOARD_HOOK",
   "apps/desktop/src/main/index.ts::environment:MAXIMAL_DEV_PROFILE",
+  "apps/desktop/src/main/native/ghostty-fonts.ts::environment:*",
   "apps/desktop/src/main/native/recording.ts::environment:*",
   "packages/maximal-logging/src/index.ts::environment:LOCALAPPDATA",
   "packages/maximal-logging/src/index.ts::environment:XDG_STATE_HOME",

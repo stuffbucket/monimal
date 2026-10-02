@@ -1,5 +1,5 @@
 import { PanelLeft, Trash2 } from 'lucide-react';
-import type { Meta, StoryObj } from '@storybook/react-vite';
+import type { Meta, StoryObj } from '@maximal/maximal-storybook';
 
 import { Button, IconButton } from './Button.js';
 

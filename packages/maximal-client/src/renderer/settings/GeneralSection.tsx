@@ -1,1 +1,5 @@
-export { GeneralSection } from './general/GeneralSection'
+export {
+  ColorPalettesSection,
+  GeneralSection,
+  TypographySection,
+} from './general/GeneralSection'

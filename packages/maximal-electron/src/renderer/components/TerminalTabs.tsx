@@ -8,6 +8,7 @@ import {
   type TerminalPane,
   type TerminalPaneTreeOptions,
   type TerminalTheme,
+  type TerminalTypography,
   type TerminalTransport,
 } from '@maximal/maximal-terminal/renderer';
 
@@ -18,6 +19,7 @@ interface TerminalTabsCommonProps {
   activeId: string;
   emulator?: TerminalEmulatorKind;
   ghosttyWindow?: GhosttyWindowAdjustment;
+  typography?: TerminalTypography;
   /** Overrides the login shell. A capture fixture passes an impersonal one. */
   shell?: string;
   theme?: TerminalTheme;
@@ -45,6 +47,7 @@ export type TerminalTabsProps = TerminalTabsCommonProps & TerminalTabsAttachment
 interface TerminalAttachmentViewProps extends TerminalPaneTreeOptions {
   emulator?: TerminalEmulatorKind;
   ghosttyWindow?: GhosttyWindowAdjustment;
+  typography?: TerminalTypography;
   shell?: string;
   theme?: TerminalTheme;
 }
@@ -52,6 +55,7 @@ interface TerminalAttachmentViewProps extends TerminalPaneTreeOptions {
 function TerminalAttachmentView({
   emulator,
   ghosttyWindow,
+  typography,
   shell,
   theme,
   ...options
@@ -69,6 +73,7 @@ function TerminalAttachmentView({
             id={sessionId}
             emulator={emulator}
             ghosttyWindow={ghosttyWindow}
+            typography={typography}
             shell={shell}
             theme={theme}
             disposition="preserve"
@@ -93,7 +98,17 @@ function TerminalAttachmentView({
  * the detachable transport allows it.
  */
 export function TerminalTabs(props: TerminalTabsProps) {
-  const { activeId, emulator, ghosttyWindow, shell, theme, initialPane, initialPanes, paneRevisions } = props;
+  const {
+    activeId,
+    emulator,
+    ghosttyWindow,
+    typography,
+    shell,
+    theme,
+    initialPane,
+    initialPanes,
+    paneRevisions,
+  } = props;
   const attachments = props.attachments ?? props.ids.map((id) => ({ id, sessionId: id }));
   const session =
     props.disposition === 'detach'
@@ -110,6 +125,7 @@ export function TerminalTabs(props: TerminalTabsProps) {
           attachment={attachment}
           emulator={emulator}
           ghosttyWindow={ghosttyWindow}
+          typography={typography}
           shell={shell}
           theme={theme}
           launchSplit={props.launchSplit}

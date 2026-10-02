@@ -20,7 +20,7 @@
  * whatever is behind it, which this cannot know, so the soft tints are outside
  * the contract — including the surface a selected row or the current nav item
  * actually sits on. Those are real surfaces text is drawn on, and this will
- * never see them; `npm run storybook:check` runs axe over rendered pixels and
+ * never see them; `pnpm storybook:check` runs axe over rendered pixels and
  * does. The two checks are not redundant.
  */
 

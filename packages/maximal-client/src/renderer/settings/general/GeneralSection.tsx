@@ -10,120 +10,13 @@ import {
 } from '@maximal/maximal-electron/renderer'
 
 import type { SettingsCapabilities } from '../capabilities'
-import { AppearanceSection } from './AppearanceSection'
-import { MaterialSettings } from './MaterialSettings'
 import { MenuBarOnlyDialog } from './MenuBarOnlyDialog'
 import { useGeneralDesktopSettings } from './useGeneralDesktopSettings'
-import { useAppearancePreference } from './useAppearancePreference'
-import { useMaterialPreference } from '../../useMaterialPreference'
+import { TerminalTypographySettings } from './TerminalTypographySettings'
 import { useMenuBarPresence } from './useMenuBarPresence'
 
 interface GeneralSectionProps {
   capabilities: SettingsCapabilities
-}
-
-function AppearanceSections({
-  appearance,
-  material,
-}: {
-  appearance: ReturnType<typeof useAppearancePreference>
-  material: ReturnType<typeof useMaterialPreference>
-}): ReactElement {
-  if (appearance.state === null) {
-    return (
-      <>
-        <SettingsSection
-          title="Window materials"
-          description="Use native desktop materials where the operating system supports them."
-        >
-          <Note live="polite">Loading appearance preferences…</Note>
-        </SettingsSection>
-        <SettingsSection
-          title="Visual effects"
-          description="Control optional graphics and motion used by the interface."
-        >
-          <Note live="polite">Loading visual effect preferences…</Note>
-        </SettingsSection>
-      </>
-    )
-  }
-
-  return (
-    <>
-      <SettingsSection
-        title="Window materials"
-        description="Use native desktop materials where the operating system supports them."
-      >
-        <SettingsGroup>
-          <SettingsItem
-            title="Translucent window"
-            description={
-              appearance.state.vibrancySupported
-                ? 'Show the macOS desktop vibrancy material through Maximal surfaces.'
-                : 'Native vibrancy is available on macOS.'
-            }
-            control={
-              <Switch
-                label="Translucent window"
-                displayLabel={null}
-                checked={appearance.state.vibrancyEnabled}
-                disabled={
-                  appearance.busy || !appearance.state.vibrancySupported
-                }
-                onChange={(next) => void appearance.setVibrancyEnabled(next)}
-                testId="vibrancy-switch"
-              />
-            }
-          />
-        </SettingsGroup>
-      </SettingsSection>
-      <SettingsSection
-        title="Visual effects"
-        description="Control optional graphics and motion used by the interface."
-      >
-        <SettingsGroup>
-          <SettingsItem
-            title="Background material"
-            description="Render a configurable material behind the workspace."
-            control={
-              <Switch
-                label="Background material"
-                displayLabel={null}
-                checked={appearance.state.backgroundEffectsEnabled}
-                disabled={appearance.busy}
-                onChange={(next) =>
-                  void appearance.setBackgroundEffectsEnabled(next)
-                }
-                testId="background-effects-switch"
-              />
-            }
-          >
-            <MaterialSettings
-              disabled={appearance.busy || !appearance.state.backgroundEffectsEnabled}
-              preference={material}
-            />
-          </SettingsItem>
-          <SettingsItem
-            title="Reduce motion"
-            divider={false}
-            description="Stop decorative animation and minimize transitions throughout Maximal. The operating system preference is always honored."
-            control={
-              <Switch
-                label="Reduce motion"
-                displayLabel={null}
-                checked={appearance.state.reducedMotionEnabled}
-                disabled={appearance.busy}
-                onChange={(next) =>
-                  void appearance.setReducedMotionEnabled(next)
-                }
-                testId="reduced-motion-switch"
-              />
-            }
-          />
-        </SettingsGroup>
-      </SettingsSection>
-    </>
-  )
 }
 
 export function GeneralSection({
@@ -131,22 +24,9 @@ export function GeneralSection({
 }: GeneralSectionProps): ReactElement {
   const presence = useMenuBarPresence(capabilities)
   const general = useGeneralDesktopSettings(capabilities)
-  const appearance = useAppearancePreference(capabilities)
-  const material = useMaterialPreference(capabilities)
 
   return (
     <section className="settings-section">
-      <AppearanceSection />
-      {appearance.error ? (
-        <Note status="failed" live="assertive">
-          {appearance.error}
-        </Note>
-      ) : null}
-      {material.error ? (
-        <Note status="failed" live="assertive">
-          {material.error}
-        </Note>
-      ) : null}
       {presence.error ? (
         <Note status="failed" live="assertive">
           {presence.error}
@@ -157,7 +37,6 @@ export function GeneralSection({
           {general.error}
         </Note>
       ) : null}
-      <AppearanceSections appearance={appearance} material={material} />
       <SettingsSection
         title="Desktop app"
         description="Control how Maximal starts and stays available."
@@ -243,6 +122,32 @@ export function GeneralSection({
         busy={presence.busy}
         onCancel={() => void presence.cancel()}
         onConfirm={() => void presence.confirm()}
+      />
+    </section>
+  )
+}
+
+export function TypographySection({
+  capabilities,
+}: GeneralSectionProps): ReactElement {
+  return (
+    <section className="settings-section">
+      <TerminalTypographySettings
+        capabilities={capabilities.terminalTypography}
+        surface="typography"
+      />
+    </section>
+  )
+}
+
+export function ColorPalettesSection({
+  capabilities,
+}: GeneralSectionProps): ReactElement {
+  return (
+    <section className="settings-section">
+      <TerminalTypographySettings
+        capabilities={capabilities.terminalTypography}
+        surface="palette"
       />
     </section>
   )

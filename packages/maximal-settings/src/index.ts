@@ -1,8 +1,10 @@
 export {
   getJsonDocumentStore,
+  getNamedJsonDocumentStore,
   type JsonDocument,
   type JsonDocumentOptions,
   type JsonDocumentStore,
+  type NamedJsonDocumentOptions,
 } from "./document.ts"
 export { resolveSettingsEnvironment } from "./environment.ts"
 export {

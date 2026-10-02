@@ -79,6 +79,13 @@ describe("observability components", () => {
     expect(container.textContent).toContain("session-1")
     expect(container.textContent).toContain("claude-sonnet")
     expect(container.textContent).toContain("2.1% full")
+    expect(container.textContent).toContain("request as of")
+    expect(
+      [...container.querySelectorAll(".status-chip")].map(
+        (chip) => chip.textContent,
+      ),
+    ).not.toContain("Live")
+    expect(button("Update").classList.contains("btn--primary")).toBe(true)
     expect(
       container.querySelector(".mcw-grid")?.getAttribute("aria-label"),
     ).toContain("Other content: 120 tokens, 20 cached")
@@ -243,7 +250,8 @@ describe("observability components", () => {
         <OverviewStatus />
       </ObservabilityProvider>,
     )
-    expect(html).toContain("Live")
+    expect(html).not.toContain("Live")
+    expect(html).toContain("Traffic overview unavailable")
     expect(source.overviewReads).toBe(0)
   })
 })

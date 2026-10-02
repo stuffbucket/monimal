@@ -11,7 +11,7 @@ import { exportedModules } from './stylesheets.js';
  * The renderer entry point went from about nineteen exported names to
  * forty-three. Twenty-four crossed into the public API, Storybook did not
  * change, and nothing said so. A component with no story is one nobody has
- * seen in every state, and `npm run storybook:check` never renders it, never
+ * seen in every state, and `pnpm storybook:check` never renders it, never
  * runs a `play` function over it, and never puts axe on it.
  *
  * The set is walked from `src/renderer/index.ts` rather than listed, for the

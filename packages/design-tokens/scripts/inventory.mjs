@@ -14,6 +14,7 @@ const SOURCE_PATTERN = /\.(?:css|html|js|jsx|mjs|mts|ts|tsx)$/;
 const ICON_SOURCE_PATTERN = /\.(?:js|jsx|mjs|mts|png|svg|ts|tsx)$/;
 const DECLARATION = /(--[a-zA-Z0-9_-]+)\s*:\s*([^;}\n]+)/g;
 const REFERENCE = /var\(\s*(--[a-zA-Z0-9_-]+)/g;
+const RUNTIME_DECLARATION = /\bstyle\.setProperty\(\s*['"](--[a-zA-Z0-9_-]+)['"]\s*,/g;
 const LUCIDE_IMPORT = /import\s*\{([^}]*)\}\s*from\s*['"]lucide-react['"]/g;
 const JSX_NUMERIC_SIZE = /<([A-Z][a-zA-Z0-9_.]*)\b[^>]*\bsize=\{(\d+(?:\.\d+)?)\}/g;
 const SVG_VIEW_BOX = /<svg\b[^>]*\bviewBox=["']([^"']+)["']/i;
@@ -35,7 +36,11 @@ function trackedFiles(root = WORKSPACE_ROOT, pattern = SOURCE_PATTERN) {
     { cwd: root, encoding: 'utf8' },
   )
     .split('\0')
-    .filter((file) => pattern.test(file))
+    .filter(
+      (file) =>
+        pattern.test(file)
+        && fs.existsSync(path.join(root, file)),
+    )
     .sort();
 }
 
@@ -47,6 +52,7 @@ function occurrences(source, pattern) {
 export function scanTokenSources(root = WORKSPACE_ROOT) {
   const tokens = new Map();
   const references = new Map();
+  const runtimeDeclarations = new Map();
 
   for (const file of trackedFiles(root)) {
     const source = fs.readFileSync(path.join(root, file), 'utf8');
@@ -65,9 +71,19 @@ export function scanTokenSources(root = WORKSPACE_ROOT) {
       files.add(file);
       references.set(name, files);
     }
+    for (const name of runtimePropertyDeclarations(source)) {
+      const files = runtimeDeclarations.get(name) ?? new Set();
+      files.add(file);
+      runtimeDeclarations.set(name, files);
+    }
   }
 
-  return { tokens, references };
+  return { tokens, references, runtimeDeclarations };
+}
+
+export function runtimePropertyDeclarations(source) {
+  return new Set(occurrences(source, RUNTIME_DECLARATION).flatMap((match) =>
+    match[1] === undefined ? [] : [match[1]]));
 }
 
 function tokenKey(name) {
@@ -300,7 +316,7 @@ export function iconMetricIssues(
 }
 
 export function inventoryIssues(
-  { tokens, references },
+  { tokens, references, runtimeDeclarations = new Map() },
   iconMetrics = readIconMetrics(),
 ) {
   const { cssProperties } = iconMetricContract(iconMetrics);
@@ -345,7 +361,7 @@ export function inventoryIssues(
   for (const [name, files] of [...references].sort(([left], [right]) =>
     left.localeCompare(right),
   )) {
-    if (tokens.has(name)) continue;
+    if (tokens.has(name) || runtimeDeclarations.has(name)) continue;
     issues.push({
       id: `unresolved-reference:${name}`,
       kind: 'unresolved-reference',

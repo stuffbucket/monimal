@@ -25,6 +25,8 @@ has ended.
 | `packages/maximal-context-window` | Context-window derivation and UI. |
 | `packages/maximal-recording` | Optional video capture engine and developer recording tools; desktop owns consent and output selection. |
 | `packages/maximal-data-visualization` | Visualization primitives and styles. |
+| `packages/maximal-project-browser` | WASM-accelerated spatial project canvas, navigation, board tools, presence, comments, and chat UI. |
+| `packages/maximal-storybook` | Workspace Storybook configuration, preview decorators, browser checks, and developer commands. |
 | `packages/maximal-github` | Runtime-neutral GitHub contracts, device authentication, Octokit API adapter, host profiles, and read-only GitHub CLI interoperability. |
 | `packages/maximal-harness` | Local agent orchestration and renderer. |
 | `packages/maximal-llama-cpp` | Standalone Electron-hosted llama.cpp provider, worker, and packaging policy. |
@@ -52,6 +54,7 @@ has ended.
 | --- | --- | --- | --- |
 | Claude, Claude Code, GitHub Copilot, and Codex terminal icons | `lobehub/lobe-icons` | `329f378cbd1a88f45b60cd096b9111ce16f3ea39` | MIT |
 | Maximal terminal icon | `apps/desktop/build/icon.icns` | Workspace-owned | Workspace license |
+| Curated terminal font downloads and generated specimens | `ryanoasis/nerd-fonts` release assets | `v3.5.1`; SHA-256 digests and font identities in `packages/maximal-client/src/shared/terminal-font-downloads.json` | Per-font OFL-1.1 or MIT |
 
 ## API provenance
 
@@ -121,8 +124,13 @@ Both are monorepo-native;
 | `maximal-electron` | Uses the workspace mutation runner for changed-line and explicit local scopes, cached edit loops, and fresh complete or sharded audits. |
 | `maximal-electron` | `TextInput` owns the token-based active-service treatment, the Radix-backed `Slider` owns its track, detents, labels, and thumb geometry, settings action rows and divider behavior live with the shared settings components, and `ModelCardGrid` owns provider adornments, disabled-provider activation, and model-action placement so consumers do not recreate those controls. |
 | `maximal-electron` | `Workbar` owns the persistent activity navigation geometry and the shared shell-icon vocabulary so consumers do not specialize collapsed side navigation or remap tab icons locally. |
+| `maximal-electron` | `StatusProvider` owns keyed, ordered status registration; `StatusViewport` owns paging and per-entry dismissal; and `AppFrame` composes them so status layout follows visible content rather than a consumer-owned region flag. |
 | `maximal-electron` / `apps/desktop` | Profile avatars accept authenticated HTTPS image URLs in the desktop renderer and fall back to account initials when an image cannot load; the signed-out profile identity invokes the consumer-owned account setup action. |
 | `maximal-systemone` | The evaluation corpus and fixtures are project-authored internal regression material; no upstream harness code or restricted benchmark text is copied, and results MUST NOT be described as upstream benchmark equivalence. |
+| `maximal-electron` / `maximal-project-browser` / `maximal-client` / `apps/desktop` | `maximal-electron` owns token-driven spatial canvas presentation and control primitives; the reusable project map owns interaction and collaborative state, the client owns project discovery and opening, and desktop owns composition and shared shell stylesheet loading. |
+| `maximal-storybook` | Owns workspace Storybook integration while stories and deterministic fixtures remain beside the packages they exercise. |
+| `maximal-electron` | `NumberInput` owns bounded numeric draft-and-commit behavior; `UnitValueInput` owns automatic/manual presentation and persisted display units while consumers own canonical conversion; `TypefaceControls` composes reusable compact typeface fields; and `TerminalTabs` forwards consumer-owned live typography to terminal views without owning its persistence or font discovery. |
+| `@wterm/dom` 0.4.1 | Kitty graphics canvas backing stores scale with the bounded device pixel ratio so terminal images remain sharp on HiDPI displays. |
 | Workspace | `@maximal/eslint-config` owns the shared ESLint configuration and enforced rule sets. |
 | Workspace | `architecture-analysis.json` owns package coverage, the declared workspace dependency tree (`dependsOn`), external-package deny rules, and non-Core architecture baselines. |
 | `maximal-settings` | The pnpm bootstrap hook MUST load its dependency-policy source before workspace packages are installed; installed consumers MUST use the exported entry point. |

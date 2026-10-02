@@ -361,9 +361,9 @@ describe('LocalModelsSection', () => {
     )
     if (slider === null) throw new Error('context length slider was not rendered')
 
-    expect(slider.getAttribute('aria-valuemin')).toBe('0')
-    expect(slider.getAttribute('aria-valuemax')).toBe('6')
-    expect(slider.getAttribute('aria-valuenow')).toBe('0')
+    expect(slider.getAttribute('aria-valuemin')).toBe('4096')
+    expect(slider.getAttribute('aria-valuemax')).toBe('262144')
+    expect(slider.getAttribute('aria-valuenow')).toBe('4096')
     expect(slider.getAttribute('aria-valuetext')).toBe('4k')
     const marks = [...surface.querySelectorAll<HTMLElement>('.slider__mark')]
     const labels = [...surface.querySelectorAll<HTMLElement>('.slider__label')]
