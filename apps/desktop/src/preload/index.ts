@@ -158,6 +158,9 @@ const bridge = {
     onApproval: (listener) => subscribe(BRIDGE_CHANNELS.harnessApproval, listener),
     onEnd: (listener) => subscribe(BRIDGE_CHANNELS.harnessEnd, listener),
     onModelProgress: (listener) => subscribe(BRIDGE_CHANNELS.harnessModelProgress, listener),
+    onShown: (listener) => subscribe(BRIDGE_CHANNELS.harnessShown, listener),
+    onDismissRequested: (listener) =>
+      subscribe(BRIDGE_CHANNELS.harnessDismissRequested, listener),
     onPreferences: (listener) =>
       subscribe(BRIDGE_CHANNELS.harnessPreferencesChanged, listener),
     onChatSelected: (listener) =>

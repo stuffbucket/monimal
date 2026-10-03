@@ -129,6 +129,8 @@ function storyTransport(
     onModelProgress: subscription(
       events.modelProgress ? [events.modelProgress] : [],
     ),
+    onShown: subscription<void>([]),
+    onDismissRequested: subscription<void>([]),
     onPreferences: subscription<AssistantOverlayPreferences>([]),
     onChatSelected: subscription<string>([]),
   };

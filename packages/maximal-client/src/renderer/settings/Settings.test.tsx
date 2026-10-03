@@ -175,6 +175,51 @@ function fakeCapabilities(): SettingsCapabilities {
         outputFont: 'auto' as const,
         hotkey: 'CommandOrControl+Shift+Space',
       })),
+      assistantProvider: vi.fn(async () => ({
+        state: 'ready' as const,
+        provider: 'maximal' as const,
+        model: 'claude-haiku',
+        modelKey: 'maximal:claude-haiku',
+        effort: 'medium' as const,
+        models: [{
+          key: 'maximal:claude-haiku',
+          label: 'Claude Haiku',
+          model: 'claude-haiku',
+          provider: 'maximal' as const,
+          description: 'Fast',
+          efforts: ['low', 'medium', 'high'] as Array<'low' | 'medium' | 'high'>,
+        }],
+      })),
+      setAssistantModel: vi.fn(async (modelKey: string) => ({
+        state: 'ready' as const,
+        provider: 'maximal' as const,
+        model: 'claude-haiku',
+        modelKey,
+        effort: 'medium' as const,
+        models: [{
+          key: 'maximal:claude-haiku',
+          label: 'Claude Haiku',
+          model: 'claude-haiku',
+          provider: 'maximal' as const,
+          description: 'Fast',
+          efforts: ['low', 'medium', 'high'] as Array<'low' | 'medium' | 'high'>,
+        }],
+      })),
+      setAssistantEffort: vi.fn(async (effort: 'low' | 'medium' | 'high' | 'xhigh' | 'max') => ({
+        state: 'ready' as const,
+        provider: 'maximal' as const,
+        model: 'claude-haiku',
+        modelKey: 'maximal:claude-haiku',
+        effort,
+        models: [{
+          key: 'maximal:claude-haiku',
+          label: 'Claude Haiku',
+          model: 'claude-haiku',
+          provider: 'maximal' as const,
+          description: 'Fast',
+          efforts: ['low', 'medium', 'high'] as Array<'low' | 'medium' | 'high'>,
+        }],
+      })),
       updateAssistantOverlay: vi.fn(async (update: {
         candy?: boolean
         approval?: 'all' | 'read-only' | 'writes' | 'none'

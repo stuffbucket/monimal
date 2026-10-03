@@ -30,10 +30,12 @@ body,
 .mh-overlay-body > [data-sb-shell-portal-root] {
   position: fixed;
   inset: 0;
+  z-index: 2;
   display: flex;
   align-items: flex-end;
   justify-content: center;
   overflow: hidden;
+  pointer-events: none;
 }
 
 /*
@@ -60,8 +62,9 @@ body,
   background: var(--shell-raised);
   border: 1px solid var(--shell-border);
   box-shadow: var(--shell-elevation, none);
-  animation: mh-card-in 180ms ease-out;
+  transform-origin: center;
   overflow: hidden;
+  pointer-events: auto;
   -webkit-app-region: drag;
 }
 
@@ -1018,15 +1021,38 @@ body,
   align-items: center;
   gap: var(--shell-space-2, 8px);
 }
-@keyframes mh-card-in {
+
+@keyframes mh-card-enter {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: scale(0.96);
   }
+
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: scale(1);
   }
+}
+
+@keyframes mh-card-exit {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+.mh-card--entering {
+  animation: mh-card-enter 180ms ease-in;
+}
+
+.mh-card--exiting {
+  animation: mh-card-exit 180ms ease-in forwards;
+  pointer-events: none;
 }
 
   html,

@@ -95,4 +95,33 @@ describe('renderer architecture', () => {
     }
     expect(ownCss).not.toMatch(/#[0-9a-f]{3,8}\b|\brgba?\(|\bhsla?\(/iu);
   });
+
+  it('keeps the assistant card above its click-away layer', () => {
+    const ownCss = readFileSync(join(packageRoot, 'src', 'styles.css'), 'utf8');
+    expect(ownCss).toMatch(
+      /\.mh-overlay-body\s*>\s*\[data-sb-shell-portal-root\]\s*\{[^}]*z-index:\s*2;[^}]*pointer-events:\s*none;/su,
+    );
+    expect(ownCss).toMatch(
+      /\.mh-card\s*\{[^}]*pointer-events:\s*auto;/su,
+    );
+    expect(ownCss).toMatch(
+      /\.mh-click-away\s*\{[^}]*z-index:\s*1;/su,
+    );
+  });
+
+  it('uses ease-in fade and zoom animations in both directions', () => {
+    const ownCss = readFileSync(join(packageRoot, 'src', 'styles.css'), 'utf8');
+    expect(ownCss).toMatch(
+      /@keyframes mh-card-enter\s*\{[^}]*opacity:\s*0;[^}]*transform:\s*scale\(0\.96\);[^}]*\}[^}]*opacity:\s*1;[^}]*transform:\s*scale\(1\);/su,
+    );
+    expect(ownCss).toMatch(
+      /@keyframes mh-card-exit\s*\{[^}]*opacity:\s*1;[^}]*transform:\s*scale\(1\);[^}]*\}[^}]*opacity:\s*0;[^}]*transform:\s*scale\(0\.96\);/su,
+    );
+    expect(ownCss).toMatch(
+      /\.mh-card--entering\s*\{[^}]*animation:\s*mh-card-enter 180ms ease-in;/su,
+    );
+    expect(ownCss).toMatch(
+      /\.mh-card--exiting\s*\{[^}]*animation:\s*mh-card-exit 180ms ease-in forwards;/su,
+    );
+  });
 });

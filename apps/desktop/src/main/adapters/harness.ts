@@ -129,6 +129,7 @@ const chatTerminal = z.object({
 })
 
 let panel: ElectronPanel | undefined
+let dismissFallback: ReturnType<typeof setTimeout> | undefined
 let registered = false
 let quickAccessShortcut: DoubleControlShortcut | undefined
 let quickAccessOwner: GlobalShortcutOwner | undefined
@@ -261,11 +262,12 @@ function registerIpc(applicationWindow?: () => BrowserWindow | null): void {
   ipcMain.handle(BRIDGE_CHANNELS.harnessOpenChat, (_event, input: unknown) => {
     const id = chatId.parse(input)
     chatStore().open(id)
-    panel?.show()
+    showPanel()
     send(BRIDGE_CHANNELS.harnessChatSelected, { id })
   })
   ipcMain.handle(BRIDGE_CHANNELS.harnessHide, (event) => {
     owner(event)
+    clearDismissFallback()
     panel?.hide()
   })
   ipcMain.handle(BRIDGE_CHANNELS.harnessProvider, (event) => {
@@ -538,14 +540,45 @@ export async function startHarnessHost(options: {
 
 export function showHarnessHost(): void {
   if (!activationAllowed()) return
-  if (panel) panel.show()
+  if (panel) showPanel()
   else summonOnStart = true
 }
 
 export function toggleHarnessHost(): void {
   if (!activationAllowed()) return
-  if (panel) panel.toggle()
-  else summonOnStart = !summonOnStart
+  if (!panel) {
+    summonOnStart = !summonOnStart
+    return
+  }
+  const overlayWindow = panel.window()
+  if (overlayWindow?.isVisible()) requestPanelDismissal(overlayWindow)
+  else showPanel()
+}
+
+function clearDismissFallback(): void {
+  if (!dismissFallback) return
+  clearTimeout(dismissFallback)
+  dismissFallback = undefined
+}
+
+function showPanel(): void {
+  clearDismissFallback()
+  const overlayWindow = panel?.show()
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.webContents.send(BRIDGE_CHANNELS.harnessShown)
+  }
+}
+
+function requestPanelDismissal(overlayWindow: BrowserWindow): void {
+  clearDismissFallback()
+  overlayWindow.webContents.send(BRIDGE_CHANNELS.harnessDismissRequested)
+  dismissFallback = setTimeout(() => {
+    dismissFallback = undefined
+    if (panel?.window() === overlayWindow && overlayWindow.isVisible()) {
+      panel.hide()
+    }
+  }, 300)
+  dismissFallback.unref()
 }
 
 export function isHarnessBusy(): boolean {
@@ -554,6 +587,7 @@ export function isHarnessBusy(): boolean {
 
 export async function stopHarnessHost(): Promise<void> {
   preferenceLoadGeneration += 1
+  clearDismissFallback()
   quickAccessShortcut?.stop()
   quickAccessShortcut = undefined
   quickAccessOwner?.stop()

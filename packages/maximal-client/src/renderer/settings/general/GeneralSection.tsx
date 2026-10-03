@@ -9,7 +9,10 @@ import {
   Select,
   Switch,
 } from '@maximal/maximal-electron/renderer'
-import type { AssistantOutputFont } from '@maximal/maximal-harness'
+import type {
+  AgentEffort,
+  AssistantOutputFont,
+} from '@maximal/maximal-harness'
 
 import type { SettingsCapabilities } from '../capabilities'
 import { MenuBarOnlyDialog } from './MenuBarOnlyDialog'
@@ -23,12 +26,139 @@ interface GeneralSectionProps {
   capabilities: SettingsCapabilities
 }
 
+type AssistantSettingsState = ReturnType<typeof useAssistantOverlay>
+
+function AssistantModelControl({
+  assistant,
+}: {
+  assistant: AssistantSettingsState
+}): ReactElement {
+  if (assistant.provider === null) return <span>Loading…</span>
+  if (!('models' in assistant.provider)) return <span>Unavailable</span>
+  const modelKey = assistant.provider.state === 'ready'
+    ? assistant.provider.modelKey
+    : assistant.provider.preferredModel
+  if (modelKey === undefined || assistant.provider.models.length === 0) {
+    return <span>Unavailable</span>
+  }
+  return (
+    <Select<string>
+      aria-label="Default assistant model"
+      value={modelKey}
+      disabled={assistant.busy}
+      onChange={(next) => void assistant.setModel(next)}
+      options={assistant.provider.models.map((model) => ({
+        value: model.key,
+        label: model.label,
+      }))}
+      testId="assistant-default-model"
+    />
+  )
+}
+
+function AssistantEffortControl({
+  assistant,
+}: {
+  assistant: AssistantSettingsState
+}): ReactElement {
+  const provider = assistant.provider
+  if (provider === null) return <span>Loading…</span>
+  if (provider.state !== 'ready') return <span>Not supported</span>
+  const model = provider.models.find(({ key }) => key === provider.modelKey)
+  if (model === undefined || model.efforts.length === 0) {
+    return <span>Not supported</span>
+  }
+  return (
+    <Select<AgentEffort>
+      aria-label="Default assistant reasoning effort"
+      value={provider.effort ?? model.efforts[0]}
+      disabled={assistant.busy}
+      onChange={(next) => void assistant.setEffort(next)}
+      options={model.efforts.map((effort) => ({
+        value: effort,
+        label: effort === 'xhigh'
+          ? 'Extra high'
+          : effort[0].toLocaleUpperCase() + effort.slice(1),
+      }))}
+      testId="assistant-default-effort"
+    />
+  )
+}
+
+function AssistantOverlaySettings({
+  capabilities,
+}: GeneralSectionProps): ReactElement {
+  const assistant = useAssistantOverlay(capabilities)
+
+  return (
+    <SettingsSection
+      title="Assistant overlay"
+      description="Choose how the quick assistant appears above the desktop."
+    >
+      {assistant.error ? (
+        <Note status="failed" live="assertive">
+          {assistant.error}
+        </Note>
+      ) : null}
+      {assistant.preferences === null ? (
+        <Note live="polite">Loading assistant preferences…</Note>
+      ) : (
+        <SettingsGroup>
+          <SettingsItem
+            title="Default model"
+            description="Choose the model used when a new assistant conversation starts."
+            control={<AssistantModelControl assistant={assistant} />}
+          />
+          <SettingsItem
+            title="Reasoning effort"
+            description="Set the default reasoning depth for models that support it."
+            control={<AssistantEffortControl assistant={assistant} />}
+          />
+          <SettingsItem
+            title="Candy-coated background"
+            description="Use Maximal's sparkling red finish around the assistant controls."
+            control={(
+              <Switch
+                label="Candy-coated assistant background"
+                displayLabel={null}
+                checked={assistant.preferences.candy}
+                disabled={assistant.busy}
+                onChange={(next) => void assistant.setCandy(next)}
+                testId="assistant-candy-switch"
+              />
+            )}
+          />
+          <SettingsItem
+            title="Conversation font"
+            description="Choose the typeface used for assistant responses."
+            control={(
+              <Select<AssistantOutputFont>
+                aria-label="Conversation font"
+                value={assistant.preferences.outputFont}
+                disabled={assistant.busy}
+                onChange={(next) => void assistant.setOutputFont(next)}
+                options={[
+                  { value: 'auto', label: 'Auto' },
+                  { value: 'default', label: 'Default' },
+                  { value: 'terminal', label: 'Terminal' },
+                  { value: 'open-dyslexic', label: 'OpenDyslexic' },
+                  { value: 'serif', label: 'Baskerville' },
+                ]}
+                testId="assistant-output-font"
+              />
+            )}
+          />
+        </SettingsGroup>
+      )}
+    </SettingsSection>
+  )
+}
+
 export function GeneralSection({
   capabilities,
 }: GeneralSectionProps): ReactElement {
   const presence = useMenuBarPresence(capabilities)
   const general = useGeneralDesktopSettings(capabilities)
-  const assistant = useAssistantOverlay(capabilities)
 
   return (
     <section className="settings-section">
@@ -93,56 +223,7 @@ export function GeneralSection({
           </SettingsGroup>
         )}
       </SettingsSection>
-      <SettingsSection
-        title="Assistant overlay"
-        description="Choose how the quick assistant appears above the desktop."
-      >
-        {assistant.error ? (
-          <Note status="failed" live="assertive">
-            {assistant.error}
-          </Note>
-        ) : null}
-        {assistant.preferences === null ? (
-          <Note live="polite">Loading assistant preferences…</Note>
-        ) : (
-          <SettingsGroup>
-            <SettingsItem
-              title="Candy-coated background"
-              description="Use Maximal's sparkling red finish around the assistant controls."
-              control={(
-                <Switch
-                  label="Candy-coated assistant background"
-                  displayLabel={null}
-                  checked={assistant.preferences.candy}
-                  disabled={assistant.busy}
-                  onChange={(next) => void assistant.setCandy(next)}
-                  testId="assistant-candy-switch"
-                />
-              )}
-            />
-            <SettingsItem
-              title="Conversation font"
-              description="Choose the typeface used for assistant responses."
-              control={(
-                <Select<AssistantOutputFont>
-                  aria-label="Conversation font"
-                  value={assistant.preferences.outputFont}
-                  disabled={assistant.busy}
-                  onChange={(next) => void assistant.setOutputFont(next)}
-                  options={[
-                    { value: 'auto', label: 'Auto' },
-                    { value: 'default', label: 'Default' },
-                    { value: 'terminal', label: 'Terminal' },
-                    { value: 'open-dyslexic', label: 'OpenDyslexic' },
-                    { value: 'serif', label: 'Baskerville' },
-                  ]}
-                  testId="assistant-output-font"
-                />
-              )}
-            />
-          </SettingsGroup>
-        )}
-      </SettingsSection>
+      <AssistantOverlaySettings capabilities={capabilities} />
       <SettingsSection
         title="Notifications"
         description="Control whether Maximal can alert you through the operating system."
