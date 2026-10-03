@@ -12,6 +12,7 @@ import {
   AppFrame as PackageAppFrame,
   IconButton,
   Menu,
+  SHELL_PANEL_SIZES,
   type Tab,
   type TabTransferOptions,
 } from '@maximal/maximal-electron/renderer'
@@ -32,12 +33,7 @@ export {
 } from '@maximal/maximal-electron/renderer'
 
 const LAYOUT_ID = 'maximal'
-const LEFT_PANEL_SIZE = {
-  default: '228px',
-  min: '168px',
-  max: '320px',
-  collapsed: '0',
-}
+const LEFT_PANEL_SIZE = { ...SHELL_PANEL_SIZES.sidebar, collapsed: '0' }
 const COLLAPSED_LAYOUTS = {
   both: { left: 0, main: 100, right: 0 },
   left: { left: 0, main: 100 },

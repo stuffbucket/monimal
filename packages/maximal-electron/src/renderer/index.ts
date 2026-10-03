@@ -36,6 +36,7 @@ export {
   type ShellPanel,
   type ShellLayoutProps,
 } from './components/ShellLayout.js';
+export { SHELL_PANEL_SIZES } from './lib/panel-sizes.js';
 export {
   getTabPanelId,
   getTabTriggerId,
