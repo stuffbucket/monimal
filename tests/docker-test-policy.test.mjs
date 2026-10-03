@@ -792,7 +792,7 @@ test("required CI runs native checks before Docker and has one cache writer", ()
   const testGate =
     "pnpm test -- --trace=${{ inputs.test_trace || 'off' }}";
   const affectedBaseFetch =
-    "git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main";
+    "git fetch --no-tags --unshallow origin main:refs/remotes/origin/main";
   const packageGate = "pnpm run package:all";
   assert.equal(workflow.split(staticGate).length - 1, 1);
   assert.equal(workflow.split(staticRatchets).length - 1, 1);
