@@ -1,7 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 
-import type { AssistantOutputFont } from '@maximal/maximal-harness'
+import type {
+  AgentEffort,
+  AssistantOutputFont,
+} from '@maximal/maximal-harness'
 
 import type {
   AssistantOverlayPreferences,
@@ -10,6 +13,7 @@ import type {
 import { describeError } from '../../shared/errors'
 
 const assistantOverlayQueryKey = ['settings', 'assistant-overlay'] as const
+const assistantProviderQueryKey = ['settings', 'assistant-provider'] as const
 
 export function useAssistantOverlay(capabilities: SettingsCapabilities) {
   const queryClient = useQueryClient()
@@ -17,7 +21,11 @@ export function useAssistantOverlay(capabilities: SettingsCapabilities) {
     queryKey: assistantOverlayQueryKey,
     queryFn: () => capabilities.general.assistantOverlay(),
   })
-  const mutation = useMutation({
+  const providerQuery = useQuery({
+    queryKey: assistantProviderQueryKey,
+    queryFn: () => capabilities.general.assistantProvider(),
+  })
+  const preferenceMutation = useMutation({
     mutationFn: (
       update: Partial<Pick<AssistantOverlayPreferences, 'candy' | 'outputFont'>>,
     ) => capabilities.general.updateAssistantOverlay(update),
@@ -25,21 +33,54 @@ export function useAssistantOverlay(capabilities: SettingsCapabilities) {
       queryClient.setQueryData(assistantOverlayQueryKey, next)
     },
   })
+  const modelMutation = useMutation({
+    mutationFn: (modelKey: string) =>
+      capabilities.general.setAssistantModel(modelKey),
+    onSuccess: (next) => {
+      queryClient.setQueryData(assistantProviderQueryKey, next)
+    },
+  })
+  const effortMutation = useMutation({
+    mutationFn: (effort: AgentEffort) =>
+      capabilities.general.setAssistantEffort(effort),
+    onSuccess: (next) => {
+      queryClient.setQueryData(assistantProviderQueryKey, next)
+    },
+  })
 
   const setCandy = useCallback(async (candy: boolean) => {
-    await mutation.mutateAsync({ candy }).catch(() => undefined)
-  }, [mutation])
+    await preferenceMutation.mutateAsync({ candy }).catch(() => undefined)
+  }, [preferenceMutation])
 
   const setOutputFont = useCallback(async (outputFont: AssistantOutputFont) => {
-    await mutation.mutateAsync({ outputFont }).catch(() => undefined)
-  }, [mutation])
+    await preferenceMutation.mutateAsync({ outputFont }).catch(() => undefined)
+  }, [preferenceMutation])
 
-  const error = mutation.error ?? query.error
+  const setModel = useCallback(async (modelKey: string) => {
+    await modelMutation.mutateAsync(modelKey).catch(() => undefined)
+  }, [modelMutation])
+
+  const setEffort = useCallback(async (effort: AgentEffort) => {
+    await effortMutation.mutateAsync(effort).catch(() => undefined)
+  }, [effortMutation])
+
+  const error =
+    preferenceMutation.error
+    ?? modelMutation.error
+    ?? effortMutation.error
+    ?? query.error
+    ?? providerQuery.error
   return {
-    busy: mutation.isPending,
+    busy:
+      preferenceMutation.isPending
+      || modelMutation.isPending
+      || effortMutation.isPending,
     error: error === null ? null : describeError(error),
     preferences: query.data ?? null,
+    provider: providerQuery.data ?? null,
     setCandy,
+    setEffort,
+    setModel,
     setOutputFont,
   }
 }

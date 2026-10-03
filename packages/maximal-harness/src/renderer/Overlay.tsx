@@ -1,4 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import { Button, Dialog, Menu } from '@maximal/maximal-electron/renderer';
 import { TERMINAL_ICON_URLS } from '@maximal/maximal-assets/terminal-icons';
@@ -63,6 +68,8 @@ export interface HarnessTransport {
   onApproval: (listener: (request: AgentApprovalRequest) => void) => () => void;
   onEnd: (listener: (result: AgentEnd) => void) => () => void;
   onModelProgress: (listener: (progress: ModelProgress) => void) => () => void;
+  onShown: (listener: () => void) => () => void;
+  onDismissRequested: (listener: () => void) => () => void;
   onPreferences: (
     listener: (preferences: AssistantOverlayPreferences) => void,
   ) => () => void;
@@ -268,6 +275,9 @@ function ResponseContent({ text }: { text: string }) {
 }
 
 export function Overlay({ transport }: { transport: HarnessTransport }) {
+  const [animationPhase, setAnimationPhase] = useState<'entering' | 'open' | 'exiting'>(
+    'entering',
+  );
   const [status, setStatus] = useState<ProviderStatus>({ state: 'probing' });
   const [prompt, setPrompt] = useState('');
   const [answer, setAnswer] = useState('');
@@ -298,16 +308,69 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
   const modelPicker = useRef<HTMLButtonElement>(null);
   const answerBox = useRef<HTMLDivElement>(null);
   const followOutput = useRef(true);
-  const lastEscape = useRef(0);
   const scrollTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const dismissTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const dismissalStarted = useRef(false);
+  const dismissalCompleted = useRef(false);
 
   useEffect(() => () => {
     if (scrollTimer.current) clearTimeout(scrollTimer.current);
+    if (dismissTimer.current) clearTimeout(dismissTimer.current);
   }, []);
 
-  const hide = useCallback(() => {
+  const finishDismissal = useCallback(() => {
+    if (dismissalCompleted.current) return;
+    dismissalCompleted.current = true;
+    if (dismissTimer.current) clearTimeout(dismissTimer.current);
+    dismissTimer.current = undefined;
     void transport.hide();
   }, [transport]);
+
+  const hide = useCallback(() => {
+    if (dismissalStarted.current) return;
+    dismissalStarted.current = true;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      finishDismissal();
+      return;
+    }
+    setAnimationPhase('exiting');
+    dismissTimer.current = setTimeout(finishDismissal, 250);
+  }, [finishDismissal]);
+
+  const summon = useCallback(() => {
+    dismissalStarted.current = false;
+    dismissalCompleted.current = false;
+    if (dismissTimer.current) clearTimeout(dismissTimer.current);
+    dismissTimer.current = undefined;
+    setAnimationPhase('entering');
+    input.current?.focus();
+    requestAnimationFrame(() => input.current?.focus());
+  }, []);
+
+  const onCardAnimationEnd = useCallback(
+    (event: AnimationEvent) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement) || target.dataset.testid !== 'overlay-card') {
+        return;
+      }
+      if (animationPhase === 'exiting') {
+        finishDismissal();
+        return;
+      }
+      if (animationPhase === 'entering') {
+        setAnimationPhase('open');
+        input.current?.focus();
+      }
+    },
+    [animationPhase, finishDismissal],
+  );
+
+  useEffect(() => transport.onDismissRequested(hide), [hide, transport]);
+  useEffect(() => transport.onShown(summon), [summon, transport]);
+  useEffect(() => {
+    document.addEventListener('animationend', onCardAnimationEnd);
+    return () => document.removeEventListener('animationend', onCardAnimationEnd);
+  }, [onCardAnimationEnd]);
 
   // Probe on every summon. A backend can come up while the card is closed, and
   // wiggle's promise is that it connects the moment one appears.
@@ -351,11 +414,10 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
   );
 
   useEffect(() => {
-    const focus = () => input.current?.focus();
-    focus();
-    window.addEventListener('focus', focus);
-    return () => window.removeEventListener('focus', focus);
-  }, []);
+    summon();
+    window.addEventListener('focus', summon);
+    return () => window.removeEventListener('focus', summon);
+  }, [summon]);
 
   useEffect(() => {
     void transport.preferences().then(setPreferences);
@@ -654,18 +716,20 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
         decide(false);
         return;
       }
-      const now = Date.now();
-      if (now - lastEscape.current < 500) {
+      if (busy) {
+        void transport.abort();
+        setBusy(false);
+        return;
+      }
+      if (prompt || attachments.length > 0) {
         setPrompt('');
         setAttachments([]);
         setHistoryIndex(-1);
-      } else if (busy) {
-        void transport.abort();
-        setBusy(false);
+        return;
       }
-      lastEscape.current = now;
+      hide();
     },
-    [approval, busy, decide, transport],
+    [approval, attachments.length, busy, decide, hide, prompt, transport],
   );
 
   const ready = status.state === 'ready';
@@ -712,7 +776,9 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
         open
         modal={false}
         title={HARNESS_COPY.overlay.title}
-        className={`sb-shell mh-card${showStage ? ' mh-card--expanded' : ''}${
+        className={`sb-shell mh-card mh-card--${animationPhase}${
+          showStage ? ' mh-card--expanded' : ''
+        }${
           preferences.candy ? ' mh-card-candy shell-candy-surface' : ''
         } mh-card--font-${preferences.outputFont}`}
         testId="overlay-card"

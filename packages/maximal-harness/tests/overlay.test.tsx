@@ -59,6 +59,8 @@ function fakeTransport(initialStatus: ProviderStatus = {
   const approval = channel<AgentApprovalRequest>();
   const end = channel<AgentEnd>();
   const modelProgress = channel<ModelProgress>();
+  const shown = channel<void>();
+  const dismissRequested = channel<void>();
   const preferences = channel<AssistantOverlayPreferences>();
   const chatSelected = channel<string>();
   const transport: HarnessTransport = {
@@ -133,6 +135,8 @@ function fakeTransport(initialStatus: ProviderStatus = {
     onApproval: approval.subscribe,
     onEnd: end.subscribe,
     onModelProgress: modelProgress.subscribe,
+    onShown: shown.subscribe,
+    onDismissRequested: dismissRequested.subscribe,
     onPreferences: preferences.subscribe,
     onChatSelected: chatSelected.subscribe,
   };
@@ -144,6 +148,8 @@ function fakeTransport(initialStatus: ProviderStatus = {
     approval,
     end,
     modelProgress,
+    shown,
+    dismissRequested,
     setStatus(next: ProviderStatus) {
       status = next;
     },
@@ -164,6 +170,7 @@ afterEach(() => {
   if (root) act(() => root?.unmount());
   root = undefined;
   document.body.replaceChildren();
+  vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
@@ -215,6 +222,12 @@ function click(id: string): void {
   const element = byTestId(id);
   if (!(element instanceof HTMLButtonElement)) throw new Error(`${id} is not a button`);
   element.click();
+}
+
+function finishCardAnimation(): void {
+  byTestId('overlay-card').dispatchEvent(
+    new Event('animationend', { bubbles: true }),
+  );
 }
 
 describe('Overlay', () => {
@@ -444,6 +457,9 @@ describe('Overlay', () => {
     });
     await settle();
 
+    expect(byTestId('overlay-card').classList).toContain('mh-card--exiting');
+    expect(fake.transport.hide).not.toHaveBeenCalled();
+    act(finishCardAnimation);
     expect(fake.transport.hide).toHaveBeenCalledTimes(1);
   });
 
@@ -559,6 +575,7 @@ describe('Overlay', () => {
     await settle();
 
     expect(fake.transport.chats.terminal).toHaveBeenCalledWith('chat-1', 80, 24);
+    act(finishCardAnimation);
     expect(fake.transport.hide).toHaveBeenCalledTimes(1);
   });
 
@@ -581,6 +598,7 @@ describe('Overlay', () => {
 
     expect(fake.transport.ask).toHaveBeenCalledTimes(1);
     expect(fake.transport.chats.terminal).toHaveBeenCalledWith('chat-1', 80, 24);
+    act(finishCardAnimation);
     expect(fake.transport.hide).toHaveBeenCalledTimes(1);
     },
   );
@@ -595,12 +613,14 @@ describe('Overlay', () => {
     });
     await settle();
 
+    expect(fake.transport.hide).not.toHaveBeenCalled();
+    act(finishCardAnimation);
     expect(fake.transport.hide).toHaveBeenCalledTimes(1);
     expect(fake.transport.ask).not.toHaveBeenCalled();
     expect(fake.transport.chats.terminal).not.toHaveBeenCalled();
   });
 
-  it('aborts on Escape and clears a draft on double Escape without dismissing', async () => {
+  it('handles Escape in order: abort, clear a draft, then dismiss', async () => {
     const fake = fakeTransport();
     await renderOverlay(fake.transport);
 
@@ -622,6 +642,57 @@ describe('Overlay', () => {
     });
     expect((byTestId('overlay-input') as HTMLTextAreaElement).value).toBe('');
     expect(fake.transport.hide).not.toHaveBeenCalled();
+
+    act(() => {
+      keyDown(document, 'Escape');
+    });
+    expect(fake.transport.hide).not.toHaveBeenCalled();
+    act(finishCardAnimation);
+    expect(fake.transport.hide).toHaveBeenCalledTimes(1);
+  });
+
+  it('animates main-process dismissal requests before hiding once', async () => {
+    const fake = fakeTransport();
+    await renderOverlay(fake.transport);
+
+    act(() => fake.dismissRequested.emit(undefined));
+    expect(byTestId('overlay-card').classList).toContain('mh-card--exiting');
+    expect(fake.transport.hide).not.toHaveBeenCalled();
+
+    act(() => fake.dismissRequested.emit(undefined));
+    act(finishCardAnimation);
+    act(finishCardAnimation);
+    expect(fake.transport.hide).toHaveBeenCalledTimes(1);
+  });
+
+  it('restarts entrance and focuses the prompt when shown again', async () => {
+    const fake = fakeTransport();
+    await renderOverlay(fake.transport);
+    act(finishCardAnimation);
+    const input = byTestId('overlay-input');
+    input.blur();
+
+    act(() => fake.shown.emit(undefined));
+    expect(byTestId('overlay-card').classList).toContain('mh-card--entering');
+    expect(document.activeElement).toBe(input);
+  });
+
+  it('dismisses immediately when reduced motion is preferred', async () => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({
+      matches: true,
+      media: '(prefers-reduced-motion: reduce)',
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })));
+    const fake = fakeTransport();
+    await renderOverlay(fake.transport);
+
+    act(() => fake.dismissRequested.emit(undefined));
+    expect(fake.transport.hide).toHaveBeenCalledTimes(1);
   });
 
   it('supports Allow and Skip pills with Command+Enter and Escape shortcuts', async () => {

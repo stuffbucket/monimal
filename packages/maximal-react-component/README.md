@@ -13,13 +13,14 @@ Vite editor-opening handoff.
 
 Option-right-click opens a persistent component-stack card beside the selected
 element. Owners are ordered from the outer window-level component toward the
-targeted host component and appear as a clickable, indented vertical stack in
-the card's name area. Previous and next controls, Left/Right/Home/End, or the mouse
-wheel choose an owner and move the element overlay to its host boundary. Clicking any
-component name selects that owner, while double-clicking its name opens its
-source in the editor. Pressing Enter or using the source icon opens the selected
-owner. The chevron beside the owner names switches between the full indented
-stack and only the selected owner. Holding Control switches to a compact name preview;
+targeted host component. The card shows the selected owner and up to two direct
+parents as a clickable, indented stack. Previous and next controls,
+Left/Right/Home/End, or the mouse wheel choose an owner and move the visible
+window and element overlay to its host boundary. Clicking any component name
+selects that owner, while double-clicking its name opens its source in the
+editor. Pressing Enter or using the source icon opens the selected owner. The
+chevron beside the owner names switches between the three-owner window and only
+the selected owner. Holding Control switches to a compact name preview;
 Control-click drills inward, and releasing Control restores the full card at
 the selected boundary. Escape or clicking outside the card dismisses it.
 Releasing Option does not dismiss it.

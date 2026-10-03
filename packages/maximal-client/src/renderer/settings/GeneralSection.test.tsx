@@ -131,6 +131,73 @@ function fakeCapabilities(options?: {
       outputFont: 'auto' as const,
       hotkey: 'CommandOrControl+Shift+Space',
     })),
+    assistantProvider: vi.fn(async () => ({
+      state: 'ready' as const,
+      provider: 'maximal' as const,
+      model: 'claude-haiku',
+      modelKey: 'maximal:claude-haiku',
+      effort: 'medium' as const,
+      models: [
+        {
+          key: 'maximal:claude-haiku',
+          label: 'Claude Haiku',
+          model: 'claude-haiku',
+          provider: 'maximal' as const,
+          description: 'Fast',
+          efforts: ['low', 'medium', 'high'] as const,
+        },
+        {
+          key: 'maximal:claude-sonnet',
+          label: 'Claude Sonnet',
+          model: 'claude-sonnet',
+          provider: 'maximal' as const,
+          description: 'Capable',
+          efforts: ['low', 'medium', 'high', 'xhigh'] as const,
+        },
+      ],
+    })),
+    setAssistantModel: vi.fn(async (modelKey: string) => ({
+      state: 'ready' as const,
+      provider: 'maximal' as const,
+      model: modelKey === 'maximal:claude-sonnet' ? 'claude-sonnet' : 'claude-haiku',
+      modelKey,
+      effort: 'medium' as const,
+      models: [
+        {
+          key: 'maximal:claude-haiku',
+          label: 'Claude Haiku',
+          model: 'claude-haiku',
+          provider: 'maximal' as const,
+          description: 'Fast',
+          efforts: ['low', 'medium', 'high'] as const,
+        },
+        {
+          key: 'maximal:claude-sonnet',
+          label: 'Claude Sonnet',
+          model: 'claude-sonnet',
+          provider: 'maximal' as const,
+          description: 'Capable',
+          efforts: ['low', 'medium', 'high', 'xhigh'] as const,
+        },
+      ],
+    })),
+    setAssistantEffort: vi.fn(async (effort: 'low' | 'medium' | 'high' | 'xhigh' | 'max') => ({
+      state: 'ready' as const,
+      provider: 'maximal' as const,
+      model: 'claude-haiku',
+      modelKey: 'maximal:claude-haiku',
+      effort,
+      models: [
+        {
+          key: 'maximal:claude-haiku',
+          label: 'Claude Haiku',
+          model: 'claude-haiku',
+          provider: 'maximal' as const,
+          description: 'Fast',
+          efforts: ['low', 'medium', 'high'] as const,
+        },
+      ],
+    })),
     updateAssistantOverlay: vi.fn(async (update: {
       candy?: boolean
       approval?: 'all' | 'read-only' | 'writes' | 'none'
@@ -667,6 +734,16 @@ describe('GeneralSection', () => {
     expect(surface.textContent).toContain('Quick access shortcut')
     expect(surface.textContent).toContain('Ctrl Ctrl')
     expect(surface.textContent).toContain('Menu bar')
+    expect(surface.textContent).toContain('Default model')
+    expect(surface.textContent).toContain('Reasoning effort')
+    expect(
+      surface.querySelector<HTMLSelectElement>('[data-testid="assistant-default-model"]')
+        ?.value,
+    ).toBe('maximal:claude-haiku')
+    expect(
+      surface.querySelector<HTMLSelectElement>('[data-testid="assistant-default-effort"]')
+        ?.value,
+    ).toBe('medium')
     expect(surface.querySelector('[data-testid="assistant-candy-switch"]')).not.toBeNull()
     expect(surface.textContent).toContain(
       'Manage notification permission, alerts, and sounds in system settings.',
@@ -674,6 +751,34 @@ describe('GeneralSection', () => {
     expect(switchControl(surface).getAttribute('role')).toBe('switch')
     expect(switchControl(surface).getAttribute('data-layout')).toBe('compact')
     expect(surface.querySelector('[aria-live="assertive"]')).toBeNull()
+  })
+
+  it('updates the default assistant model and reasoning effort', async () => {
+    const { capabilities, general } = fakeCapabilities()
+    const surface = await renderGeneral(capabilities)
+    const model = surface.querySelector<HTMLSelectElement>(
+      '[data-testid="assistant-default-model"]',
+    )
+    const effort = surface.querySelector<HTMLSelectElement>(
+      '[data-testid="assistant-default-effort"]',
+    )
+    if (model === null || effort === null) {
+      throw new Error('Assistant defaults were not rendered')
+    }
+
+    await act(async () => {
+      model.value = 'maximal:claude-sonnet'
+      model.dispatchEvent(new Event('change', { bubbles: true }))
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(general.setAssistantModel).toHaveBeenCalledWith('maximal:claude-sonnet')
+
+    await act(async () => {
+      effort.value = 'high'
+      effort.dispatchEvent(new Event('change', { bubbles: true }))
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(general.setAssistantEffort).toHaveBeenCalledWith('high')
   })
 
   it('updates Electron login-item startup behavior', async () => {

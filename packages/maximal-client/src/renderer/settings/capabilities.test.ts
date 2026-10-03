@@ -321,6 +321,8 @@ function fakeBridge(): MaximalHost {
       onApproval: vi.fn(() => () => {}),
       onEnd: vi.fn(() => () => {}),
       onModelProgress: vi.fn(() => () => {}),
+      onShown: vi.fn(() => () => {}),
+      onDismissRequested: vi.fn(() => () => {}),
       onPreferences: vi.fn(() => () => {}),
       onChatSelected: vi.fn(() => () => {}),
       onChatsChanged: vi.fn(() => () => {}),

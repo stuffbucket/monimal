@@ -679,6 +679,8 @@ describe('closed IPC boundary', () => {
       BRIDGE_CHANNELS.harnessApproval,
       BRIDGE_CHANNELS.harnessEnd,
       BRIDGE_CHANNELS.harnessModelProgress,
+      BRIDGE_CHANNELS.harnessShown,
+      BRIDGE_CHANNELS.harnessDismissRequested,
       BRIDGE_CHANNELS.harnessPreferencesChanged,
       BRIDGE_CHANNELS.harnessChatSelected,
       BRIDGE_CHANNELS.harnessChatsChanged,

@@ -790,7 +790,9 @@ test("required CI runs native checks before Docker and has one cache writer", ()
   const sidecarProvenance =
     "LINK=apps/desktop/node_modules/@maximal/maximal-core";
   const testGate =
-    "pnpm run test:all -- --trace=${{ inputs.test_trace || 'off' }}";
+    "pnpm test -- --trace=${{ inputs.test_trace || 'off' }}";
+  const affectedBaseFetch =
+    "git fetch --no-tags --unshallow origin main:refs/remotes/origin/main";
   const packageGate = "pnpm run package:all";
   assert.equal(workflow.split(staticGate).length - 1, 1);
   assert.equal(workflow.split(staticRatchets).length - 1, 1);
@@ -799,6 +801,7 @@ test("required CI runs native checks before Docker and has one cache writer", ()
   assert.equal(workflow.split(hostGate).length - 1, 1);
   assert.equal(workflow.split(sidecarProvenance).length - 1, 1);
   assert.equal(workflow.split(testGate).length - 1, 1);
+  assert.equal(workflow.split(affectedBaseFetch).length - 1, 1);
   assert.equal(workflow.split(packageGate).length - 1, 1);
   assert.equal(workflow.split("MONIMAL_PERF_MARKERS: 1").length - 1, 1);
   assert.equal(
@@ -829,6 +832,43 @@ test("required CI runs native checks before Docker and has one cache writer", ()
   assert.equal(workflow.split("pnpm-v1-").length - 1, 6);
   assert.match(workflow, /if: github\.event_name == 'push'/);
   assert.equal(workflow.split("turbo-v2-").length - 1, 6);
+});
+
+test("full PR tests restart on new commits and reconcile a non-blocking issue", () => {
+  const workflow = read(".github/workflows/full-test.yml");
+  const reporter = read(".github/workflows/full-test-failure.yml");
+
+  assert.match(workflow, /^name: Full test graph$/m);
+  assert.match(workflow, /push:\n    branches: \[main\]/);
+  assert.match(workflow, /types: \[opened, synchronize\]/);
+  assert.match(
+    workflow,
+    /group: full-test-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref \}\}/,
+  );
+  assert.match(workflow, /cancel-in-progress: true/);
+  assert.match(workflow, /name: full test graph \(non-blocking\)/);
+  assert.match(
+    workflow,
+    /ref: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/,
+  );
+  assert.match(workflow, /persist-credentials: false/);
+  assert.match(workflow, /pnpm install --frozen-lockfile/);
+  assert.match(workflow, /pnpm run test:all/);
+  assert.doesNotMatch(workflow, /issues: write/);
+
+  assert.match(reporter, /^name: Report full test failure$/m);
+  assert.match(reporter, /workflows: \["Full test graph"\]/);
+  assert.match(reporter, /github\.event\.workflow_run\.conclusion == 'failure'/);
+  assert.match(reporter, /github\.event\.workflow_run\.conclusion == 'success'/);
+  assert.match(reporter, /issues: write/);
+  assert.match(reporter, /full-test-pr:\$pr_number/);
+  assert.match(reporter, /Full test graph status for PR #\$pr_number/);
+  assert.match(reporter, /Ignoring stale full test result/);
+  assert.match(reporter, /gh pr view "\$pr_number"/);
+  assert.match(reporter, /gh issue create/);
+  assert.match(reporter, /gh issue close/);
+  assert.match(reporter, /gh issue reopen/);
+  assert.doesNotMatch(reporter, /actions\/checkout|pnpm install|node_modules/);
 });
 
 test("PowerShell 5.1 conformance writes explicit UTF-16LE bytes", () => {

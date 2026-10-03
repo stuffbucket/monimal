@@ -1,0 +1,135 @@
+name: Report full test failure
+
+on:
+  workflow_run:
+    workflows: ["Full test graph"]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  report:
+    name: report full test status
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Reconcile full test issue
+        env:
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          SOURCE_EVENT: ${{ github.event.workflow_run.event }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Invalid workflow head SHA: $HEAD_SHA"
+            exit 1
+          fi
+
+          pr_number="$PR_NUMBER"
+          if [ "$SOURCE_EVENT" = "pull_request" ] && [ -z "$pr_number" ]; then
+            pr_number="$(
+              gh api "repos/$REPOSITORY/commits/$HEAD_SHA/pulls" \
+                --jq '.[0].number // empty'
+            )"
+          fi
+
+          if [ -n "$pr_number" ]; then
+            current_head="$(
+              gh pr view "$pr_number" \
+                --repo "$REPOSITORY" \
+                --json headRefOid \
+                --jq .headRefOid
+            )"
+          else
+            current_head="$(
+              gh api "repos/$REPOSITORY/commits/main" --jq .sha
+            )"
+          fi
+          if [ "$HEAD_SHA" != "$current_head" ]; then
+            echo "Ignoring stale full test result for $HEAD_SHA; current head is $current_head."
+            exit 0
+          fi
+
+          short_sha="${HEAD_SHA:0:12}"
+          commit_url="${{ github.server_url }}/$REPOSITORY/commit/$HEAD_SHA"
+          if [ -n "$pr_number" ]; then
+            title="Full test graph status for PR #$pr_number"
+            marker="full-test-pr:$pr_number"
+          else
+            title="Full test graph failed for $HEAD_SHA"
+            marker="full-test-commit:$HEAD_SHA"
+          fi
+
+          issue_number="$(
+            gh issue list \
+              --repo "$REPOSITORY" \
+              --state all \
+              --limit 100 \
+              --search "\"$title\" in:title" \
+              --json number,title \
+              --jq "map(select(.title == \"$title\"))[0].number // empty"
+          )"
+          issue_state=""
+          if [ -n "$issue_number" ]; then
+            issue_state="$(
+              gh issue view "$issue_number" \
+                --repo "$REPOSITORY" \
+                --json state \
+                --jq .state
+            )"
+          fi
+
+          if [ "$CONCLUSION" = "success" ]; then
+            if [ -n "$pr_number" ] && [ "$issue_state" = "OPEN" ]; then
+              gh issue comment "$issue_number" \
+                --repo "$REPOSITORY" \
+                --body "The full test graph passed for [$short_sha]($commit_url): $RUN_URL"
+              gh issue close "$issue_number" --repo "$REPOSITORY"
+            fi
+            exit 0
+          fi
+
+          if [ -n "$issue_number" ]; then
+            if [ "$issue_state" = "CLOSED" ]; then
+              gh issue reopen "$issue_number" --repo "$REPOSITORY"
+            fi
+            gh issue comment "$issue_number" \
+              --repo "$REPOSITORY" \
+              --body "The full test graph failed for [$short_sha]($commit_url): $RUN_URL"
+            exit 0
+          fi
+
+          issue_body="$RUNNER_TEMP/full-test-failure.md"
+          {
+            echo "<!-- $marker -->"
+            echo
+            echo "The non-blocking full test graph failed for commit [$short_sha]($commit_url)."
+            echo
+            if [ -n "$pr_number" ]; then
+              echo "- Pull request: #$pr_number"
+            fi
+            echo "- Workflow run: [$RUN_ID]($RUN_URL)"
+            echo
+            if [ -n "$pr_number" ]; then
+              echo "This issue follows PR #$pr_number. It will close when that PR's latest full test graph passes and reopen if a later commit fails."
+            else
+              echo "This check is intentionally not a merge gate. Investigate the run and close this issue once the failure is resolved or confirmed unrelated to the commit."
+            fi
+          } > "$issue_body"
+
+          gh issue create \
+            --repo "$REPOSITORY" \
+            --title "$title" \
+            --body-file "$issue_body"

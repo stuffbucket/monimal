@@ -30,7 +30,11 @@ import type {
   TokenUsagePeriod,
   TokenUsageSummary,
 } from '@maximal/maximal-core-contract/settings'
-import type { AssistantOverlayPreferences } from '@maximal/maximal-harness'
+import type {
+  AgentEffort,
+  AssistantOverlayPreferences,
+  ProviderStatus,
+} from '@maximal/maximal-harness'
 import type { LogFile } from '@maximal/maximal-logging'
 import type {
   DiscoveryRoot,
@@ -170,6 +174,9 @@ export interface SettingsCapabilities {
     systemNotificationStatus(): Promise<SystemNotificationStatus>
     openSystemNotificationSettings(): Promise<void>
     assistantOverlay(): Promise<AssistantOverlayPreferences>
+    assistantProvider(): Promise<ProviderStatus>
+    setAssistantModel(modelKey: string): Promise<ProviderStatus>
+    setAssistantEffort(effort: AgentEffort): Promise<ProviderStatus>
     updateAssistantOverlay(
       update: Partial<Pick<
         AssistantOverlayPreferences,
@@ -415,6 +422,9 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
       openSystemNotificationSettings: () =>
         bridge.systemNotifications.openSettings(),
       assistantOverlay: () => bridge.harness.preferences(),
+      assistantProvider: () => bridge.harness.provider(),
+      setAssistantModel: (modelKey) => bridge.harness.selectModel(modelKey),
+      setAssistantEffort: (effort) => bridge.harness.selectEffort(effort),
       updateAssistantOverlay: (update) => bridge.harness.updatePreferences(update),
     },
     providerOnboarding: {

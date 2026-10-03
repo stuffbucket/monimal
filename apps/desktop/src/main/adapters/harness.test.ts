@@ -28,6 +28,9 @@ const {
   createElectronPanelMock,
   discoverProviderMock,
   ensureModelMock,
+  globalShortcutOwnerIsOwner,
+  globalShortcutOwnerStart,
+  globalShortcutOwnerStop,
   handlers,
   ipcMainHandle,
   ipcMainRemoveHandler,
@@ -59,16 +62,21 @@ const {
     webContents: { send: ReturnType<typeof vi.fn> }
   }> = []
   const overlayWebContents = { send: vi.fn() }
-  const panelState = { destroyed: false }
+  const panelState = { destroyed: false, visible: true }
   const overlayWindow = {
     isDestroyed: () => panelState.destroyed,
-    isVisible: () => true,
+    isVisible: () => panelState.visible,
     webContents: overlayWebContents,
   }
   const panel = {
     window: vi.fn(() => overlayWindow),
-    show: vi.fn(),
-    hide: vi.fn(),
+    show: vi.fn(() => {
+      panelState.visible = true
+      return overlayWindow
+    }),
+    hide: vi.fn(() => {
+      panelState.visible = false
+    }),
     toggle: vi.fn(),
     destroy: vi.fn(),
   }
@@ -111,6 +119,9 @@ const {
     ensureModelMock: vi.fn((..._args: unknown[]) =>
       Promise.resolve({ state: 'ready' }),
     ),
+    globalShortcutOwnerIsOwner: vi.fn(() => true),
+    globalShortcutOwnerStart: vi.fn(),
+    globalShortcutOwnerStop: vi.fn(),
     handlers,
     ipcMainHandle: vi.fn((channel: string, handler: InvokeHandler) => {
       handlers.set(channel, handler)
@@ -193,6 +204,14 @@ vi.mock('uiohook-napi', () => ({
     }),
     start: keyHookStart,
     stop: keyHookStop,
+  },
+}))
+
+vi.mock('../native/global-shortcut-owner.js', () => ({
+  GlobalShortcutOwner: class {
+    start = globalShortcutOwnerStart
+    stop = globalShortcutOwnerStop
+    isOwner = globalShortcutOwnerIsOwner
   },
 }))
 
@@ -299,6 +318,8 @@ beforeEach(() => {
   browserWindows.length = 0
   vi.clearAllMocks()
   panelState.destroyed = false
+  panelState.visible = true
+  globalShortcutOwnerIsOwner.mockReturnValue(true)
   isAgentBusyMock.mockReturnValue(false)
   ensureModelMock.mockResolvedValue({ state: 'ready' })
   selectAgentModelMock.mockImplementation((modelKey: string) => {
@@ -678,20 +699,36 @@ describe('harness host lifecycle', () => {
     keyHookListeners.get('keyup')?.(control)
     keyHookListeners.get('keydown')?.(control)
     keyHookListeners.get('keyup')?.(control)
-    expect(panel.toggle).toHaveBeenCalledTimes(1)
+    expect(overlayWebContents.send).toHaveBeenCalledWith(
+      BRIDGE_CHANNELS.harnessDismissRequested,
+    )
     expect(keyHookStart).toHaveBeenCalledOnce()
+    expect(globalShortcutOwnerStart).toHaveBeenCalledOnce()
+
+    globalShortcutOwnerIsOwner.mockReturnValue(false)
+    keyHookListeners.get('keydown')?.(control)
+    keyHookListeners.get('keyup')?.(control)
+    keyHookListeners.get('keydown')?.(control)
+    keyHookListeners.get('keyup')?.(control)
+    expect(overlayWebContents.send).toHaveBeenCalledTimes(1)
 
     handler(BRIDGE_CHANNELS.harnessHide)(overlayEvent())
     expect(panel.hide).toHaveBeenCalledTimes(1)
 
     host.showHarnessHost()
     expect(panel.show).toHaveBeenCalledTimes(1)
+    expect(overlayWebContents.send).toHaveBeenCalledWith(
+      BRIDGE_CHANNELS.harnessShown,
+    )
 
     host.toggleHarnessHost()
-    expect(panel.toggle).toHaveBeenCalledTimes(2)
+    expect(overlayWebContents.send).toHaveBeenLastCalledWith(
+      BRIDGE_CHANNELS.harnessDismissRequested,
+    )
 
     await host.stopHarnessHost()
     expect(keyHookStop).toHaveBeenCalledOnce()
+    expect(globalShortcutOwnerStop).toHaveBeenCalledOnce()
     expect(panel.destroy).toHaveBeenCalledTimes(1)
     expect(shutdownAgentMock).toHaveBeenCalledTimes(1)
     expect(stopEngineMock).toHaveBeenCalledTimes(1)
@@ -729,9 +766,27 @@ describe('harness host lifecycle', () => {
     host.showHarnessHost()
     host.toggleHarnessHost()
     expect(panel.show).toHaveBeenCalledOnce()
-    expect(panel.toggle).toHaveBeenCalledOnce()
+    expect(overlayWebContents.send).toHaveBeenCalledWith(
+      BRIDGE_CHANNELS.harnessDismissRequested,
+    )
 
     await host.stopHarnessHost()
+  })
+
+  it('hides after a bounded delay when the overlay cannot finish dismissal', async () => {
+    vi.useFakeTimers()
+    try {
+      const host = await startHost()
+
+      host.toggleHarnessHost()
+      expect(panel.hide).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(300)
+      expect(panel.hide).toHaveBeenCalledOnce()
+
+      await host.stopHarnessHost()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('can disable the global keyboard hook for automated hosts', async () => {

@@ -500,6 +500,8 @@ export interface MaximalHost {
     onApproval: (listener: (request: AgentApprovalRequest) => void) => Unsubscribe
     onEnd: (listener: (result: AgentEnd) => void) => Unsubscribe
     onModelProgress: (listener: (progress: ModelProgress) => void) => Unsubscribe
+    onShown: (listener: () => void) => Unsubscribe
+    onDismissRequested: (listener: () => void) => Unsubscribe
     onPreferences: (
       listener: (preferences: AssistantOverlayPreferences) => void,
     ) => Unsubscribe

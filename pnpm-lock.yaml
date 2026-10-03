@@ -119,6 +119,9 @@ importers:
       '@maximal/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
+      '@maximal/maximal-project-browser':
+        specifier: workspace:*
+        version: link:../../packages/maximal-project-browser
       '@maximal/maximal-react-component':
         specifier: workspace:*
         version: link:../../packages/maximal-react-component

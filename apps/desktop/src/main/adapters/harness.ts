@@ -45,6 +45,7 @@ import { loadHarnessOptions } from './harness-options.js'
 import { launchAssistantTerminal } from './terminal.js'
 import { mainLogger } from '../main-logger.js'
 import { DoubleControlShortcut } from '../native/double-control-shortcut.js'
+import { GlobalShortcutOwner } from '../native/global-shortcut-owner.js'
 import {
   readUserPreferences,
   updateUserPreferences,
@@ -128,8 +129,10 @@ const chatTerminal = z.object({
 })
 
 let panel: ElectronPanel | undefined
+let dismissFallback: ReturnType<typeof setTimeout> | undefined
 let registered = false
 let quickAccessShortcut: DoubleControlShortcut | undefined
+let quickAccessOwner: GlobalShortcutOwner | undefined
 let activationAllowed = (): boolean => true
 let overlayAnchor: OverlayAnchor | undefined
 let anchorMoved = false
@@ -259,11 +262,12 @@ function registerIpc(applicationWindow?: () => BrowserWindow | null): void {
   ipcMain.handle(BRIDGE_CHANNELS.harnessOpenChat, (_event, input: unknown) => {
     const id = chatId.parse(input)
     chatStore().open(id)
-    panel?.show()
+    showPanel()
     send(BRIDGE_CHANNELS.harnessChatSelected, { id })
   })
   ipcMain.handle(BRIDGE_CHANNELS.harnessHide, (event) => {
     owner(event)
+    clearDismissFallback()
     panel?.hide()
   })
   ipcMain.handle(BRIDGE_CHANNELS.harnessProvider, (event) => {
@@ -506,10 +510,25 @@ export async function startHarnessHost(options: {
 
   if (process.env['MAXIMAL_DISABLE_GLOBAL_KEYBOARD_HOOK'] !== '1') {
     const { uIOhook } = await import('uiohook-napi')
-    quickAccessShortcut = new DoubleControlShortcut(uIOhook, toggleHarnessHost)
+    // Parallel development profiles share the OS gesture; only the newest live
+    // app may react, while older profiles remain available through their UI.
+    const owner = new GlobalShortcutOwner()
+    quickAccessShortcut = new DoubleControlShortcut(uIOhook, () => {
+      try {
+        if (owner.isOwner()) toggleHarnessHost()
+      } catch (error) {
+        mainLogger.error(
+          { errorName: error instanceof Error ? error.name : 'unknown' },
+          'Assistant shortcut ownership check failed',
+        )
+      }
+    })
     try {
+      owner.start()
       quickAccessShortcut.start()
+      quickAccessOwner = owner
     } catch (error) {
+      owner.stop()
       quickAccessShortcut = undefined
       mainLogger.error(
         { errorName: error instanceof Error ? error.name : 'unknown' },
@@ -521,14 +540,45 @@ export async function startHarnessHost(options: {
 
 export function showHarnessHost(): void {
   if (!activationAllowed()) return
-  if (panel) panel.show()
+  if (panel) showPanel()
   else summonOnStart = true
 }
 
 export function toggleHarnessHost(): void {
   if (!activationAllowed()) return
-  if (panel) panel.toggle()
-  else summonOnStart = !summonOnStart
+  if (!panel) {
+    summonOnStart = !summonOnStart
+    return
+  }
+  const overlayWindow = panel.window()
+  if (overlayWindow?.isVisible()) requestPanelDismissal(overlayWindow)
+  else showPanel()
+}
+
+function clearDismissFallback(): void {
+  if (!dismissFallback) return
+  clearTimeout(dismissFallback)
+  dismissFallback = undefined
+}
+
+function showPanel(): void {
+  clearDismissFallback()
+  const overlayWindow = panel?.show()
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.webContents.send(BRIDGE_CHANNELS.harnessShown)
+  }
+}
+
+function requestPanelDismissal(overlayWindow: BrowserWindow): void {
+  clearDismissFallback()
+  overlayWindow.webContents.send(BRIDGE_CHANNELS.harnessDismissRequested)
+  dismissFallback = setTimeout(() => {
+    dismissFallback = undefined
+    if (panel?.window() === overlayWindow && overlayWindow.isVisible()) {
+      panel.hide()
+    }
+  }, 300)
+  dismissFallback.unref()
 }
 
 export function isHarnessBusy(): boolean {
@@ -537,8 +587,11 @@ export function isHarnessBusy(): boolean {
 
 export async function stopHarnessHost(): Promise<void> {
   preferenceLoadGeneration += 1
+  clearDismissFallback()
   quickAccessShortcut?.stop()
   quickAccessShortcut = undefined
+  quickAccessOwner?.stop()
+  quickAccessOwner = undefined
   panel?.destroy()
   panel = undefined
   summonOnStart = false
