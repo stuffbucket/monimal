@@ -34,6 +34,7 @@ export const DEFERRED = new Map([
   ['src/main/terminal-identity.ts', 125],
   ['src/renderer/components/SpatialCanvasStyles.ts', 125],
   ['src/renderer/lib/content-lorem.ts', 125],
+  ['src/renderer/lib/panel-sizes.ts', 125],
 ]);
 
 export const mutationScope = () => scopeOf({ root, deferred: DEFERRED });

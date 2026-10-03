@@ -29,56 +29,15 @@ import {
   type Tab,
   type TabStripProps,
 } from './TabBar.js';
+import { SHELL_PANEL_SIZES, type PanelSize } from '../lib/panel-sizes.js';
 
-/**
- * The application shell.
- *
- * A collapsible left rail, a tabbed document area, and an optional collapsible
- * right inspector, driven by `react-resizable-panels` v4. This component owns
- * the frame: the per-tab panel geometry, which panel is collapsed, and the menu
- * event that toggles one. It owns no content.
- *
- * It exists because the frame was written twice — once for the application and
- * once for the capture fixture — and the second copy was made for the only
- * reason a copy ever gets made here: there was nothing to import. A consumer of
- * this repository wanting the same layout would have made a third.
- *
- * The slots are named for where they are, not for what the application happens
- * to put in them. `left` is a render prop because it needs to know whether it
- * is collapsed; the others are plain nodes. `right` was a render prop too,
- * until the collapse button it existed to serve turned out to duplicate the
- * title bar's.
- */
-
-/** A side panel's geometry. Sizes are strings in v4, not numbers. */
-export interface PanelSize {
-  default: string;
-  min: string;
-  max: string;
-  collapsed: string;
-}
+export type { PanelSize };
 
 export type ShellPanel = 'left' | 'right';
 export type PanelToggleSubscription = (
   listener: (panel: ShellPanel) => void,
 ) => () => void;
 
-/*
- * Pixels for the rail, percentages for the rest.
- *
- * A rail holds fixed-size icons and a label, so what it needs does not change
- * with the window. As a percentage the collapsed rail grew from 51px at 1280
- * to 67px around 16px icons, and the width at which it snapped shut moved with
- * the window too — which is most of why the collapse felt like it resisted.
- */
-const LEFT: PanelSize = {
-  default: '228px',
-  min: '168px',
-  max: '320px',
-  collapsed: '48px',
-};
-const RIGHT: PanelSize = { default: '22', min: '16', max: '36', collapsed: '0' };
-const BOTTOM: PanelSize = { default: '30', min: '10', max: '70', collapsed: '0' };
 const PANEL_IDS: Record<'both' | 'left' | 'right' | 'neither', string[]> = {
   both: ['left', 'main', 'right'],
   left: ['left', 'main'],
@@ -157,9 +116,9 @@ export function ShellLayout<T extends Tab>({
   right,
   status,
   initialDocumentLayout,
-  leftSize = LEFT,
-  rightSize = RIGHT,
-  bottomSize = BOTTOM,
+  leftSize = SHELL_PANEL_SIZES.sidebar,
+  rightSize = SHELL_PANEL_SIZES.inspector,
+  bottomSize = SHELL_PANEL_SIZES.drawer,
 }: ShellLayoutProps<T>) {
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
@@ -361,7 +320,11 @@ export function ShellLayout<T extends Tab>({
               </>
             )}
 
-            <Panel id="main" minSize="30" className="panel panel--canvas">
+            <Panel
+              id="main"
+              minSize={SHELL_PANEL_SIZES.canvas.minWidth}
+              className="panel panel--canvas"
+            >
               {bottom === undefined ? (
                 documentPanel
               ) : (
@@ -371,7 +334,11 @@ export function ShellLayout<T extends Tab>({
                   defaultLayout={columnLayout.defaultLayout}
                   onLayoutChanged={columnLayout.onLayoutChanged}
                 >
-                  <Panel id="main" minSize="20" className="panel panel--canvas">
+                  <Panel
+                    id="main"
+                    minSize={SHELL_PANEL_SIZES.canvas.minHeight}
+                    className="panel panel--canvas"
+                  >
                     {documentPanel}
                   </Panel>
                   <Separator className="resize-handle resize-handle--horizontal" />
