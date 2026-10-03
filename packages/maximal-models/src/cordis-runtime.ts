@@ -7,6 +7,7 @@ import type {
 import type {
   LocalModelControl,
   ModelTopologyService,
+  ProviderOperation,
 } from "@maximal/maximal-model-contract"
 
 import type {
@@ -20,6 +21,10 @@ import {
   currentPackageFingerprint,
   profileValidationFailure,
 } from "./profile.ts"
+import {
+  SystemOneRegistry,
+  type SystemOneService,
+} from "./system-one-registry.ts"
 
 interface FiberLike {
   await(): Promise<FiberLike>
@@ -83,8 +88,16 @@ interface GenuinePluginModule {
 export interface ProviderPluginRuntime {
   readonly localModels?: LocalModelControl | undefined
   readonly modelTopology: ModelTopologyService
-  listProviders(): ReadonlyArray<LlmProviderInfo>
+  listProviders(): ReadonlyArray<
+    LlmProviderInfo & { readonly operations: ReadonlyArray<ProviderOperation> }
+  >
   listModels(provider: string): Promise<ReadonlyArray<LlmModelInfo>>
+  operationsFor(provider: string): ReadonlyArray<ProviderOperation>
+  dispatchSystemOne(
+    provider: string,
+    request: Request,
+    signal: AbortSignal,
+  ): Promise<Response>
   stream(options: GenerateOptions): AsyncIterable<StreamChunk>
   activateTopologyNotifications(listener: () => void): () => void
   dispose(): Promise<void>
@@ -246,6 +259,7 @@ class RuntimeAggregate implements ProviderPluginRuntime {
   readonly modelTopology: ModelTopologyService
   readonly #context: ContextLike
   readonly #llm: LlmRuntimeLike
+  readonly #systemOne: SystemOneService
   readonly #disposers: Array<() => void | Promise<void>>
   #disposePromise: Promise<void> | undefined
 
@@ -254,24 +268,67 @@ class RuntimeAggregate implements ProviderPluginRuntime {
     readonly disposers: Array<() => void | Promise<void>>
     readonly llm: LlmRuntimeLike
     readonly modelTopology: ModelTopologyService
+    readonly systemOne: SystemOneService
   }) {
     this.#context = options.context
     this.#llm = options.llm
+    this.#systemOne = options.systemOne
     this.#disposers = options.disposers
     this.localModels = localModelControl(options.context.get("localModels"))
     this.modelTopology = options.modelTopology
   }
 
-  listProviders(): ReadonlyArray<LlmProviderInfo> {
-    return this.#llm
-      .listProviders()
-      .map((provider) => Object.freeze({ ...provider }))
+  listProviders(): ReadonlyArray<
+    LlmProviderInfo & { readonly operations: ReadonlyArray<ProviderOperation> }
+  > {
+    const llm = this.#llm.listProviders().map((provider) =>
+      Object.freeze({
+        ...provider,
+        operations: Object.freeze(["messages", "models"] as const),
+      }),
+    )
+    const systemOne = this.#systemOne.listProviders().map((provider) =>
+      Object.freeze({
+        ...provider,
+        operations: Object.freeze(["models", "systemone"] as const),
+      }),
+    )
+    const ids = [...llm, ...systemOne].map(({ id }) => id)
+    if (new Set(ids).size !== ids.length) {
+      throw profileValidationFailure(
+        "profile-invalid",
+        "A provider alias was registered for both LLM and System One handling.",
+      )
+    }
+    return Object.freeze([...llm, ...systemOne])
   }
 
-  async listModels(provider: string): Promise<ReadonlyArray<LlmModelInfo>> {
+  async listModels(
+    provider: string,
+  ): Promise<ReadonlyArray<LlmModelInfo & { readonly family?: string }>> {
+    if (this.#systemOne.listProviders().some(({ id }) => id === provider)) {
+      return this.#systemOne
+        .listModels(provider)
+        .map((model) => Object.freeze({ ...model, provider }))
+    }
     return (await this.#llm.listModels(provider)).map((model) =>
       Object.freeze({ ...model }),
     )
+  }
+
+  operationsFor(provider: string): ReadonlyArray<ProviderOperation> {
+    return (
+      this.listProviders().find(({ id }) => id === provider)?.operations
+      ?? Object.freeze([])
+    )
+  }
+
+  dispatchSystemOne(
+    provider: string,
+    request: Request,
+    signal: AbortSignal,
+  ): Promise<Response> {
+    return this.#systemOne.dispatch(provider, request, signal)
   }
 
   stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
@@ -279,7 +336,12 @@ class RuntimeAggregate implements ProviderPluginRuntime {
   }
 
   activateTopologyNotifications(listener: () => void): () => void {
-    return this.#context.on("llm/adapters-updated", listener)
+    const removeLlm = this.#context.on("llm/adapters-updated", listener)
+    const removeSystemOne = this.#systemOne.subscribe(listener)
+    return () => {
+      removeSystemOne()
+      removeLlm()
+    }
   }
 
   dispose(): Promise<void> {
@@ -335,9 +397,13 @@ export async function createCordisRuntime(
     )
   const context = new Cordis.Context()
   const modelTopology = new ModelTopologyRegistry()
+  const systemOne = new SystemOneRegistry()
   const removeModelTopology = context.provide("modelTopology", modelTopology)
+  const removeSystemOne = context.provide("systemOne", systemOne)
   const disposers: Array<() => void | Promise<void>> = [
     () => context.fiber.dispose(),
+    () => systemOne.dispose(),
+    removeSystemOne,
     () => modelTopology.dispose(),
     removeModelTopology,
   ]
@@ -357,7 +423,7 @@ export async function createCordisRuntime(
         "The mounted LLM runtime did not provide the llm service.",
       )
     }
-    const services = new Set(["llm", "modelTopology"])
+    const services = new Set(["llm", "modelTopology", "systemOne"])
     for (const service of profile.services) {
       const namespace = await importAbsoluteModule(service.module, onImport)
       const plugin = genuinePlugin(namespace, service.module.name)
@@ -383,7 +449,15 @@ export async function createCordisRuntime(
       await fiber.await()
       disposers.push(() => fiber.dispose())
     }
-    return new RuntimeAggregate({ context, disposers, llm, modelTopology })
+    const runtime = new RuntimeAggregate({
+      context,
+      disposers,
+      llm,
+      modelTopology,
+      systemOne,
+    })
+    runtime.listProviders()
+    return runtime
   } catch (error) {
     let disposalFailed = false
     for (const dispose of disposers.reverse()) {

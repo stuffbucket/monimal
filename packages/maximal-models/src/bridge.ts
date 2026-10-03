@@ -13,13 +13,26 @@ import type {
   TokenUsage,
   ToolSchema,
 } from "@deepseek-ai/dsh-llm"
-import type { ProviderDispatch } from "@maximal/maximal-model-contract"
+import type {
+  ProviderDispatch,
+  ProviderOperation,
+} from "@maximal/maximal-model-contract"
 
 import { randomUUID } from "node:crypto"
 import { isDeepStrictEqual } from "node:util"
 
+interface GatewayModelInfo extends LlmModelInfo {
+  readonly family?: string
+}
+
 export interface LlmGatewayRuntime {
-  listModels(provider: string): Promise<ReadonlyArray<LlmModelInfo>>
+  listModels(provider: string): Promise<ReadonlyArray<GatewayModelInfo>>
+  operationsFor?(provider: string): ReadonlyArray<ProviderOperation>
+  dispatchSystemOne?(
+    provider: string,
+    request: Request,
+    signal: AbortSignal,
+  ): Promise<Response>
   stream(options: GenerateOptions): AsyncIterable<StreamChunk>
 }
 
@@ -1400,6 +1413,7 @@ async function modelsResponse(
     type: "model",
     id: model.id,
     display_name: model.name,
+    ...(model.family === undefined ? {} : { family: model.family }),
     created_at: "1970-01-01T00:00:00Z",
   }))
   return Response.json(
@@ -1420,6 +1434,19 @@ export async function dispatchRuntime(
 ): Promise<Response> {
   let releaseOnReturn = true
   try {
+    if (
+      dispatch.operation !== "count-tokens"
+      && !(
+        runtime.operationsFor?.(dispatch.provider) ?? ["messages", "models"]
+      ).includes(dispatch.operation)
+    ) {
+      throw new GatewayError(
+        501,
+        "invalid_request_error",
+        `The ${dispatch.operation} operation is not supported by this provider.`,
+        "UNSUPPORTED",
+      )
+    }
     switch (dispatch.operation) {
       case "messages": {
         const parsed = await parseMessageRequest(
@@ -1445,6 +1472,21 @@ export async function dispatchRuntime(
       case "models": {
         return await modelsResponse(runtime, dispatch.provider)
       }
+      case "systemone": {
+        if (runtime.dispatchSystemOne === undefined) {
+          throw new GatewayError(
+            501,
+            "invalid_request_error",
+            "The systemone operation is not supported by this runtime.",
+            "UNSUPPORTED",
+          )
+        }
+        return await runtime.dispatchSystemOne(
+          dispatch.provider,
+          dispatch.request,
+          dispatch.signal,
+        )
+      }
       case "count-tokens": {
         return errorResponse(
           new GatewayError(
@@ -1457,8 +1499,7 @@ export async function dispatchRuntime(
       }
       case "chat-completions":
       case "responses":
-      case "embeddings":
-      case "systemone": {
+      case "embeddings": {
         return errorResponse(
           new GatewayError(
             501,

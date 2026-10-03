@@ -1,4 +1,4 @@
-import { LLAMA_EXTERNAL_MODULES } from '@maximal/maximal-llama-cpp/packaging'
+import { LLAMA_EXTERNAL_MODULES } from '@maximal/maximal-runner-llama-cpp/packaging'
 import { defineConfig, type Plugin } from 'vite'
 
 function restartElectronAfterMainBuild(): Plugin {

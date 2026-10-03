@@ -1,4 +1,4 @@
-import { LLAMA_EXTERNAL_MODULES } from '@maximal/maximal-llama-cpp/packaging'
+import { LLAMA_EXTERNAL_MODULES } from '@maximal/maximal-runner-llama-cpp/packaging'
 import { defineConfig } from 'vite'
 
 export default defineConfig({

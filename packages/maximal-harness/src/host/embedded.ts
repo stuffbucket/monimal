@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
 
-import { LLAMA_CONFIG } from '@maximal/maximal-llama-cpp';
+import { LLAMA_CONFIG } from '@maximal/maximal-runner-llama-cpp';
 import {
   listen,
   modelPath,
   send,
   type ToolOffer,
-} from '@maximal/maximal-llama-cpp/host';
+} from '@maximal/maximal-runner-llama-cpp/host';
 
 import { HARNESS_COPY } from '../constants.js';
 import { riskOf, type ToolRisk } from './approval.js';

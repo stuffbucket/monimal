@@ -104,7 +104,7 @@ function fakeIo(tree: Record<string, Package>, links: Record<string, string> = {
 describe('external native dependency closure', () => {
   it('discovers llama.cpp through the provider package', () => {
     const provider =
-      '/ws/packages/maximal-llama-cpp'
+      '/ws/packages/maximal-runner-llama-cpp'
     const llamaStore = '/ws/node_modules/.pnpm/node-llama-cpp@3/node_modules/node-llama-cpp'
     const io = fakeIo(
       {
@@ -112,8 +112,8 @@ describe('external native dependency closure', () => {
         [llamaStore]: {},
       },
       {
-        '/ws/app/node_modules/@maximal/maximal-llama-cpp': provider,
-        '/ws/packages/maximal-llama-cpp/node_modules/node-llama-cpp': llamaStore,
+        '/ws/app/node_modules/@maximal/maximal-runner-llama-cpp': provider,
+        '/ws/packages/maximal-runner-llama-cpp/node_modules/node-llama-cpp': llamaStore,
       },
     )
 
@@ -121,7 +121,7 @@ describe('external native dependency closure', () => {
       externalClosure(
         io,
         '/ws/app/node_modules',
-        ['@maximal/maximal-llama-cpp'],
+        ['@maximal/maximal-runner-llama-cpp'],
         { boundary: '/ws' },
       ).map(({ name, path }) => ({ name, path })),
     ).toEqual([{ name: 'node-llama-cpp', path: 'node_modules/node-llama-cpp' }])

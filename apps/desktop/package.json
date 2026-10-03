@@ -37,7 +37,7 @@
     "@maximal/maximal-core-contract": "workspace:*",
     "@maximal/maximal-electron": "workspace:*",
     "@maximal/maximal-harness": "workspace:*",
-    "@maximal/maximal-llama-cpp": "workspace:*",
+    "@maximal/maximal-runner-llama-cpp": "workspace:*",
     "@maximal/maximal-logging": "workspace:*",
     "@maximal/maximal-observability": "workspace:*",
     "@maximal/maximal-observability-contract": "workspace:*",

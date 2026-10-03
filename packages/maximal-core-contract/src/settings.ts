@@ -766,6 +766,31 @@ export const SYSTEM_ONE_LOCAL_MODELS = ["nimble", "tev1", "tev1:0.8b"] as const
 export const SystemOneLocalModel = z.enum(SYSTEM_ONE_LOCAL_MODELS)
 export type SystemOneLocalModel = z.infer<typeof SystemOneLocalModel>
 
+export const SYSTEM_ONE_DEFAULT_MODEL_DOWNLOAD_URLS = Object.freeze({
+  nimble:
+    "https://registry.ollama.ai/v2/library/nimble/blobs/sha256:bbf1d6fc03bb0ed24d88f4c214ed7b5d1768aeb43d5cf433fb69eff0c8578013",
+  tev1: "https://huggingface.co/bartowski/togethercomputer_Tev1-4B-experimental-GGUF/resolve/02b75e9ce9d967c52a6b0bd44e266f93e101445e/togethercomputer_Tev1-4B-experimental-Q8_0.gguf",
+  "tev1:0.8b":
+    "https://huggingface.co/DreamBlooms/Tev1-0.8B-experimental-GGUF/resolve/2bb70a6cb6e740a6a1a432453aa967cd4782bc0b/tev1-Q8_0.gguf",
+} satisfies Record<SystemOneLocalModel, string>)
+
+const SystemOneModelDownloadUrl = z
+  .url()
+  .max(4096)
+  .refine((value) => {
+    const protocol = new URL(value).protocol
+    return protocol === "http:" || protocol === "https:"
+  }, "System One model download URL must use HTTP or HTTPS")
+
+export const SystemOneModelDownloadUrls = z.object({
+  nimble: SystemOneModelDownloadUrl,
+  tev1: SystemOneModelDownloadUrl,
+  "tev1:0.8b": SystemOneModelDownloadUrl,
+})
+export type SystemOneModelDownloadUrls = z.infer<
+  typeof SystemOneModelDownloadUrls
+>
+
 export const SystemOneLocalProvider = z.enum(["maximal", "ollama"])
 export type SystemOneLocalProvider = z.infer<typeof SystemOneLocalProvider>
 
@@ -784,6 +809,7 @@ export const SystemOneSettingsResponse = z.object({
   local_provider: SystemOneLocalProvider,
   ollama_configured: z.boolean(),
   model_order: SystemOneModelOrder,
+  model_download_urls: SystemOneModelDownloadUrls,
   fallback_to_local: z.boolean(),
 })
 export type SystemOneSettingsResponse = z.infer<
@@ -794,6 +820,7 @@ export const SystemOneSettingsUpdateRequest = z.object({
   api_key: z.string().max(4096).optional(),
   local_provider: SystemOneLocalProvider.optional(),
   model_order: SystemOneModelOrder.optional(),
+  model_download_urls: SystemOneModelDownloadUrls.partial().optional(),
   fallback_to_local: z.boolean().optional(),
 })
 export type SystemOneSettingsUpdateRequest = z.infer<

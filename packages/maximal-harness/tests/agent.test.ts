@@ -4,7 +4,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { configureModel } from '@maximal/maximal-llama-cpp';
+import { configureModel } from '@maximal/maximal-runner-llama-cpp';
 
 vi.mock('electron', () => ({ utilityProcess: { fork: vi.fn() } }));
 

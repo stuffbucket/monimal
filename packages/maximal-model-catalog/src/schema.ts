@@ -151,6 +151,12 @@ export const ProviderOfferingSchema = z
   .strict()
 export type ProviderOffering = z.infer<typeof ProviderOfferingSchema>
 
+const ModelCatalogContentFields = {
+  models: z.array(CanonicalModelSchema).max(20_000),
+  providers: z.array(ModelCatalogProviderSchema).max(5_000),
+  offerings: z.array(ProviderOfferingSchema).max(100_000),
+} as const
+
 function duplicateValues(values: ReadonlyArray<string>): Set<string> {
   const seen = new Set<string>()
   const duplicates = new Set<string>()
@@ -171,6 +177,93 @@ function isSorted(values: ReadonlyArray<string>): boolean {
   return true
 }
 
+function validateCatalogContent(
+  catalog: {
+    readonly models: ReadonlyArray<CanonicalModel>
+    readonly providers: ReadonlyArray<ModelCatalogProvider>
+    readonly offerings: ReadonlyArray<ProviderOffering>
+  },
+  context: z.RefinementCtx,
+): void {
+  const modelIds = catalog.models.map(({ id }) => id)
+  const providerIds = catalog.providers.map(({ id }) => id)
+  const offeringIds = catalog.offerings.map(
+    ({ modelId, providerId }) => `${providerId}\u0000${modelId}`,
+  )
+  for (const duplicate of duplicateValues(modelIds)) {
+    context.addIssue({
+      code: "custom",
+      message: `Duplicate canonical model "${duplicate}".`,
+      path: ["models"],
+    })
+  }
+  for (const duplicate of duplicateValues(providerIds)) {
+    context.addIssue({
+      code: "custom",
+      message: `Duplicate provider "${duplicate}".`,
+      path: ["providers"],
+    })
+  }
+  for (const duplicate of duplicateValues(offeringIds)) {
+    const [providerId, modelId] = duplicate.split("\u0000")
+    context.addIssue({
+      code: "custom",
+      message: `Duplicate offering "${providerId}/${modelId}".`,
+      path: ["offerings"],
+    })
+  }
+  if (!isSorted(modelIds)) {
+    context.addIssue({
+      code: "custom",
+      message: "Canonical models must be sorted by id.",
+      path: ["models"],
+    })
+  }
+  if (!isSorted(providerIds)) {
+    context.addIssue({
+      code: "custom",
+      message: "Providers must be sorted by id.",
+      path: ["providers"],
+    })
+  }
+  if (!isSorted(offeringIds)) {
+    context.addIssue({
+      code: "custom",
+      message: "Offerings must be sorted by providerId and modelId.",
+      path: ["offerings"],
+    })
+  }
+  const models = new Set(modelIds)
+  const providers = new Set(providerIds)
+  for (const [index, offering] of catalog.offerings.entries()) {
+    if (!providers.has(offering.providerId)) {
+      context.addIssue({
+        code: "custom",
+        message: `Unknown provider "${offering.providerId}".`,
+        path: ["offerings", index, "providerId"],
+      })
+    }
+    if (
+      offering.canonicalModelId !== null
+      && !models.has(offering.canonicalModelId)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: `Unknown canonical model "${offering.canonicalModelId}".`,
+        path: ["offerings", index, "canonicalModelId"],
+      })
+    }
+  }
+}
+
+export const ModelCatalogSupplementSchema = z
+  .object(ModelCatalogContentFields)
+  .strict()
+  .superRefine(validateCatalogContent)
+export type ModelCatalogSupplement = z.infer<
+  typeof ModelCatalogSupplementSchema
+>
+
 export const ModelCatalogSchema = z
   .object({
     schemaVersion: z.literal(1),
@@ -181,80 +274,8 @@ export const ModelCatalogSchema = z
         digest: z.string().regex(DIGEST),
       })
       .strict(),
-    models: z.array(CanonicalModelSchema).max(20_000),
-    providers: z.array(ModelCatalogProviderSchema).max(5_000),
-    offerings: z.array(ProviderOfferingSchema).max(100_000),
+    ...ModelCatalogContentFields,
   })
   .strict()
-  .superRefine((catalog, context) => {
-    const modelIds = catalog.models.map(({ id }) => id)
-    const providerIds = catalog.providers.map(({ id }) => id)
-    const offeringIds = catalog.offerings.map(
-      ({ modelId, providerId }) => `${providerId}\u0000${modelId}`,
-    )
-    for (const duplicate of duplicateValues(modelIds)) {
-      context.addIssue({
-        code: "custom",
-        message: `Duplicate canonical model "${duplicate}".`,
-        path: ["models"],
-      })
-    }
-    for (const duplicate of duplicateValues(providerIds)) {
-      context.addIssue({
-        code: "custom",
-        message: `Duplicate provider "${duplicate}".`,
-        path: ["providers"],
-      })
-    }
-    for (const duplicate of duplicateValues(offeringIds)) {
-      const [providerId, modelId] = duplicate.split("\u0000")
-      context.addIssue({
-        code: "custom",
-        message: `Duplicate offering "${providerId}/${modelId}".`,
-        path: ["offerings"],
-      })
-    }
-    if (!isSorted(modelIds)) {
-      context.addIssue({
-        code: "custom",
-        message: "Canonical models must be sorted by id.",
-        path: ["models"],
-      })
-    }
-    if (!isSorted(providerIds)) {
-      context.addIssue({
-        code: "custom",
-        message: "Providers must be sorted by id.",
-        path: ["providers"],
-      })
-    }
-    if (!isSorted(offeringIds)) {
-      context.addIssue({
-        code: "custom",
-        message: "Offerings must be sorted by providerId and modelId.",
-        path: ["offerings"],
-      })
-    }
-    const models = new Set(modelIds)
-    const providers = new Set(providerIds)
-    for (const [index, offering] of catalog.offerings.entries()) {
-      if (!providers.has(offering.providerId)) {
-        context.addIssue({
-          code: "custom",
-          message: `Unknown provider "${offering.providerId}".`,
-          path: ["offerings", index, "providerId"],
-        })
-      }
-      if (
-        offering.canonicalModelId !== null
-        && !models.has(offering.canonicalModelId)
-      ) {
-        context.addIssue({
-          code: "custom",
-          message: `Unknown canonical model "${offering.canonicalModelId}".`,
-          path: ["offerings", index, "canonicalModelId"],
-        })
-      }
-    }
-  })
+  .superRefine(validateCatalogContent)
 export type ModelCatalog = z.infer<typeof ModelCatalogSchema>

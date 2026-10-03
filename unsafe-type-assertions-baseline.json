@@ -815,17 +815,17 @@
     "count": 1
   },
   {
-    "path": "packages/maximal-llama-cpp/src/host/llama-protocol.ts",
+    "path": "packages/maximal-runner-llama-cpp/src/host/llama-protocol.ts",
     "kind": "double-assertion",
     "count": 1
   },
   {
-    "path": "packages/maximal-llama-cpp/src/worker/index.ts",
+    "path": "packages/maximal-runner-llama-cpp/src/worker/index.ts",
     "kind": "double-assertion",
     "count": 1
   },
   {
-    "path": "packages/maximal-llama-cpp/tests/architecture.test.ts",
+    "path": "packages/maximal-runner-llama-cpp/tests/architecture.test.ts",
     "kind": "unvalidated-json-parse",
     "count": 1
   },
@@ -905,12 +905,12 @@
     "count": 1
   },
   {
-    "path": "packages/maximal-systemone/tests/evaluation.test.ts",
+    "path": "packages/maximal-provider-decision-model/tests/evaluation.test.ts",
     "kind": "unvalidated-json-parse",
     "count": 1
   },
   {
-    "path": "packages/maximal-systemone/tests/profiles.test.ts",
+    "path": "packages/maximal-provider-decision-model/tests/profiles.test.ts",
     "kind": "unvalidated-json-parse",
     "count": 4
   },

@@ -1,4 +1,5 @@
 import {
+  SYSTEM_ONE_DEFAULT_MODEL_DOWNLOAD_URLS,
   SYSTEM_ONE_LOCAL_MODELS,
   type SystemOneSettingsResponse,
   type SystemOneSettingsUpdateRequest,
@@ -54,6 +55,10 @@ export function getSystemOneSettings(
       : configuredProvider,
     ollama_configured: ollamaConfigured,
     model_order: config.systemOne?.modelOrder ?? [...SYSTEM_ONE_LOCAL_MODELS],
+    model_download_urls: {
+      ...SYSTEM_ONE_DEFAULT_MODEL_DOWNLOAD_URLS,
+      ...config.systemOne?.modelDownloadUrls,
+    },
     fallback_to_local: config.systemOne?.fallbackToLocal ?? true,
   }
 }
@@ -101,6 +106,14 @@ export function updateSystemOneSettings(
       ...(input.model_order === undefined ?
         {}
       : { modelOrder: [...input.model_order] }),
+      ...(input.model_download_urls === undefined ?
+        {}
+      : {
+          modelDownloadUrls: {
+            ...config.systemOne?.modelDownloadUrls,
+            ...input.model_download_urls,
+          },
+        }),
       ...(input.fallback_to_local === undefined ?
         {}
       : { fallbackToLocal: input.fallback_to_local }),

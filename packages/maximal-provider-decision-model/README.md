@@ -1,0 +1,163 @@
+# Maximal Decision Model Provider
+
+Decision-model adapters, TypeScript contracts, and conformance utilities for
+`POST /v1/systemone`. The package translates System One questions into
+capability-specific runner requests and translates runner results back into
+System One answers.
+
+## Model families
+
+- GLiNER2.5 Decide models use one `classify-labels` request. The System One
+  state is the classification text, each question is one task, instructions
+  are task prompts, and criteria become labels with descriptions. The runner
+  MUST return every label probability.
+- Nimble and Tev use `score-token-candidates`. The adapter serializes the
+  System One state and schema once, creates one requested-field row per
+  question, and assigns candidates the single-character codes `A` through
+  `Z`. The runner MUST render the model's chat template and return one
+  next-token probability per candidate.
+
+Both paths normalize their runner values and emit the same System One answer
+semantics. Choice selects the first maximum, Noul returns the normalized
+probability of `true`, Score returns the probability-weighted rubric index,
+and confidence is one minus normalized entropy.
+
+The package accepts the `fastino/GLiNER2.5-Decide`,
+`fastino/GLiNER2.5-Decide-1B`, and
+`fastino/GLiNER2.5-multi-Decide` identities and their `gliner25` aliases,
+along with Nimble and Tev aliases. It owns adapters, not tensor execution:
+runner implementations are injected through the contract exported by
+`@maximal/maximal-runner-llama-cpp`.
+
+`@maximal/maximal-provider-gliner25` implements that contract for the
+standalone `stuffbucket/gliner-runner` HTTP service. It preserves task prompts,
+label descriptions, ordinal tasks, cancellation, and encoded-token usage while
+requiring an explicit runner URL, backend, precision, and optional model-ID
+mapping.
+
+Maximal's System One settings provide immutable model-artifact URLs. Tev1 4B
+Q8_0 and Tev1 0.8B Q8_0 use revision-pinned Hugging Face files. Nimble 9B Q8_0
+uses its content-addressed Ollama model layer because the published Hugging Face
+repositories do not provide a standalone GGUF that llama.cpp can load. Each URL
+can be overridden independently without changing model identity or fallback
+order.
+
+## Contracts
+
+The package exports a common semantic request/response model and two explicit
+wire profiles:
+
+- `typeSafeSystemOneProfile` mirrors the TypeSafe/JEV API. Instructions are
+  optional and nullable, criteria may contain structured JSON, score rubrics
+  contain 2–10 items, choices support up to 255 entries, and responses may
+  contain structured score legends. Its important service statuses are 401,
+  422, 429, and 529.
+- `ollamaSystemOneProfile` mirrors Ollama's API at commit
+  `1abe35e6e6e777e858bbfbba283667ee8d516801`. Instructions are required,
+  strings must be nonblank where specified, choice and score criteria contain
+  2–26 items, requests contain at most 64 questions and 64 KiB, `keep_alive`
+  is supported, and errors use Ollama's `{ "error": string }` body.
+
+The profile-specific schemas and types retain these differences. Compatibility
+exports beginning with `systemOne` refer to the Ollama profile.
+
+The `portableSystemOne` schemas and `PortableSystemOne` types describe only the
+shared subset: required non-null instructions, string descriptions, 2–26
+choices, 2–10 score levels, 1–64 questions, and no provider-specific
+`keep_alive`. The portable contract does not imply that the provider wire
+formats are identical.
+
+`SystemOneResponse<TQuestions>` maps every literal question name to the
+corresponding answer type. `defineSystemOneRequest`,
+`defineTypeSafeSystemOneRequest`, and `defineOllamaSystemOneRequest` preserve
+literal question names and discriminants without casts.
+
+## Runtime validation
+
+Wire schemas validate each dialect independently. `validateSystemOneResponse`
+and `parseSystemOneResponse` additionally enforce provider-neutral exchange
+semantics:
+
+- answer names and answer types match the request;
+- choice and probability keys match their criteria;
+- score legends reproduce the rubric;
+- probability, confidence, noul, score, and token usage values are in their
+  semantic range;
+- probability distributions sum to one and Choice selects an argmax;
+- Score equals the probability-weighted rubric index;
+- Ollama confidence equals one minus normalized probability entropy, including
+  its stable first-criterion tie behavior.
+
+Validation issues have stable codes and paths and are emitted in question-name
+order. Dynamic JSON, question, and answer maps preserve an own `__proto__`
+property without mutating the object prototype.
+
+## Recorded oracles
+
+Published package files include `fixtures/oracles`. The fixture wrapper uses
+strict, source-specific provenance schemas. Tests pin API and model identities,
+recompute each canonical Ollama response SHA-256, validate each exchange
+against its named wire and semantic profiles. The TypeSafe fixtures record that
+`jev-latest` and `jev-preview` both resolved to `jev-1.13.0` at capture time.
+
+## Statistical model regression
+
+The package also publishes `fixtures/evaluation` and a deterministic,
+project-authored corpus generated by `generateSystemOneRegressionCorpus`.
+This is an **internal regression suite**, not a reproduction of, substitute
+for, or result on an upstream benchmark. Its 600 known-input/known-output
+decisions contain 200 Noul, 200 Choice, and 200 Score cases. Each expected
+value follows from committed modulo derivation metadata and an explicit fact
+in the request state. The canonical corpus SHA-256 is
+`557a91a7278fa31a37ee56b99603843e5e87b8502a071eea33c345122c73cb28`.
+Requests are evaluated in sequential groups of at most 12 questions and stay
+below Ollama's 64 KiB request limit.
+
+`evaluateRegression` computes per-primitive and overall micro/macro accuracy,
+binary or multiclass Brier score, Score MAE, failures, and Wilson 95%
+intervals. Noul uses `>= 0.5`, Choice uses the returned choice, and Score uses
+the highest probability with the lowest index winning a tie.
+`pairedStratifiedBootstrap` uses a fixed integer PRNG seed and 10,000 resamples
+by default. `decideRegressionGate` requires:
+
+- no schema or transport failures;
+- overall Wilson lower bound at least `0.70`;
+- candidate-minus-baseline accuracy lower bounds of `-0.08` overall and
+  `-0.12` for every primitive;
+- candidate-minus-baseline Score MAE upper bound no greater than `0.20`.
+
+Intervals crossing a margin are `INCONCLUSIVE`; intervals wholly beyond a
+margin or any failure are `FAIL`; all satisfied checks are `PASS`.
+
+`pnpm test` runs the unit suite and a dependency-free mutation pass. The
+mutation pass copies evaluator sources into a package-local disposable
+directory and requires the tests to kill changes to thresholding, selection,
+tie-breaking, Wilson bounds, bootstrap seeds, all gate margins, failure
+counts, corpus generation/hash, and Ollama identity guards.
+
+Run a pinned live candidate with:
+
+```sh
+pnpm --filter @maximal/maximal-provider-decision-model eval:live \
+  --model nimble:latest
+```
+
+The runner verifies Ollama `0.35.0` and the pinned `/api/tags` digest,
+architecture, quantization, and parameter size before warming the model once.
+It uses loopback by default, fixed `keep_alive`, sequential requests, no
+transport retries, package wire and semantic validation, and three selection
+runs. `--base-url`, `--baseline`, `--resamples`, and `--seed` are configurable.
+An unstable repeated label is rejected.
+
+Baseline refresh is intentionally separate and requires an output path:
+
+```sh
+pnpm --filter @maximal/maximal-provider-decision-model eval:live \
+  --model nimble:latest \
+  --refresh-baseline fixtures/evaluation/nimble-latest.json
+```
+
+An existing path fails unless `--overwrite` is also explicit. For constrained
+captures, `--repeat-subset N` records one complete run and two additional
+deterministic, primitive-stratified subset runs; fixture metadata preserves
+that distinction.

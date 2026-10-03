@@ -15,7 +15,10 @@ import {
   Switch,
   type ModelCard,
 } from "@maximal/maximal-electron/renderer";
-import { reconcileModelInventory } from "@maximal/maximal-model-catalog";
+import {
+  MAXIMAL_MODEL_CATALOG,
+  reconcileModelInventory,
+} from "@maximal/maximal-model-catalog";
 
 import type { LocalModelCatalogSnapshot } from "../../../shared/host";
 import type { SettingsCapabilities } from "../capabilities";
@@ -114,9 +117,10 @@ export function MaximalModelsSection({
   const models = catalogue?.models ?? EMPTY_MODELS;
   const cards = useMemo(
     () =>
-      reconcileModelInventory(null, localModelObservations(models)).models.map(
-        cardFor,
-      ),
+      reconcileModelInventory(
+        MAXIMAL_MODEL_CATALOG,
+        localModelObservations(models),
+      ).models.map(cardFor),
     [models],
   );
   const contextLength =

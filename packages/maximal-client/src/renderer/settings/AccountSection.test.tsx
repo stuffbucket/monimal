@@ -4,6 +4,8 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { SYSTEM_ONE_DEFAULT_MODEL_DOWNLOAD_URLS } from '@maximal/maximal-core-contract/settings'
+
 import type {
   AuthStatus,
   SettingsCapabilities,
@@ -119,6 +121,7 @@ function fakeCapabilities() {
         local_provider: 'maximal' as const,
         ollama_configured: false,
         model_order: ['nimble', 'tev1', 'tev1:0.8b'] as const,
+        model_download_urls: SYSTEM_ONE_DEFAULT_MODEL_DOWNLOAD_URLS,
         fallback_to_local: true,
       })),
       update: vi.fn(async (input: SystemOneSettingsUpdateRequest) => ({
@@ -128,6 +131,10 @@ function fakeCapabilities() {
         local_provider: input.local_provider ?? 'maximal',
         ollama_configured: false,
         model_order: input.model_order ?? ['nimble', 'tev1', 'tev1:0.8b'],
+        model_download_urls: {
+          ...SYSTEM_ONE_DEFAULT_MODEL_DOWNLOAD_URLS,
+          ...input.model_download_urls,
+        },
         fallback_to_local: input.fallback_to_local ?? true,
       })),
     },
@@ -301,6 +308,45 @@ describe('AccountSection refresh ownership', () => {
       'System 1',
     ])
     expect(surface.querySelector('h3')?.textContent).toBe('Saved accounts')
+    expect(
+      surface.querySelector<HTMLInputElement>(
+        '[data-testid="system-one-model-download-url-nimble"]',
+      )?.value,
+    ).toBe(SYSTEM_ONE_DEFAULT_MODEL_DOWNLOAD_URLS.nimble)
+  })
+
+  it('updates one decision-model download URL without replacing the others', async () => {
+    const { capabilities } = fakeCapabilities()
+    const surface = await renderAccount(capabilities)
+    const tev1DownloadOverride =
+      `${SYSTEM_ONE_DEFAULT_MODEL_DOWNLOAD_URLS.tev1}?download=true`
+    const input = surface.querySelector<HTMLInputElement>(
+      '[data-testid="system-one-model-download-url-tev1"]',
+    )
+    if (input === null) throw new Error('Tev1 download URL was not rendered')
+
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        'value',
+      )?.set?.call(input, tev1DownloadOverride)
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+      await Promise.resolve()
+    })
+    const save = [...surface.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Save URL' && !button.disabled,
+    )
+    if (save === undefined) throw new Error('Save URL button was not enabled')
+    await act(async () => {
+      save.click()
+      await Promise.resolve()
+    })
+
+    expect(capabilities.systemOneSettings.update).toHaveBeenCalledWith({
+      model_download_urls: {
+        tev1: tev1DownloadOverride,
+      },
+    })
   })
 
   it('opens GitHub automatically after receiving a device code', async () => {

@@ -3,7 +3,7 @@ import type { Context } from "hono"
 import {
   SYSTEM_ONE_MEDIA_TYPE,
   SYSTEM_ONE_PATH,
-} from "@maximal/maximal-systemone"
+} from "@maximal/maximal-provider-decision-model"
 import { Hono } from "hono"
 
 import type { ProviderModelRouter } from "~/services/providers/model-router"

@@ -11,8 +11,8 @@ import {
   LLAMA_WORKER_FILENAME,
   llamaPackagePlan,
   parseLlamaBackends,
-} from '@maximal/maximal-llama-cpp/packaging'
-import { llamaPackageChecks } from '@maximal/maximal-llama-cpp/verify'
+} from '@maximal/maximal-runner-llama-cpp/packaging'
+import { llamaPackageChecks } from '@maximal/maximal-runner-llama-cpp/verify'
 import { terminalPackageChecks } from '@maximal/maximal-electron/verify'
 
 import {

@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "@maximal/maximal-model-contract": "workspace:*",
-    "@maximal/maximal-systemone": "workspace:*"
+    "@maximal/maximal-provider-decision-model": "workspace:*"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.2",

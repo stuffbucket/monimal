@@ -236,7 +236,7 @@ async function modelCatalogue(
   ]);
   const embedded =
     permits('embedded') && (pin === undefined || pin === 'embedded')
-      ? (await import('@maximal/maximal-llama-cpp')).listEmbeddedModels().map(
+      ? (await import('@maximal/maximal-runner-llama-cpp')).listEmbeddedModels().map(
           (model) => option('embedded', model.fileName, model.label),
         )
       : [];
@@ -248,7 +248,7 @@ async function ready(
   models: AgentModelOption[],
 ): Promise<ProviderStatus> {
   if (selected.provider === 'embedded') {
-    const { selectEmbeddedModel } = await import('@maximal/maximal-llama-cpp');
+    const { selectEmbeddedModel } = await import('@maximal/maximal-runner-llama-cpp');
     selectEmbeddedModel(selected.model);
   }
   const preferredEffort = configured?.preferredEffort;
@@ -290,7 +290,7 @@ export async function discoverProvider(): Promise<ProviderStatus> {
       return ready(preferred ?? models[0]!, models);
     }
     return pin === 'embedded' && embeddedAllowed
-      ? await import('@maximal/maximal-llama-cpp').then((embedded) => ({
+      ? await import('@maximal/maximal-runner-llama-cpp').then((embedded) => ({
           state: 'needs-model',
           model: embedded.EMBEDDED_MODEL_LABEL,
           approxMb: embedded.EMBEDDED_MODEL_MB,
@@ -305,7 +305,7 @@ export async function discoverProvider(): Promise<ProviderStatus> {
     if (!embeddedAllowed) {
       return { state: 'unavailable', reason: HARNESS_COPY.agent.noBackend };
     }
-    return import('@maximal/maximal-llama-cpp').then((embedded) => ({
+    return import('@maximal/maximal-runner-llama-cpp').then((embedded) => ({
         state: 'needs-model' as const,
         model: embedded.EMBEDDED_MODEL_LABEL,
         approxMb: embedded.EMBEDDED_MODEL_MB,

@@ -236,7 +236,12 @@ describe("provider plugin dispatch", () => {
           return Promise.resolve(
             Response.json({
               data: [
-                { id: "mlx-community/Qwen3-8B", display_name: "Qwen 3 8B" },
+                {
+                  id: "mlx-community/Qwen3-8B",
+                  display_name: "Qwen 3 8B",
+                  family: "qwen3",
+                  capabilities: ["completion"],
+                },
               ],
             }),
           )
@@ -256,9 +261,11 @@ describe("provider plugin dispatch", () => {
 
     expect(await dispatcher.listModels()).toEqual([
       {
+        capabilities: ["completion"],
         id: "mlx-community/Qwen3-8B",
         name: "Qwen 3 8B",
         enabled: true,
+        family: "qwen3",
         operations: ["messages"],
         provider: "local",
         providerName: "Local (oMLX)",

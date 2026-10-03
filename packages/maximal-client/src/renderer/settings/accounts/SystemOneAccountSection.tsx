@@ -17,6 +17,7 @@ import {
 import {
   type SystemOneLocalModel,
   type SystemOneLocalProvider,
+  type SystemOneModelDownloadUrls,
   type SystemOneSettingsResponse,
   type SystemOneSettingsUpdateRequest,
 } from '@maximal/maximal-core-contract/settings'
@@ -50,6 +51,8 @@ function SystemOneSettingsForm({
   const [modelOrder, setModelOrder] = useState<readonly SystemOneLocalModel[]>(
     settings.model_order,
   )
+  const [modelDownloadUrls, setModelDownloadUrls] =
+    useState<SystemOneModelDownloadUrls>(settings.model_download_urls)
   const [saving, setSaving] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -189,6 +192,59 @@ function SystemOneSettingsForm({
             void update({ model_order: next })
           }}
         />
+      </SettingsSection>
+      <SettingsSection
+        title="Local model downloads"
+        as="h3"
+        description="Pinned artifact URLs used when Maximal downloads decision-model weights."
+      >
+        <SettingsGroup>
+          {modelOrder.map((model) => (
+            <SettingsItem
+              key={model}
+              title={MODEL_DETAILS[model].label}
+              description={MODEL_DETAILS[model].description}
+            >
+              <FormField label={`${MODEL_DETAILS[model].label} download URL`}>
+                {(control) => (
+                  <span className="settings-credential-field">
+                    <span className="settings-credential-input">
+                      <TextInput
+                        {...control}
+                        value={modelDownloadUrls[model]}
+                        placeholder="https://…"
+                        disabled={saving}
+                        testId={`system-one-model-download-url-${model}`}
+                        onChange={(value) =>
+                          setModelDownloadUrls((current) => ({
+                            ...current,
+                            [model]: value,
+                          }))}
+                      />
+                    </span>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      disabled={
+                        saving
+                        || modelDownloadUrls[model]
+                          === settings.model_download_urls[model]
+                      }
+                      onClick={() =>
+                        void update({
+                          model_download_urls: {
+                            [model]: modelDownloadUrls[model],
+                          },
+                        })}
+                    >
+                      {saving ? 'Saving…' : 'Save URL'}
+                    </Button>
+                  </span>
+                )}
+              </FormField>
+            </SettingsItem>
+          ))}
+        </SettingsGroup>
       </SettingsSection>
     </>
   )

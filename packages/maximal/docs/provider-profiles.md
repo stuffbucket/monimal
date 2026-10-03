@@ -35,6 +35,7 @@ Use exact versions in `package.json`. The supported initial runtime pair is
     "@deepseek-ai/cordis": "4.0.2",
     "@deepseek-ai/dsh-llm": "0.1.0-rc.8",
     "@maximal/anthropic-provider": "<exact-version>",
+    "@maximal/maximal-runtime-gliner25": "<exact-version>",
     "@maximal/omlx": "<exact-version>"
   }
 }
@@ -61,6 +62,12 @@ Use exact versions in `package.json`. The supported initial runtime pair is
       "id": "omlx",
       "kind": "runner",
       "package": "@maximal/omlx"
+    },
+    {
+      "id": "gliner25",
+      "kind": "runner",
+      "package": "@maximal/maximal-runtime-gliner25",
+      "providers": ["maximal-gliner25"]
     }
   ]
 }
@@ -90,6 +97,18 @@ native configuration unchanged:
     "profileDirectory": "/absolute/path/to/provider-profile"
   },
   "providerPlugins": {
+    "gliner25": {
+      "enabled": true,
+      "config": {
+        "provider": "maximal-gliner25",
+        "baseUrl": "http://127.0.0.1:8080",
+        "backend": "pytorch",
+        "precision": "fp16",
+        "modelMapping": {
+          "fastino/GLiNER2.5-Decide": "decide-340m"
+        }
+      }
+    },
     "omlx": {
       "enabled": true,
       "config": {
@@ -109,6 +128,11 @@ The `providerPlugins` key is the `id` from `providers.json`. Maximal treats
 `config` as opaque data; the plugin's own Schemastery schema validates it.
 Maximal must not log or expose that data. Protect `config.json` as a secret when
 plugin configuration contains credentials.
+
+The GLiNER2.5 plugin requires an explicit standalone runner endpoint, backend,
+and precision. Its optional `modelMapping` maps canonical catalog model IDs to
+runner model IDs; it never substitutes another model, backend, or precision.
+Optional `headers` are forwarded to the runner and must be treated as secrets.
 
 The existing `providers` object remains a compatibility input during rollout.
 In `plugins` mode, enabled `type: "anthropic"` entries are converted in memory to
@@ -145,11 +169,13 @@ reactivation uninstalls packages or rewrites configuration.
 
 ## Live model registry
 
-Cordis currently provides a live model registry through the LLM runtime mounted
-at `context.llm`. The provider-plugin runtime reads `listProviders()` and
-`listModels(provider)` and subscribes to `llm/adapters-updated` so committed
-generations can publish current provider topology through `ProviderGateway`.
-Core uses that topology for model listing and request routing.
+Cordis provides live model registries through the LLM runtime mounted at
+`context.llm` and the System One registry mounted at `context.systemOne`. The
+provider-plugin runtime reads both registries so committed generations can
+publish current provider topology through `ProviderGateway`. Core uses that
+topology for model listing and request routing. The GLiNER2.5 plugin advertises
+`models` and `systemone` for the reviewed `gliner25:340m`, `gliner25:1b`, and
+`gliner25:multi` offering aliases.
 
 Provider model discovery uses the shared runtime-neutral descriptor from
 `@maximal/maximal-model-contract`. Providers may declare tokenizer identity,
