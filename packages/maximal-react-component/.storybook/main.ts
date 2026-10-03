@@ -1,5 +1,7 @@
 import type { StorybookConfig } from "@storybook/react-vite"
 
+import { storybookManagerHead } from "@maximal/maximal-storybook"
+
 const config: StorybookConfig = {
   stories: ["../src/**/*.stories.tsx"],
   addons: ["@storybook/addon-docs", "@storybook/addon-a11y"],
@@ -8,6 +10,8 @@ const config: StorybookConfig = {
     options: {},
   },
   core: { disableTelemetry: true },
+  managerHead: (head) =>
+    storybookManagerHead(head, process.env["STORYBOOK_IDENTITY_LABEL"]),
 }
 
 export default config

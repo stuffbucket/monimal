@@ -56,6 +56,8 @@ focus rings, type, and optical details are not spacing increments.
 | `--shell-focus-ring-offset` | `2px` | Space between a control and its keyboard focus ring. |
 | `--shell-focus-ring-width` | `2px` | Keyboard focus ring width. |
 | `--shell-icon-prominent` | `24px` | A prominent navigation or feature glyph. |
+| `--shell-spatial-grid-radius` | `1px` | The spatial grid dot radius at 100% zoom. |
+| `--shell-spatial-grid-edge` | `0.25px` | The spatial grid dot's antialiased edge. |
 | `--shell-icon-size` | `16px` | The default Lucide glyph size. |
 | `--shell-icon-stroke` | `1.5` | The stroke weight of every Lucide glyph inside the shell. |
 | `--shell-icon-optical-folder-offset-y` | `0.5px` | Centers the Folder glyph's painted bounds in its slot. |
@@ -108,7 +110,7 @@ rejects a structural token that nothing reads.
 
 ## Required
 
-Define all thirteen. `ShellLayout` applies the `.sb-shell` root class; define them
+Define all seventeen. `ShellLayout` applies the `.sb-shell` root class; define them
 on that container or an ancestor. README.md carries the same table with the
 description of what each one draws.
 
@@ -119,6 +121,12 @@ description of what each one draws.
 | `--shell-active` |
 | `--shell-background` |
 | `--shell-border` |
+| `--shell-candy-background` |
+| `--shell-candy-border` |
+| `--shell-candy-icon-shadow` |
+| `--shell-candy-shadow` |
+| `--shell-candy-sheen` |
+| `--shell-candy-text` |
 | `--shell-canvas` |
 | `--shell-duration-fast` |
 | `--shell-ease-out` |
@@ -131,7 +139,7 @@ description of what each one draws.
 ## Fallback
 
 Each of these has a value in the CSS. Set one when the design system differs
-from it. Fourteen fall back to another `--shell-*` rather than to a literal,
+from it. Fifteen fall back to another `--shell-*` rather than to a literal,
 which is where legibility survives an unset value but meaning does not:
 `--shell-danger` resolving to `--shell-hover` draws a destructive control that
 looks exactly like an ordinary hovered one.
@@ -155,6 +163,10 @@ looks exactly like an ordinary hovered one.
 | `--shell-position` | `fixed` | how the `ShellLayout` root meets the window; `static` lays it out inside the consumer's own container instead |
 | `--shell-radius-small` | `4px` | tab close affordance, tooltip, segmented control, menu item |
 | `--shell-scrim` | `rgb(0 0 0 / 0.34)` | the layer a modal dims the window with |
+| `--shell-spatial-canvas-background` | `--shell-canvas` | spatial canvas and project-browser surfaces |
+| `--shell-spatial-grid-background-light` | `--shell-canvas` | the spatial canvas surface in light mode |
+| `--shell-spatial-grid-dot-light` | `--shell-text-subtle` | spatial grid dots in light mode |
+| `--shell-spatial-grid-dot-dark` | `--shell-text-subtle` | spatial grid dots in dark mode |
 | `--shell-status` | `--shell-text-muted` | the status dot, the `StatusChip` label, the `Banner` text, the `Callout` outline; the `Callout` heading reads it too and falls back to `--shell-text`, which is the legible one on a raised fill |
 | `--shell-status-muted` | `--shell-active` | the `StatusChip`, `Banner` and `Callout` fills |
 | `--shell-statusbar-height` | `24px` | the compact register `.statusbar` keeps as a minimum, not a fixed height |

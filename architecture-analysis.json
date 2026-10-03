@@ -21,7 +21,8 @@
     "@maximal/maximal-react-component": {
       "root": "packages/maximal-react-component",
       "dependsOn": [
-        "@maximal/eslint-config"
+        "@maximal/eslint-config",
+        "@maximal/maximal-storybook"
       ],
       "cycleEdges": [],
       "duplicatePairs": []
@@ -256,6 +257,7 @@
         "@maximal/maximal-observability-contract",
         "@maximal/maximal-ollama",
         "@maximal/maximal-project-browser",
+        "@maximal/maximal-storybook",
         "@maximal/project-catalog",
         "@maximal/maximal-search",
         "@maximal/maximal-terminal"
@@ -288,6 +290,7 @@
         "@maximal/maximal-observability",
         "@maximal/maximal-observability-contract",
         "@maximal/maximal-ollama",
+        "@maximal/maximal-project-browser",
         "@maximal/maximal-react-component",
         "@maximal/maximal-recording",
         "@maximal/project-catalog",
@@ -327,6 +330,7 @@
       "root": "packages/maximal-harness",
       "dependsOn": [
         "@maximal/eslint-config",
+        "@maximal/maximal-assets",
         "@maximal/maximal-electron",
         "@maximal/maximal-runner-llama-cpp"
       ],

@@ -87,9 +87,8 @@ export const CONTRAST_PAIRS: ContrastPair[] = [
  * error. `checkPalette` cannot catch it: a pair whose tokens are absent is
  * skipped, so a consumer who never defines `--bg-input` would otherwise pass.
  *
- * Extracted from `var(--…)` in `src/renderer/styles/*.css`. `--status` and
- * `--status-soft` are deliberately absent: those are set at run time by the
- * `[data-status]` rules, not supplied by a palette.
+ * Extracted from `var(--…)` in `src/renderer/styles/*.css`. Runtime properties
+ * set by component state or third-party primitives are deliberately absent.
  */
 export const REQUIRED_TOKENS: string[] = [
   '--accent',

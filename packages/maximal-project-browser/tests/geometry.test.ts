@@ -3,10 +3,33 @@ import { describe, expect, it } from "vitest"
 import {
   connectorSegment,
   geometryBackend,
+  itemRectangle,
   rectanglesIntersect,
 } from "../src/geometry.ts"
 
 describe("WebAssembly geometry", () => {
+  it("returns rectangles only for positioned scene items", () => {
+    expect(
+      itemRectangle({
+        id: "card",
+        type: "sticky",
+        text: "Card",
+        x: 10,
+        y: 20,
+        width: 30,
+        height: 40,
+      }),
+    ).toEqual({ x: 10, y: 20, width: 30, height: 40 })
+    expect(
+      itemRectangle({
+        id: "connection",
+        type: "connector",
+        fromId: "from",
+        toId: "to",
+      }),
+    ).toBeUndefined()
+  })
+
   it("uses the WebAssembly backend", () => {
     expect(geometryBackend).toBe("wasm")
   })

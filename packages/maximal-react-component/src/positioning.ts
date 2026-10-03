@@ -1,3 +1,7 @@
+const VIEWPORT_GUTTER = 16
+// Below this, a side cannot show the card's header and controls.
+const MINIMUM_CARD_SPACE = 120
+
 export function positionInspectorCard(
   card: HTMLElement,
   target: HTMLElement,
@@ -7,7 +11,13 @@ export function positionInspectorCard(
   const spaceAbove = rect.top
   const spaceBelow = windowObject.innerHeight - rect.bottom
 
-  if (spaceBelow >= spaceAbove) {
+  if (Math.max(spaceAbove, spaceBelow) < MINIMUM_CARD_SPACE) {
+    // The target fills the viewport, so either side would place the card
+    // outside it; keep the card inside the bottom gutter instead.
+    card.style.bottom = `${VIEWPORT_GUTTER}px`
+    card.style.top = ""
+    card.style.maxHeight = `${windowObject.innerHeight - VIEWPORT_GUTTER * 2}px`
+  } else if (spaceBelow >= spaceAbove) {
     card.style.top = `${rect.bottom + 8}px`
     card.style.bottom = ""
     card.style.maxHeight = `${windowObject.innerHeight - rect.bottom - 24}px`

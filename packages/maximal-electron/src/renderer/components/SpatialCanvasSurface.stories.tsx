@@ -60,6 +60,7 @@ function SurfaceContents({ mode }: { mode: 'full-window' | 'embedded' }) {
       </div>
       <SpatialCanvasViewport
         tool="select"
+        camera={{ x: 160, y: 180, zoom: 1 }}
         role="region"
         aria-label={`${mode} spatial canvas surface example`}
       >

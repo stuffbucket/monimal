@@ -30,6 +30,7 @@ export interface TerminalPaneTreeOptions {
   onSessionsChange?: (tabId: string, sessionIds: string[]) => void;
   onFocusChange?: (tabId: string, sessionId: string) => void;
   onPaneChange?: (tabId: string, pane: TerminalPane, baseRevision: number) => void;
+  requestedFocus?: { sessionId: string; generation: number };
   initialPane?: TerminalPane;
   initialPaneRevision?: number;
   onTitleChange?: (tabId: string, title: string) => void;
@@ -68,6 +69,7 @@ export function useTerminalPaneTree({
   onSessionsChange,
   onFocusChange,
   onPaneChange,
+  requestedFocus,
   initialPane,
   initialPaneRevision = 0,
   onTitleChange,
@@ -83,6 +85,8 @@ export function useTerminalPaneTree({
   const mountGeneration = useRef(0);
   const [focusedId, setFocusedId] = useState(attachment.sessionId);
   const [focusRequest, setFocusRequest] = useState({ sessionId: '', generation: 0 });
+  const requestedFocusSessionId = requestedFocus?.sessionId;
+  const requestedFocusGeneration = requestedFocus?.generation;
   const splitPending = useRef(false);
   const [splitFailed, setSplitFailed] = useState(false);
   paneRef.current = pane;
@@ -97,6 +101,12 @@ export function useTerminalPaneTree({
         : current,
     );
   }, [initialPane, initialPaneRevision]);
+
+  useEffect(() => {
+    if (!requestedFocusSessionId) return;
+    if (!terminalPaneSessionIds(paneRef.current).includes(requestedFocusSessionId)) return;
+    requestPaneFocus(requestedFocusSessionId);
+  }, [requestedFocusGeneration, requestedFocusSessionId]);
 
   useEffect(() => {
     const generation = mountGeneration.current + 1;

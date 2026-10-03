@@ -48,6 +48,9 @@ describe('Workbar', () => {
       'map',
       'settings',
       'terminal',
+      'home',
+      'overview',
+      'traffic',
     ]);
     expect(container.querySelectorAll('.workbar__main svg.lucide')).toHaveLength(2);
     expect(

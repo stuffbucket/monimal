@@ -155,6 +155,125 @@
           "unit": "px"
         }
       }
+    },
+    "spatial-canvas": {
+      "radius": {
+        "$type": "dimension",
+        "$value": { "value": 1, "unit": "px" },
+        "$extensions": {
+          "dev.maximal.design-token": {
+            "cssCustomProperties": ["--spatial-grid-radius", "--shell-spatial-grid-radius"]
+          }
+        }
+      },
+      "edge": {
+        "$type": "dimension",
+        "$value": { "value": 0.25, "unit": "px" },
+        "$extensions": {
+          "dev.maximal.design-token": {
+            "cssCustomProperties": ["--spatial-grid-edge", "--shell-spatial-grid-edge"]
+          }
+        }
+      },
+      "dot-light": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [0.7686274509803922, 0.7686274509803922, 0.7686274509803922]
+        },
+        "$extensions": {
+          "dev.maximal.design-token": {
+            "cssCustomProperties": ["--shell-spatial-grid-dot-light"]
+          }
+        }
+      },
+      "dot-dark": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [0.3764705882352941, 0.3764705882352941, 0.3764705882352941]
+        },
+        "$extensions": {
+          "dev.maximal.design-token": {
+            "cssCustomProperties": ["--shell-spatial-grid-dot-dark"]
+          }
+        }
+      },
+      "background-light": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [0.9607843137254902, 0.9607843137254902, 0.9607843137254902]
+        },
+        "$extensions": {
+          "dev.maximal.design-token": {
+            "cssCustomProperties": ["--shell-spatial-grid-background-light"]
+          }
+        }
+      }
+    },
+    "theme-card": {
+      "$description": "Typed defaults for theme preview card custom properties.",
+      "background": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [0.06666666666666667, 0.07450980392156863, 0.09019607843137255]
+        },
+        "$extensions": {
+          "dev.maximal.design-token": {
+            "cssCustomProperties": ["--theme-card-background"]
+          }
+        }
+      },
+      "surface": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [0.10980392156862745, 0.12156862745098039, 0.14901960784313725]
+        },
+        "$extensions": {
+          "dev.maximal.design-token": {
+            "cssCustomProperties": ["--theme-card-surface"]
+          }
+        }
+      },
+      "text": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [0.9607843137254902, 0.9607843137254902, 0.9607843137254902]
+        },
+        "$extensions": {
+          "dev.maximal.design-token": {
+            "cssCustomProperties": ["--theme-card-text"]
+          }
+        }
+      },
+      "accent": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [0.3176470588235294, 0.596078431372549, 0.6509803921568628]
+        },
+        "$extensions": {
+          "dev.maximal.design-token": {
+            "cssCustomProperties": ["--theme-card-accent"]
+          }
+        }
+      }
+    },
+    "solar": {
+      "$description": "Typed local geometry for the solar direction control.",
+      "angle": {
+        "$type": "number",
+        "$value": 0,
+        "$extensions": {
+          "dev.maximal.design-token": {
+            "cssCustomProperties": ["--solar-angle"]
+          }
+        }
+      }
     }
   }
 }

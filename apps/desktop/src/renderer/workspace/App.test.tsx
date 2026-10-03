@@ -7,6 +7,9 @@ import {
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PersistedMaterialPreference } from '@maximal/maximal-client/shared/host'
+import { createYProjectMapStore } from '@maximal/maximal-project-browser'
+import { encodeProjectWindowState, INITIAL_PROJECT_VIEW } from '../../../../../packages/maximal-client/src/renderer/projects/window-state'
+import { WORKBAR_ITEMS } from '../../../../../packages/maximal-client/src/renderer/frame/workbar-layout'
 
 const {
   accountStatus,
@@ -142,6 +145,9 @@ vi.mock('@maximal/maximal-client/renderer/settings/capabilities', () => ({
         motion: 0.5,
         lighting: 'fixed',
         timezone: 'UTC',
+        solarFacingOffset: 0,
+        solarFollowStrength: 0.5,
+        solarEffect: 'atmospheric',
       })),
       setMaterial: vi.fn(
         async (preference: PersistedMaterialPreference) => preference,
@@ -235,17 +241,17 @@ vi.mock('../../../../../packages/maximal-client/src/renderer/terminal/Terminal',
   ),
 }))
 vi.mock('../../../../../packages/maximal-client/src/renderer/terminal/transport', () => ({
-  terminalTransport: { list: terminalList, terminate: terminalTerminate },
+  terminalTransport: { list: terminalList, terminate: terminalTerminate, subscribe: vi.fn(() => () => {}) },
 }))
 vi.mock('../../../../../packages/maximal-client/src/renderer/projects/ProjectBrowser', () => ({
   ProjectBrowser: ({ embedded, open }: { embedded?: boolean; open: boolean }) =>
     open ? <div data-testid="project-browser" data-embedded={String(embedded)} /> : null,
 }))
-vi.mock('../../../../../packages/maximal-client/src/renderer/frame/AppFrame', () => ({
-  PRODUCT_TABS: [
-    { id: 'overview', title: 'Overview', kind: 'overview' },
-    { id: 'traffic', title: 'Traffic', kind: 'traffic' },
-  ],
+vi.mock('../../../../../packages/maximal-client/src/renderer/frame/AppFrame', async () => ({
+  PRODUCT_TABS: (await import('../../../../../packages/maximal-client/src/renderer/frame/workbar-layout'))
+    .WORKBAR_ITEMS.filter((item) => item.id !== 'projects')
+    .map((item) => ({ id: item.id, title: item.label, kind: item.id })),
+  PROJECTS_TAB: { id: 'projects', title: 'Projects', kind: 'projects', closable: true },
   SETTINGS_TAB: { id: 'settings', title: 'Settings', kind: 'settings' },
   SurfaceActivity: ({ children }: { children: ReactNode }) => <aside>{children}</aside>,
   SurfaceRight: ({ children }: { children: ReactNode }) => <aside>{children}</aside>,
@@ -293,6 +299,9 @@ vi.mock('../../../../../packages/maximal-client/src/renderer/frame/AppFrame', ()
       {tabs.some((tab) => tab.id === 'settings') && onCloseTab
         ? <button onClick={() => onCloseTab('settings')}>Close Settings</button>
         : null}
+      {tabs.some((tab) => tab.id === 'projects') && onCloseTab
+        ? <button onClick={() => onCloseTab('projects')}>Close Projects</button>
+        : null}
       {onNewTab ? <button onClick={onNewTab}>New terminal</button> : null}
       {onOpenProjects ? <button onClick={onOpenProjects}>Open projects</button> : null}
       {tabs.flatMap((tab) => (tabTransfer?.contextMenu?.(tab) ?? []).map((item) => (
@@ -306,8 +315,25 @@ vi.mock('../../../../../packages/maximal-client/src/renderer/frame/AppFrame', ()
 }))
 vi.mock('../../../../../packages/maximal-client/src/renderer/ProviderOnboarding', () => ({ ProviderOnboarding: () => null }))
 vi.mock('../../../../../packages/maximal-client/src/renderer/frame/WorkspaceRail', () => ({
-  WorkspaceRail: ({ onToggleSettings }: { onToggleSettings?: () => void }) => (
+  WorkspaceRail: ({
+    onSelect,
+    onToggleSettings,
+    onOpenProfileSurface,
+    onSignIn,
+  }: {
+    onSelect?: (id: string) => void
+    onToggleSettings?: () => void
+    onOpenProfileSurface?: (surface: 'model-cards' | 'api-keys' | 'app-toggles' | 'diagnostics' | 'usage') => void
+    onSignIn?: () => void
+  }) => (
     <nav data-testid="workspace-rail">
+      {onSelect ? ['home', 'projects', 'overview', 'traffic', 'terminals', 'browsers'].map(id => (
+        <button key={id} onClick={() => onSelect(id)}>Workbar {id}</button>
+      )) : null}
+      {onOpenProfileSurface ? (['model-cards', 'api-keys', 'app-toggles', 'diagnostics', 'usage'] as const).map(surface => (
+        <button key={surface} onClick={() => onOpenProfileSurface(surface)}>Profile {surface}</button>
+      )) : null}
+      {onSignIn ? <button onClick={onSignIn}>Profile sign in</button> : null}
       {onToggleSettings ? <button onClick={onToggleSettings}>Settings gear</button> : null}
     </nav>
   ),
@@ -346,6 +372,7 @@ function tabState(shell: HTMLElement): RenderedTabState[] {
 
 let root: Root | null = null
 let container: HTMLElement | null = null
+const productViews = WORKBAR_ITEMS.filter((item) => item.id !== 'projects').map((item) => item.id).join(',')
 
 beforeEach(() => {
   window.history.replaceState({}, '', '/')
@@ -365,6 +392,22 @@ beforeEach(() => {
         current: vi.fn(async () => ({ phase: 'idle', operations: [] })),
         force: vi.fn(async () => false),
         onChange: vi.fn(() => () => {}),
+      },
+      harness: {
+        chats: {
+          list: vi.fn(async () => ({ chats: [], total: 0 })),
+        },
+        preferences: vi.fn(async () => ({
+          candy: true,
+          approval: 'writes' as const,
+          outputFont: 'auto' as const,
+          hotkey: 'CommandOrControl+Shift+Space',
+        })),
+        toggle: vi.fn(async () => {}),
+        openChat: vi.fn(async () => {}),
+        onPreferences: vi.fn(() => () => {}),
+        onChatsChanged: vi.fn(() => () => {}),
+        onTerminalOpened: vi.fn(() => () => {}),
       },
       browser: {
         list: browserList,
@@ -387,6 +430,11 @@ beforeEach(() => {
         onEvent: vi.fn(() => () => {}),
       },
       projects: {
+        undockWindow: vi.fn(async () => true),
+        redockWindow: vi.fn(async () => true),
+        windowState: vi.fn(async () => undefined),
+        onWindowRedocked: vi.fn(() => () => {}),
+        openWorkspaceSettings: vi.fn(async () => {}),
         search: vi.fn(async () => []),
         snapshot: vi.fn(async () => ({ roots: [], projects: [], refreshing: false })),
         addRoot: vi.fn(async () => null),
@@ -405,8 +453,10 @@ beforeEach(() => {
         copy: terminalCopy,
         redock: vi.fn(() => Promise.resolve(true)),
         syncPane: vi.fn(() => Promise.resolve()),
+        syncMenu: vi.fn(() => Promise.resolve()),
         onTabRedocked: vi.fn(() => () => {}),
         onPaneChanged: vi.fn(() => () => {}),
+        onMenuFocus: vi.fn(() => () => {}),
       },
     },
   })
@@ -444,6 +494,52 @@ it('mounts only the terminal typography preview in its dedicated window', async 
 })
 
 describe('App routing', () => {
+  it.each([
+    ['home', 'workspace-home'],
+    ['projects', 'project-browser'],
+    ['overview', 'overview'],
+    ['traffic', 'traffic'],
+    ['terminals', 'workspace-terminals'],
+    ['browsers', 'workspace-browsers'],
+  ])('routes the %s workbar icon to its real surface', async (id, testId) => {
+    const shell = await renderApp()
+    const destination = [...shell.querySelectorAll('button')]
+      .find((button) => button.textContent === `Workbar ${id}`)
+    if (!destination) throw new Error(`Missing workbar destination ${id}`)
+    await act(async () => destination.click())
+    expect(shell.querySelector(`[data-testid="${testId}"]`)).not.toBeNull()
+    expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-surface'))
+      .toBe(id)
+  })
+
+  it.each([
+    ['model-cards', 'settings-models-heading'],
+    ['api-keys', 'settings-connections-heading'],
+    ['app-toggles', 'settings-connections-heading'],
+    ['diagnostics', 'settings-diagnostics-heading'],
+    ['usage', 'settings-usage-heading'],
+    ['sign in', 'settings-account-heading'],
+  ])('routes the profile %s action to its supported settings page', async (surface, id) => {
+    const shell = await renderApp()
+    const action = [...shell.querySelectorAll('button')]
+      .find((button) => button.textContent === `Profile ${surface}`)
+    if (!action) throw new Error(`Missing profile action ${surface}`)
+    await act(async () => action.click())
+    expect(shell.querySelector('[data-testid="settings"]')?.getAttribute('data-request')).toBe(id)
+  })
+
+  it('keeps browser ownership updates in the workspace, not detached Projects windows', async () => {
+    window.history.replaceState({}, '', '/?projectsWindow=true')
+    const store = createYProjectMapStore()
+    vi.mocked(window.maximal.projects.windowState)
+      .mockResolvedValue(encodeProjectWindowState(store, INITIAL_PROJECT_VIEW))
+    store.destroy()
+    const shell = await renderApp()
+    expect(shell.querySelector('[data-testid="project-browser"]')).not.toBeNull()
+    expect(window.maximal.browser.setTerminalContext).not.toHaveBeenCalled()
+    expect(browserList).not.toHaveBeenCalled()
+  })
+
   it('applies the saved native material preference to the document', async () => {
     appearanceState.vibrancyEnabled = true
 
@@ -473,7 +569,7 @@ describe('App routing', () => {
 
     expect(shell.querySelector('[data-testid="overview"]')).not.toBeNull()
     expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-available-views')).toBe(
-      'overview,traffic',
+      productViews,
     )
     expect(accountStatus).toHaveBeenCalled()
     expect(createObservabilitySource).toHaveBeenCalledTimes(1)
@@ -503,6 +599,44 @@ describe('App routing', () => {
     expect(shell.querySelector('[data-testid="overview"]')).toBeNull()
     expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-surface'))
       .toBe('projects')
+    expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-view'))
+      .toBe('projects')
+    expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-available-views'))
+      .toBe(`${productViews},projects`)
+
+    const traffic = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Traffic',
+    )
+    if (traffic === undefined) throw new Error('Traffic action was not rendered')
+    act(() => traffic.click())
+    expect(shell.querySelector('[data-testid="traffic"]')).not.toBeNull()
+    expect(shell.querySelector('[data-testid="project-browser"]')).toBeNull()
+    expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-surface'))
+      .toBe('traffic')
+
+    const closeProjects = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Close Projects',
+    )
+    if (closeProjects === undefined) throw new Error('Close Projects action was not rendered')
+    act(() => closeProjects.click())
+    expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-available-views'))
+      .toBe(productViews)
+  })
+
+  it('routes the workbar Projects destination to the project browser', async () => {
+    const shell = await renderApp()
+    const openProjects = [...shell.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Workbar projects',
+    )
+    if (openProjects === undefined) throw new Error('Workbar projects action was not rendered')
+
+    act(() => openProjects.click())
+
+    expect(shell.querySelector('[data-testid="project-browser"]')).not.toBeNull()
+    expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-view'))
+      .toBe('projects')
+    expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-available-views'))
+      .toBe(`${productViews},projects`)
   })
 
   it('opens the launcher from the title bar and mounts the session as a document tab', async () => {
@@ -635,9 +769,9 @@ describe('App routing', () => {
 
     expect(shell.querySelector('[data-testid="terminal"]')).toBeNull()
   expect(shell.querySelector('[data-testid="workspace-rail"]')).not.toBeNull()
-    expect(shell.querySelector('[data-testid="traffic"]')).not.toBeNull()
+    expect(shell.querySelector('[data-testid="overview"]')).not.toBeNull()
     expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-view')).toBe(
-      'traffic',
+      'overview',
     )
   })
 
@@ -891,7 +1025,7 @@ describe('App routing', () => {
     const frame = shell.querySelector('[data-testid="app-frame"]')
     const settings = shell.querySelector('[data-testid="settings"]')
     expect(frame?.getAttribute('data-view')).toBe('settings')
-    expect(frame?.getAttribute('data-available-views')).toBe('overview,traffic,settings')
+    expect(frame?.getAttribute('data-available-views')).toBe(`${productViews},settings`)
     expect(settings?.getAttribute('data-request')).toBe('settings-usage-heading')
     expect(shell.querySelector('[data-testid="overview"]')).toBeNull()
     expect(shell.querySelector('[data-testid="traffic"]')).toBeNull()
@@ -920,6 +1054,22 @@ describe('App routing', () => {
       .toBe('')
   })
 
+  it.each(['home', 'traffic', 'terminals', 'browsers'])('returns to %s after closing Settings', async (id) => {
+    const shell = await renderApp()
+    const select = [...shell.querySelectorAll('button')]
+      .find(button => button.textContent === `Workbar ${id}`)
+    const gear = [...shell.querySelectorAll('button')]
+      .find(button => button.textContent === 'Settings gear')
+    if (!select || !gear) throw new Error('Workspace navigation controls were not rendered')
+    await act(async () => select.click())
+    act(() => gear.click())
+    const close = [...shell.querySelectorAll('button')]
+      .find(button => button.textContent === 'Close Settings')
+    if (!close) throw new Error('Settings close action was not rendered')
+    act(() => close.click())
+    expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-view')).toBe(id)
+  })
+
   it('toggles the Settings tab from the gear and its close action', async () => {
     const shell = await renderApp()
     const gear = [...shell.querySelectorAll('button')].find(
@@ -930,7 +1080,7 @@ describe('App routing', () => {
     act(() => gear.click())
     expect(shell.querySelector('[data-testid="settings"]')).not.toBeNull()
     expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-available-views')).toBe(
-      'overview,traffic,settings',
+      `${productViews},settings`,
     )
 
     const close = [...shell.querySelectorAll('button')].find(
@@ -941,7 +1091,7 @@ describe('App routing', () => {
 
     expect(shell.querySelector('[data-testid="settings"]')).toBeNull()
     expect(shell.querySelector('[data-testid="app-frame"]')?.getAttribute('data-view')).toBe(
-      'traffic',
+      'overview',
     )
   })
 })

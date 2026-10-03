@@ -101,6 +101,9 @@ describe('the vocabularies', () => {
       'folder',
       'settings',
       'terminal',
+      'home',
+      'overview',
+      'traffic',
     ]);
   });
 

@@ -1,4 +1,5 @@
 @import '@maximal/maximal-electron/renderer/styles.css';
+@import '@fontsource/opendyslexic/400.css';
 
 /*
  * The floating overlay.
@@ -26,105 +27,410 @@ body,
   cursor: default;
 }
 
+.mh-overlay-body > [data-sb-shell-portal-root] {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 /*
  * The native window owns placement; the card fills it with a transparent edge
  * for its shadow.
  */
 .mh-card {
   position: fixed;
-  top: 12px;
-  right: 12px;
-  left: 12px;
+  right: 0;
+  bottom: 0;
+  left: 0;
   box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: max-content max-content minmax(0, 1fr) max-content;
+  grid-template-rows: auto auto;
   width: auto;
-  height: fit-content;
+  height: auto;
   min-height: 0;
-  max-height: calc(100% - 24px);
+  max-height: 100%;
   margin: 0;
-  gap: var(--shell-space-2, 8px);
-  padding: var(--shell-space-3, 12px);
-  border-radius: var(--shell-radius-large, 8px);
+  gap: var(--shell-space-3, 12px);
+  padding: var(--shell-space-4, 16px);
+  border-radius: calc(var(--shell-radius-large, 8px) + 6px);
   background: var(--shell-raised);
   border: 1px solid var(--shell-border);
   box-shadow: var(--shell-elevation, none);
-  animation: mh-card-in 180ms ease-out;
-}
-
-.mh-drag-handle {
-  position: absolute;
-  top: 2px;
-  left: 50%;
-  width: 48px;
-  height: 16px;
-  transform: translateX(-50%);
-  display: grid;
-  place-items: center;
-  cursor: grab;
+  transform-origin: center;
+  overflow: hidden;
+  pointer-events: auto;
   -webkit-app-region: drag;
 }
 
-.mh-drag-handle:active {
-  cursor: grabbing;
+.mh-card--expanded {
+  height: 100%;
+  grid-template-rows: minmax(0, 1fr) auto auto;
 }
 
-.mh-drag-handle span {
-  width: 24px;
-  height: 3px;
-  border-radius: 999px;
-  background: var(--shell-border);
+.mh-card > * {
+  position: relative;
+  z-index: 2;
+}
+
+.mh-card > .mh-card__paint {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.mh-card-candy::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  inset: -35% -10%;
+  transform: translateX(-45%);
+  animation: mh-candy-sheen 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.mh-card__header {
+  display: contents;
+}
+
+.mh-card__header > * {
+  position: relative;
+  z-index: 2;
+}
+
+.mh-card__icon {
+  display: none;
+}
+
+.mh-card__identity {
+  display: none;
+}
+
+.mh-card__identity span,
+.mh-card__conversation > span,
+.mh-permission-picker > span {
+  font-size: var(--shell-text-xs, 0.6875rem);
+  color: color-mix(in srgb, currentColor 72%, transparent);
+}
+
+.mh-card__conversation,
+.mh-permission-picker {
+  display: flex;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+  color: var(--shell-text);
+}
+
+.mh-card__conversation {
+  grid-row: 2;
+  grid-column: 2;
+}
+
+.mh-permission-picker {
+  grid-row: 2;
+  grid-column: 4;
+  justify-self: end;
+}
+
+.mh-card--expanded .mh-card__conversation,
+.mh-card--expanded .mh-permission-picker {
+  grid-row: 3;
+}
+
+.mh-card__conversation > span,
+.mh-permission-picker > span,
+.mh-model-picker__label {
+  display: none;
+}
+
+.mh-card .mh-select-trigger {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 260px;
+  min-height: var(--shell-control-sm, 28px);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--shell-space-2, 8px);
+  padding: var(--shell-space-1, 4px) var(--shell-space-2, 8px);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius, 6px);
+  background: var(--shell-background);
+  color: var(--shell-text);
+  -webkit-app-region: no-drag;
+}
+
+.mh-model-picker .mh-select-trigger,
+.mh-card__conversation .mh-select-trigger,
+.mh-permission-picker .mh-select-trigger {
+  min-height: var(--shell-control-lg, 32px);
+  padding-inline: var(--shell-space-3, 12px);
+}
+
+.mh-model-picker .mh-select-trigger {
+  min-width: 148px;
+}
+
+.mh-card__conversation .mh-select-trigger {
+  min-width: 132px;
+}
+
+.mh-permission-picker .mh-select-trigger {
+  min-width: 168px;
+}
+
+.mh-card .mh-select-trigger > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mh-card .mh-select-trigger:hover,
+.mh-card .mh-select-trigger[data-state='open'] {
+  border-color: var(--shell-border-strong, var(--shell-accent));
+  background: color-mix(
+    in srgb,
+    var(--shell-background) 92%,
+    var(--shell-text) 8%
+  );
+}
+
+.mh-card .mh-select-trigger:focus-visible {
+  outline: 2px solid var(--shell-focus);
+  outline-offset: 1px;
+}
+
+.mh-select-trigger__chevron {
+  flex: none;
+  color: var(--shell-text-muted);
+  transition: transform 120ms ease;
+}
+
+.mh-card .mh-select-trigger[data-state='open'] .mh-select-trigger__chevron {
+  transform: rotate(180deg);
+}
+
+.mh-control-menu {
+  width: min(360px, 100vw);
+  min-width: 220px;
+  border-color: var(--shell-border-strong, var(--shell-border));
+  background: var(--shell-background);
+  font-size: var(--shell-text-sm, 0.8125rem);
+}
+
+.mh-control-menu--models {
+  min-width: 280px;
+}
+
+.mh-control-menu--permissions {
+  width: min(340px, 100vw);
+}
+
+.mh-control-menu.mh-control-menu--permissions .menu__item-description {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .mh-card__input {
-  flex: 0 0 auto;
   box-sizing: border-box;
   width: 100%;
+  min-height: 52px;
   resize: none;
-  padding: 10px var(--shell-space-3, 12px);
-  border-radius: var(--shell-radius, 6px);
-  border: 1px solid var(--shell-border);
-  background: var(--shell-background);
+  padding: var(--shell-space-2, 8px) 0;
+  border: 0;
+  background: transparent;
   color: var(--shell-text);
   font: inherit;
   user-select: text;
   cursor: text;
+  line-height: var(--shell-leading-base, 1.4);
+  -webkit-app-region: no-drag;
 }
 
-.mh-card__input:hover:not(:disabled) {
+.mh-card__input:focus,
+.mh-card__input:focus-visible {
+  outline: none;
+}
+
+.mh-card__prompt {
+  grid-row: 1;
+  grid-column: 1 / -1;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--shell-space-3, 12px);
+  padding: var(--shell-space-2, 8px) var(--shell-space-3, 12px);
+  border: 1px solid var(--shell-border);
+  border-radius: calc(var(--shell-radius-large, 8px) + 2px);
+  background: var(--shell-background);
+}
+
+.mh-card--expanded .mh-card__prompt {
+  grid-row: 2;
+}
+
+.mh-card__prompt:focus-within,
+.mh-card__prompt:hover {
   border-color: var(--shell-accent);
+}
+
+.mh-card__prompt-icon {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  align-self: flex-start;
+  margin-top: var(--shell-space-2, 8px);
+  border-radius: var(--shell-radius, 6px);
+  box-shadow: var(--shell-candy-icon-shadow);
 }
 
 .mh-card__input::placeholder {
   color: var(--shell-text-muted);
 }
 
-.mh-model-picker {
-  position: relative;
-  align-self: flex-start;
+.mh-file-input {
+  display: none;
+}
+
+.mh-composer {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.mh-attachments {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: var(--shell-space-1, 4px);
+  padding-top: var(--shell-space-1, 4px);
+  -webkit-app-region: no-drag;
+}
+
+.mh-attachment {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 240px;
+  align-items: center;
+  gap: var(--shell-space-1, 4px);
+  padding: var(--shell-space-1, 4px) var(--shell-space-2, 8px);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius, 6px);
+  background: var(--shell-active);
+  color: var(--shell-text);
+  font: inherit;
   font-size: var(--shell-text-xs, 0.6875rem);
 }
 
-.mh-model-picker__trigger {
+.mh-attachment span:nth-child(2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mh-composer__actions {
   display: flex;
-  align-items: center;
+  align-self: flex-end;
   gap: var(--shell-space-2, 8px);
-  max-width: 360px;
-  padding: 4px 8px;
-  border-radius: var(--shell-radius, 6px);
+  padding-bottom: var(--shell-space-1, 4px);
+}
+
+.mh-composer__button {
+  display: grid;
+  width: var(--shell-control-lg, 32px);
+  height: var(--shell-control-lg, 32px);
+  flex: none;
+  place-items: center;
+  padding: 0;
   border: 1px solid var(--shell-border);
+  border-radius: 50%;
   background: var(--shell-raised);
   color: var(--shell-text);
   font: inherit;
+  font-size: var(--shell-text-lg, 1rem);
+  line-height: 1;
+  -webkit-app-region: no-drag;
 }
 
-.mh-model-picker__trigger:hover {
+.mh-composer__button:hover:not(:disabled) {
   border-color: var(--shell-accent);
+  background: var(--shell-hover);
 }
 
-.mh-model-picker__trigger:focus-visible {
-  outline: 2px solid var(--shell-focus);
-  outline-offset: 1px;
+.mh-composer__button:disabled {
+  color: color-mix(in srgb, var(--shell-text) 64%, transparent);
+  opacity: 0.72;
+}
+
+.mh-composer__button-send:not(:disabled) {
+  border-color: var(--shell-accent);
+  background: var(--shell-accent);
+  color: var(--shell-accent-contrast);
+}
+
+.mh-send-icon {
+  transform: translateY(-1px);
+}
+
+.mh-terminal-icon {
+  width: var(--shell-text-lg, 1.0625rem);
+  height: var(--shell-text-lg, 1.0625rem);
+  stroke: currentColor;
+  stroke-width: var(--shell-icon-stroke, 1.5);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mh-stop-icon {
+  font-size: 0.75rem;
+}
+
+.mh-permission-icon {
+  display: inline-grid;
+  width: 1rem;
+  place-items: center;
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-base);
+  line-height: 1;
+}
+
+.mh-model-picker {
+  grid-row: 2;
+  grid-column: 1;
+  display: flex;
+  width: auto;
+  min-width: 0;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+  font-size: var(--shell-text-xs, 0.6875rem);
+}
+
+.mh-card--expanded .mh-model-picker {
+  grid-row: 3;
+}
+
+.mh-model-picker__label {
+  color: var(--shell-text-muted);
+}
+
+.mh-select-trigger--model {
+  min-width: 0;
+  flex: 1;
+}
+
+.mh-select-trigger--effort {
+  flex: none;
+  text-transform: capitalize;
 }
 
 .mh-model-picker__name {
@@ -226,22 +532,149 @@ body,
 
 .mh-card__answer {
   position: relative;
+  height: 100%;
+  box-sizing: border-box;
   min-height: 0;
-  max-height: 40vh;
+  max-height: none;
   overflow-y: auto;
-  padding: var(--shell-space-3, 12px);
-  border-radius: var(--shell-radius, 6px);
-  background: var(--shell-canvas);
-  border: 1px solid var(--shell-border);
+  padding: var(--shell-space-4, 16px);
+  border: 0;
+  background: transparent;
+  font-family: inherit;
   font-size: var(--shell-text-sm, 0.8125rem);
-  line-height: 1.5;
+  line-height: var(--shell-leading-base, 1.5);
   user-select: text;
   cursor: text;
+  overflow-x: hidden;
+  scrollbar-color: transparent var(--shell-canvas);
+  scrollbar-width: thin;
+}
+
+.mh-card__answer:hover,
+.mh-card__answer-scrolling {
+  scrollbar-color: var(--shell-text-muted) var(--shell-canvas);
+}
+
+.mh-card__answer::-webkit-scrollbar {
+  width: 6px;
+  height: 0;
+}
+
+.mh-card__answer::-webkit-scrollbar-track {
+  background: var(--shell-canvas);
+}
+
+.mh-card__answer::-webkit-scrollbar-thumb {
+  min-height: 36px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.mh-card__answer:hover::-webkit-scrollbar-thumb,
+.mh-card__answer-scrolling::-webkit-scrollbar-thumb {
+  background: var(--shell-text-muted);
+}
+
+.mh-message + .mh-message {
+  margin-top: var(--shell-space-4, 16px);
+}
+
+.mh-message {
+  min-width: 0;
+  -webkit-app-region: no-drag;
+}
+
+.mh-message--user {
+  width: fit-content;
+  max-width: min(78%, 720px);
+  margin-left: auto;
+  padding: var(--shell-space-2, 8px) var(--shell-space-3, 12px);
+  border: 1px solid var(--shell-border);
+  border-radius: calc(var(--shell-radius-large, 8px) + 2px);
+  background: var(--shell-active);
+}
+
+.mh-message--system,
+.mh-message--approval {
+  padding: var(--shell-space-3, 12px);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius-large, 8px);
+  background: var(--shell-background);
+}
+
+.mh-message--approval {
+  border-color: var(--shell-warning);
+}
+
+.mh-message__role {
+  display: block;
+  margin-bottom: var(--shell-space-1, 4px);
+  color: var(--shell-text-muted);
+  font-size: var(--shell-text-xs, 0.6875rem);
+  font-weight: var(--shell-weight-md, 500);
+}
+
+.mh-card__stage {
+  grid-row: 1;
+  grid-column: 1 / -1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--shell-border);
+  border-radius: calc(var(--shell-radius-large, 8px) + 2px);
+  background: var(--shell-canvas);
+  -webkit-app-region: no-drag;
+}
+
+.mh-card--font-default .mh-message--assistant .mh-response {
+  font-family: var(--font-body, system-ui, sans-serif);
+}
+
+.mh-card--font-terminal .mh-message--assistant .mh-response {
+  font-family: var(
+    --shell-font-mono,
+    ui-monospace,
+    SFMono-Regular,
+    'SF Mono',
+    Menlo,
+    Consolas,
+    monospace
+  );
+  font-size: var(--shell-text-sm, 0.8125rem);
+}
+
+.mh-card--font-open-dyslexic .mh-message--assistant .mh-response {
+  font-family: 'OpenDyslexic', 'Atkinson Hyperlegible', Verdana, sans-serif;
+  line-height: 1.7;
+  letter-spacing: 0.015em;
+}
+
+.mh-card--font-serif .mh-message--assistant .mh-response {
+  font-family: 'Iowan Old Style', Baskerville, 'Times New Roman', serif;
+  font-size: var(--shell-text-md, 0.9375rem);
+  line-height: 1.62;
+}
+
+.mh-card--font-auto .mh-message--assistant .mh-response {
+  max-width: 80ch;
+  margin-inline: auto;
+  font-family: var(--font-body, system-ui, sans-serif);
+  font-size: 1rem;
+  line-height: 1.6;
+  letter-spacing: -0.006em;
+}
+
+.mh-card--font-auto .mh-message--assistant .mh-response__text {
+  text-wrap: pretty;
 }
 
 .mh-response__text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.mh-response__text + .mh-response__text {
+  margin-top: var(--shell-space-2, 8px);
 }
 
 .mh-response__code-wrap {
@@ -262,8 +695,9 @@ body,
 .mh-response__code {
   margin: 0;
   padding: 8px;
-  overflow-x: auto;
-  white-space: pre;
+  overflow-x: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   font: var(--shell-text-xs, 0.6875rem)/1.5 ui-monospace, monospace;
   user-select: text;
 }
@@ -299,6 +733,7 @@ body,
 }
 
 .mh-tool-list {
+  margin-top: var(--shell-space-3, 12px);
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -308,22 +743,54 @@ body,
   border: 1px solid var(--shell-border);
   border-radius: var(--shell-radius, 6px);
   background: var(--shell-canvas);
+  -webkit-app-region: no-drag;
 }
 
 .mh-tool {
-  display: grid;
-  grid-template-columns: 8px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 7px;
+  position: relative;
+  overflow: hidden;
   color: var(--shell-text-muted);
   font-size: var(--shell-text-xs, 0.6875rem);
 }
 
-.mh-tool code {
+.mh-tool summary {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+  padding: var(--shell-space-1, 4px);
+  color: var(--shell-text);
+  cursor: pointer;
+  list-style: none;
+}
+
+.mh-tool summary::-webkit-details-marker {
+  display: none;
+}
+
+.mh-tool__detail {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--shell-space-2, 8px);
+  padding: var(--shell-space-1, 4px) var(--shell-space-1, 4px)
+    var(--shell-space-2, 8px) calc(var(--shell-space-3, 12px) + 8px);
+  border-left: 1px solid var(--shell-border);
+}
+
+.mh-tool__detail code {
   overflow: hidden;
   color: var(--shell-text);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.mh-tool__chevron {
+  transition: transform 120ms ease;
+}
+
+.mh-tool[open] .mh-tool__chevron {
+  transform: rotate(180deg);
 }
 
 .mh-tool__indicator {
@@ -333,9 +800,24 @@ body,
   background: var(--shell-text-muted);
 }
 
-.mh-tool--running .mh-tool__indicator {
+.mh-tool-running .mh-tool__indicator {
   background: var(--shell-accent);
   animation: mh-tool-pulse 1s ease-in-out infinite alternate;
+}
+
+.mh-tool-running::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-110%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--shell-accent) 14%, transparent),
+    transparent
+  );
+  animation: mh-system-glimmer 1.8s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .mh-tool--failed,
@@ -359,6 +841,10 @@ body,
  * answers it are next to each other.
  */
 .mh-approval {
+  grid-row: 1;
+  grid-column: 1 / -1;
+  align-self: end;
+  margin: var(--shell-space-4, 16px);
   display: flex;
   flex-direction: column;
   gap: var(--shell-space-2, 8px);
@@ -399,24 +885,35 @@ body,
   flex-wrap: wrap;
 }
 
-.mh-approval__button {
+.mh-pill {
+  display: inline-flex;
+  min-height: var(--shell-control-sm, 28px);
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
   padding: var(--shell-space-1, 4px) var(--shell-space-3, 12px);
-  border-radius: var(--shell-radius, 6px);
+  border-radius: 999px;
   border: 1px solid var(--shell-border);
   background: var(--shell-raised);
   color: var(--shell-text);
   font: inherit;
   font-size: var(--shell-text-xs, 0.6875rem);
+  -webkit-app-region: no-drag;
 }
 
-.mh-approval__button:hover {
+.mh-pill:hover {
   border-color: var(--shell-accent);
 }
 
-.mh-approval__button--primary {
+.mh-pill--primary {
   background: var(--shell-accent);
   border-color: var(--shell-accent);
   color: var(--shell-accent-contrast);
+}
+
+.mh-pill kbd {
+  color: inherit;
+  font: inherit;
+  opacity: 0.72;
 }
 
 /*
@@ -426,16 +923,6 @@ body,
  * It states the size before asking, because a third of a gigabyte is not a
  * thing to start without saying so.
  */
-.mh-setup {
-  display: flex;
-  flex-direction: column;
-  gap: var(--shell-space-2, 8px);
-  padding: var(--shell-space-3, 12px);
-  border-radius: var(--shell-radius, 6px);
-  background: var(--shell-canvas);
-  border: 1px solid var(--shell-border);
-}
-
 .mh-setup__head {
   font-size: var(--shell-text-sm, 0.8125rem);
 }
@@ -448,6 +935,7 @@ body,
 
 .mh-setup__actions {
   display: flex;
+  margin-top: var(--shell-space-2, 8px);
   justify-content: flex-end;
 }
 
@@ -477,18 +965,29 @@ body,
 }
 
 .mh-card__footer {
-  flex: 0 0 auto;
+  grid-row: 2;
+  grid-column: 3;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--shell-space-3, 12px);
   font-size: var(--shell-text-xs, 0.6875rem);
 }
 
+.mh-card--expanded .mh-card__footer {
+  grid-row: 3;
+}
+
 .mh-card__status {
-  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: right;
   white-space: nowrap;
+}
+
+.mh-card__status:empty {
+  display: none;
 }
 
 .mh-card__status--ready {
@@ -509,20 +1008,80 @@ body,
   color: var(--shell-text-muted);
   flex: none;
 }
-@keyframes mh-card-in {
+
+.mh-card button,
+.mh-card textarea,
+.mh-card [role='menu'],
+.mh-card [role='menuitem'] {
+  -webkit-app-region: no-drag;
+}
+
+.mh-permission-picker__value {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--shell-space-2, 8px);
+}
+
+@keyframes mh-card-enter {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: scale(0.96);
   }
 
-  @keyframes mh-tool-pulse {
-    to {
-      opacity: 0.35;
-    }
-  }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: scale(1);
+  }
+}
+
+@keyframes mh-card-exit {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+.mh-card--entering {
+  animation: mh-card-enter 180ms ease-in;
+}
+
+.mh-card--exiting {
+  animation: mh-card-exit 180ms ease-in forwards;
+  pointer-events: none;
+}
+
+  html,
+  body.mh-overlay-body,
+  body.mh-overlay-body #root {
+    background: transparent;
+  }
+
+@keyframes mh-tool-pulse {
+  to {
+    opacity: 0.35;
+  }
+
+  @keyframes mh-system-glimmer {
+    to {
+      transform: translateX(110%);
+    }
+  }
+}
+
+@keyframes mh-candy-sheen {
+  0%,
+  34% {
+    transform: translateX(-45%);
+  }
+
+  68%,
+  100% {
+    transform: translateX(45%);
   }
 }
 
@@ -532,8 +1091,48 @@ body,
     animation: none;
   }
 
-  .mh-tool--running .mh-tool__indicator {
+  .mh-tool-running .mh-tool__indicator,
+  .mh-card-candy::before {
     animation: none;
   }
 }
+}
+
+/*
+ * The standalone Dialog portal also carries `.sb-shell`, whose unlayered
+ * package-mode default is opaque. It must be overridden outside our layer.
+ */
+.mh-overlay-body > [data-sb-shell-portal-root] {
+  background: transparent;
+}
+
+.mh-click-away {
+  position: fixed;
+  z-index: 1;
+  inset: 0;
+  background: transparent;
+}
+
+.mh-card {
+  z-index: 2;
+}
+
+/*
+ * Shared package-mode button resets are unlayered. Keep these circular
+ * composer actions unlayered too so their tokenized surface is not erased.
+ */
+.mh-overlay-body .mh-composer__button {
+  border: 1px solid var(--shell-border-strong, var(--shell-border));
+  background: var(--shell-raised);
+  box-shadow: var(--shell-elevation, none);
+}
+
+.mh-overlay-body .mh-composer__button:hover:not(:disabled) {
+  border-color: var(--shell-border-hover, var(--shell-accent));
+  background: var(--shell-hover);
+}
+
+.mh-overlay-body .mh-composer__button-send:not(:disabled) {
+  border-color: var(--shell-accent);
+  background: var(--shell-accent);
 }

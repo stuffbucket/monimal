@@ -35,11 +35,6 @@
     "count": 1
   },
   {
-    "path": "packages/maximal-client/src/renderer/appearance.test.ts",
-    "kind": "double-assertion",
-    "count": 1
-  },
-  {
     "path": "packages/maximal-client/src/renderer/frame/AppFrame.test.tsx",
     "kind": "double-assertion",
     "count": 1
@@ -103,11 +98,6 @@
     "path": "packages/maximal-client/src/renderer/useAccountStatus.test.tsx",
     "kind": "double-assertion",
     "count": 1
-  },
-  {
-    "path": "packages/maximal-client/src/renderer/useTerminalTabs.test.tsx",
-    "kind": "unvalidated-json-parse",
-    "count": 2
   },
   {
     "path": "packages/maximal-context-window/tests/architecture.test.ts",

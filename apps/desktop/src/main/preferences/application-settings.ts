@@ -129,7 +129,9 @@ export const workbarLayoutSchema: z.ZodType<WorkbarLayout> = z.object({
 })
 
 const applicationSettingsSchema = z.object({
-  agentApproval: z.enum(['all', 'writes', 'none']),
+  assistantOverlayCandy: z.boolean(),
+  assistantOutputFont: z.enum(['auto', 'default', 'terminal', 'open-dyslexic', 'serif']),
+  agentApproval: z.enum(['all', 'read-only', 'writes', 'none']),
   agentTools: z.boolean(),
   agentCwd: z.string().min(1),
   agentModel: z.string().min(1).optional(),
@@ -149,31 +151,17 @@ const applicationSettingsSchema = z.object({
   materialMotion: z.number().min(0).max(1),
   materialLighting: z.enum(['fixed', 'timezone']),
   materialTimezone: z.string().refine((value) => materialTimezones.has(value)),
+  materialSolarFacingOffset: z.number().min(-180).max(180),
+  materialSolarFollowStrength: z.number().min(0).max(1),
+  materialSolarEffect: z.enum(['atmospheric', 'rays']),
 })
 type ApplicationSettings = z.infer<typeof applicationSettingsSchema>
 
-const applicationSettingsPersistence = {
-  agentApproval: 'user',
-  agentTools: 'user',
-  agentCwd: 'user',
-  agentModel: 'user',
-  agentToolsets: 'user',
-  terminalDiagnostics: 'user',
-  terminalSessionPrefix: 'user',
-  terminalTmuxStatus: 'user',
-  terminalTypography: 'user',
-  workbarLayout: 'user',
-  ollamaStartOnLaunch: 'user',
-  vibrancyEnabled: 'user',
-  backgroundEffectsEnabled: 'user',
-  reducedMotionEnabled: 'user',
-  materialPreset: 'user',
-  materialQuality: 'user',
-  materialStrength: 'user',
-  materialMotion: 'user',
-  materialLighting: 'user',
-  materialTimezone: 'user',
-} as const
+const applicationSettingsPersistence = Object.fromEntries(
+  Object.keys(applicationSettingsSchema.shape).map(
+    (key): [string, 'user'] => [key, 'user'],
+  ),
+)
 const reportListenerError = (error: unknown): never => {
   throw error
 }
@@ -202,6 +190,8 @@ function applicationSettingsDefaults(
     legacy = {}
   }
   const defaults = z.object({
+    assistantOverlayCandy: applicationSettingsSchema.shape.assistantOverlayCandy.catch(true),
+    assistantOutputFont: applicationSettingsSchema.shape.assistantOutputFont.catch('auto'),
     agentApproval: applicationSettingsSchema.shape.agentApproval.catch('writes'),
     agentTools: applicationSettingsSchema.shape.agentTools.catch(true),
     agentCwd: applicationSettingsSchema.shape.agentCwd.catch(homeDirectory),
@@ -242,6 +232,12 @@ function applicationSettingsDefaults(
     materialTimezone: applicationSettingsSchema.shape.materialTimezone.catch(
       Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
     ),
+    materialSolarFacingOffset:
+      applicationSettingsSchema.shape.materialSolarFacingOffset.catch(0),
+    materialSolarFollowStrength:
+      applicationSettingsSchema.shape.materialSolarFollowStrength.catch(0.5),
+    materialSolarEffect:
+      applicationSettingsSchema.shape.materialSolarEffect.catch('atmospheric'),
   }).parse(legacy)
   return defaults
 }
@@ -294,8 +290,47 @@ export async function setOllamaStartOnLaunch(
     ) {
       throw error
     }
+
     return (await store.update('ollamaStartOnLaunch', enabled))
       .settings.ollamaStartOnLaunch
+  }
+}
+
+export async function setAssistantOverlayPreferences(
+  userDataDirectory: string,
+  update: {
+    candy?: boolean
+    approval?: ApplicationSettings['agentApproval']
+    outputFont?: ApplicationSettings['assistantOutputFont']
+  },
+): Promise<Pick<
+  ApplicationSettings,
+  'assistantOverlayCandy' | 'agentApproval' | 'assistantOutputFont'
+>> {
+  const store = applicationSettingsStore(userDataDirectory)
+  let settings = store.getSnapshot().settings
+  for (const [key, value] of [
+    ['assistantOverlayCandy', update.candy],
+    ['agentApproval', update.approval],
+    ['assistantOutputFont', update.outputFont],
+  ] as const) {
+    if (value === undefined) continue
+    try {
+      settings = (await store.create(key, value)).settings
+    } catch (error) {
+      if (
+        !(error instanceof Error)
+        || error.message !== `Setting already exists in its configured layer: ${key}`
+      ) {
+        throw error
+      }
+      settings = (await store.update(key, value)).settings
+    }
+  }
+  return {
+    assistantOverlayCandy: settings.assistantOverlayCandy,
+    agentApproval: settings.agentApproval,
+    assistantOutputFont: settings.assistantOutputFont,
   }
 }
 
@@ -370,6 +405,9 @@ export async function setMaterialPreference(
     motion: applicationSettingsSchema.shape.materialMotion,
     lighting: applicationSettingsSchema.shape.materialLighting,
     timezone: applicationSettingsSchema.shape.materialTimezone,
+    solarFacingOffset: applicationSettingsSchema.shape.materialSolarFacingOffset,
+    solarFollowStrength: applicationSettingsSchema.shape.materialSolarFollowStrength,
+    solarEffect: applicationSettingsSchema.shape.materialSolarEffect,
   }).parse(input)
   const store = applicationSettingsStore(userDataDirectory)
   const settings = [
@@ -379,6 +417,9 @@ export async function setMaterialPreference(
     ['materialMotion', preference.motion],
     ['materialLighting', preference.lighting],
     ['materialTimezone', preference.timezone],
+    ['materialSolarFacingOffset', preference.solarFacingOffset],
+    ['materialSolarFollowStrength', preference.solarFollowStrength],
+    ['materialSolarEffect', preference.solarEffect],
   ] as const
   for (const [settingPath, value] of settings) {
     try {
@@ -406,6 +447,9 @@ export function materialPreferenceFrom(
     motion: settings.materialMotion,
     lighting: settings.materialLighting,
     timezone: settings.materialTimezone,
+    solarFacingOffset: settings.materialSolarFacingOffset,
+    solarFollowStrength: settings.materialSolarFollowStrength,
+    solarEffect: settings.materialSolarEffect,
   }
 }
 

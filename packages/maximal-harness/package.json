@@ -4,6 +4,9 @@
   "version": "0.0.0",
   "private": true,
   "description": "Composable local agent harness for Maximal desktop clients.",
+  "bin": {
+    "maximal-agent": "./dist/cli.js"
+  },
   "sideEffects": ["./dist/styles.css"],
   "type": "module",
   "exports": {
@@ -18,11 +21,13 @@
     "docs/agent.md"
   ],
   "scripts": {
-    "build": "tsup src/index.ts src/host/index.ts src/renderer/index.ts --format esm --dts --target es2022 --external react --external react-dom --out-dir dist && cp src/styles.css dist/styles.css && node scripts/verify-exports.mjs",
+    "build": "tsup src/index.ts src/host/index.ts src/renderer/index.ts src/cli.ts --format esm --dts --target es2022 --external react --external react-dom --out-dir dist && cp src/styles.css dist/styles.css && node scripts/verify-exports.mjs",
+    "dev": "pnpm run build && node dist/cli.js",
     "verify:exports": "node scripts/verify-exports.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "mutate": "stryker run stryker.config.mjs",
+    "start": "node dist/cli.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "analyze": "bun ../maximal-core/scripts/analyze.ts"
@@ -30,6 +35,8 @@
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.84.4",
     "@earendil-works/pi-ai": "0.84.4",
+    "@fontsource/opendyslexic": "5.3.0",
+    "@maximal/maximal-assets": "workspace:*",
     "@maximal/maximal-runner-llama-cpp": "workspace:*",
     "typebox": "1.3.23"
   },

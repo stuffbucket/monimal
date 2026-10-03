@@ -159,6 +159,9 @@ function ModelTable({
             >
               <td>
                 <strong>{model.name}</strong>
+                {model.disabled ? (
+                  <div className="model-card__disabled">{content.disabled}</div>
+                ) : null}
                 <div className="model-table__id">{model.id}</div>
                 {model.disabled === true ? (
                   <span className="model-table__disabled">{content.disabled}</span>
@@ -378,6 +381,17 @@ const MODEL_CARD_STYLES = `
   flex: 0 0 auto;
 }
 
+.sb-shell .model-card__disabled {
+  display: inline-flex;
+  border: 1px solid var(--shell-border-strong);
+  border-radius: var(--shell-radius-pill);
+  padding: 1px var(--shell-space-2);
+  color: var(--shell-text);
+  font-size: var(--shell-text-xs);
+  font-weight: var(--shell-weight-lg);
+  text-transform: uppercase;
+}
+
 .sb-shell .model-card__actions {
   display: flex;
   align-items: center;
@@ -499,12 +513,10 @@ export function ModelCardGrid({
               >
                 <header className="model-card__head">
                   <h3 className="model-card__name">{model.name}</h3>
-                  {model.preview === true && <Tag>{content.preview}</Tag>}
-                  {model.disabled === true ? (
-                    <span className="model-card__disabled">
-                      {content.disabled}
-                    </span>
+                  {model.disabled ? (
+                    <span className="model-card__disabled">{content.disabled}</span>
                   ) : null}
+                  {model.preview === true && <Tag>{content.preview}</Tag>}
                   {model.provider !== undefined &&
                   renderProviderAvatar !== undefined ? (
                     <ProviderAvatar

@@ -9,6 +9,7 @@ export interface TabTransfer {
   pane?: TerminalPane;
   title?: string;
   canRunInBackground?: boolean;
+  document?: { kind: string; state: string };
 }
 
 export interface TabDetachPosition {
@@ -45,6 +46,11 @@ export function decodeTabTransfer(value: string): TabTransfer | undefined {
         : {}),
       ...(typeof candidate.canRunInBackground === 'boolean'
         ? { canRunInBackground: candidate.canRunInBackground }
+        : {}),
+      ...(typeof candidate.document?.kind === 'string'
+        && candidate.document.kind !== ''
+        && typeof candidate.document.state === 'string'
+        ? { document: candidate.document }
         : {}),
     };
   }

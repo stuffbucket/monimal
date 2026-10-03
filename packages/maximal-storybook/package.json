@@ -19,9 +19,12 @@
     "analyze": "bun ../maximal-core/scripts/analyze.ts",
     "build": "tsc --noEmit",
     "lint": "eslint .",
-    "storybook": "storybook dev -p 6006 --no-open",
+    "storybook": "node scripts/storybook-server.mjs start --catalog maximal-storybook",
+    "storybook:list": "node scripts/storybook-server.mjs list",
+    "storybook:stop": "node scripts/storybook-server.mjs stop",
     "storybook:build": "storybook build",
     "storybook:check": "node scripts/storybook-check.mjs",
+    "test": "node --test scripts/storybook-server.test.mjs",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
@@ -44,10 +47,5 @@
   },
   "engines": {
     "node": ">=24"
-  },
-  "monimal": {
-    "taskExemptions": {
-      "test": "Rendered stories are validated by the storybook:check task."
-    }
   }
 }

@@ -171,6 +171,7 @@ describe('terminal host window actions', () => {
       undock,
       copy: vi.fn(() => false),
       redock: vi.fn(() => false),
+      syncMenu: vi.fn(),
     })
 
     registerTerminalIpc()
@@ -182,6 +183,30 @@ describe('terminal host window actions', () => {
       ...request,
       sessionIds: [''],
     })).toThrow()
+  })
+
+  it('validates terminal menu entries before dispatching them with the sender window', () => {
+    const syncMenu = vi.fn()
+    configureTerminalWindowActions({
+      undock: vi.fn(() => false),
+      copy: vi.fn(() => false),
+      redock: vi.fn(() => false),
+      syncMenu,
+    })
+    registerTerminalIpc()
+
+    const entries = [{
+      id: 'primary',
+      title: 'Build workspace',
+      paneSessionIds: ['primary', 'split'],
+    }]
+    const handler = ipcHandlers.get(BRIDGE_CHANNELS.terminalMenuSync)
+    expect(handler?.({ sender: owner.webContents }, entries)).toBeUndefined()
+    expect(syncMenu).toHaveBeenCalledWith(owner, entries)
+    expect(() => handler?.({ sender: owner.webContents }, [{
+      ...entries[0],
+      paneSessionIds: [],
+    }])).toThrow()
   })
 
   it('logs terminal discovery and launch failures without terminal data', async () => {

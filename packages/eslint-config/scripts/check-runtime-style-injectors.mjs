@@ -36,6 +36,10 @@ export const allowedAdhocStyles = new Map([
     { inlineAttributes: 6 },
   ],
   [
+    'packages/maximal-client/src/renderer/settings/general/SolarDirectionControl.tsx',
+    { inlineAttributes: 3 },
+  ],
+  [
     'packages/maximal-client/src/renderer/settings/general/TerminalColorPicker.tsx',
     { inlineAttributes: 3 },
   ],
@@ -50,6 +54,10 @@ export const allowedAdhocStyles = new Map([
   [
     'packages/maximal-client/src/renderer/settings/general/TerminalTypographyPreview.tsx',
     { inlineAttributes: 3 },
+  ],
+  [
+    'packages/maximal-client/src/renderer/settings/general/ThemeBoard.tsx',
+    { inlineAttributes: 5 },
   ],
   [
     'packages/maximal-client/src/renderer/settings/settings-styles.ts',

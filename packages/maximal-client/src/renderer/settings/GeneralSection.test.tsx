@@ -13,7 +13,7 @@ import {
   ShadersSection,
   ThemesSection,
 } from './AppearanceSections'
-import { GeneralSection } from './GeneralSection'
+import { ColorPalettesSection, GeneralSection } from './GeneralSection'
 import {
   terminalFontCatalogQueryKey,
   TerminalTypographySettings as TerminalAppearanceSettings,
@@ -104,6 +104,9 @@ function fakeCapabilities(options?: {
       motion: 0.5,
       lighting: 'fixed' as const,
       timezone: 'UTC',
+      solarFacingOffset: 0,
+      solarFollowStrength: 0.5,
+      solarEffect: 'atmospheric' as const,
     })),
     setMaterial: vi.fn(
       async (preference: PersistedMaterialPreference) => preference,
@@ -122,6 +125,89 @@ function fakeCapabilities(options?: {
       canOpenSettings: options?.canOpenNotificationSettings ?? true,
     })),
     openSystemNotificationSettings: vi.fn(async () => undefined),
+    assistantOverlay: vi.fn(async () => ({
+      candy: true,
+      approval: 'writes' as const,
+      outputFont: 'auto' as const,
+      hotkey: 'CommandOrControl+Shift+Space',
+    })),
+    assistantProvider: vi.fn(async () => ({
+      state: 'ready' as const,
+      provider: 'maximal' as const,
+      model: 'claude-haiku',
+      modelKey: 'maximal:claude-haiku',
+      effort: 'medium' as const,
+      models: [
+        {
+          key: 'maximal:claude-haiku',
+          label: 'Claude Haiku',
+          model: 'claude-haiku',
+          provider: 'maximal' as const,
+          description: 'Fast',
+          efforts: ['low', 'medium', 'high'] as const,
+        },
+        {
+          key: 'maximal:claude-sonnet',
+          label: 'Claude Sonnet',
+          model: 'claude-sonnet',
+          provider: 'maximal' as const,
+          description: 'Capable',
+          efforts: ['low', 'medium', 'high', 'xhigh'] as const,
+        },
+      ],
+    })),
+    setAssistantModel: vi.fn(async (modelKey: string) => ({
+      state: 'ready' as const,
+      provider: 'maximal' as const,
+      model: modelKey === 'maximal:claude-sonnet' ? 'claude-sonnet' : 'claude-haiku',
+      modelKey,
+      effort: 'medium' as const,
+      models: [
+        {
+          key: 'maximal:claude-haiku',
+          label: 'Claude Haiku',
+          model: 'claude-haiku',
+          provider: 'maximal' as const,
+          description: 'Fast',
+          efforts: ['low', 'medium', 'high'] as const,
+        },
+        {
+          key: 'maximal:claude-sonnet',
+          label: 'Claude Sonnet',
+          model: 'claude-sonnet',
+          provider: 'maximal' as const,
+          description: 'Capable',
+          efforts: ['low', 'medium', 'high', 'xhigh'] as const,
+        },
+      ],
+    })),
+    setAssistantEffort: vi.fn(async (effort: 'low' | 'medium' | 'high' | 'xhigh' | 'max') => ({
+      state: 'ready' as const,
+      provider: 'maximal' as const,
+      model: 'claude-haiku',
+      modelKey: 'maximal:claude-haiku',
+      effort,
+      models: [
+        {
+          key: 'maximal:claude-haiku',
+          label: 'Claude Haiku',
+          model: 'claude-haiku',
+          provider: 'maximal' as const,
+          description: 'Fast',
+          efforts: ['low', 'medium', 'high'] as const,
+        },
+      ],
+    })),
+    updateAssistantOverlay: vi.fn(async (update: {
+      candy?: boolean
+      approval?: 'all' | 'read-only' | 'writes' | 'none'
+      outputFont?: 'auto' | 'default' | 'terminal' | 'open-dyslexic' | 'serif'
+    }) => ({
+      candy: update.candy ?? true,
+      approval: update.approval ?? 'writes',
+      outputFont: update.outputFont ?? 'auto',
+      hotkey: 'CommandOrControl+Shift+Space',
+    })),
   }
   const initialTypography = {
     fontFamily: 'JetBrainsMono Nerd Font',
@@ -282,7 +368,9 @@ async function renderGeneral(
           : surface === 'shaders'
             ? <ShadersSection capabilities={capabilities} />
             : surface === 'themes'
-              ? <ThemesSection />
+              ? <ThemesSection capabilities={capabilities} />
+              : surface === 'palette'
+                ? <ColorPalettesSection capabilities={capabilities} />
               : (
               <TerminalAppearanceSettings
                 capabilities={capabilities.terminalTypography}
@@ -359,34 +447,118 @@ function button(label: string): HTMLButtonElement {
 }
 
 describe('GeneralSection', () => {
-  it('offers auto, light, dark, sourced palettes, and portable theme actions', async () => {
-    const { capabilities } = fakeCapabilities()
+  it('offers a searchable theme library and complete recent snapshots', async () => {
+    const { capabilities, general, terminalTypography } = fakeCapabilities()
     const surface = await renderGeneral(capabilities, 'themes')
 
     expect(surface.querySelector('[data-testid="appearance-mode"]')).not.toBeNull()
-    expect(surface.querySelector('[data-testid="appearance-preset"]')?.textContent).toContain(
-      'Mocha Mousse',
-    )
-    expect(surface.querySelector('[data-testid="appearance-preset"]')?.textContent).toContain(
-      'Apple System',
-    )
-    expect(surface.querySelector('[data-testid="appearance-preset"]')?.textContent).toContain(
-      'Very Peri',
-    )
-    expect(surface.querySelector('[data-testid="appearance-preset"]')?.textContent).toContain(
-      'Viva Magenta',
-    )
-    const preset = surface.querySelector<HTMLSelectElement>(
-      '[data-testid="appearance-preset"]',
-    )
-    if (preset === null) throw new Error('appearance preset was not rendered')
-    await act(async () => {
-      preset.value = 'mocha-mousse-2025'
-      preset.dispatchEvent(new Event('change', { bubbles: true }))
-    })
-    expect(surface.textContent).toContain('PANTONE 17-1230')
+    expect(surface.querySelectorAll('.theme-board .theme-card')).toHaveLength(121)
+    expect(surface.querySelectorAll('.theme-board__cell')).toHaveLength(64)
+    expect(surface.querySelector('[data-testid="current-theme-card"]')).not.toBeNull()
+    expect(surface.querySelector('[data-testid="starter-theme-card"]')?.textContent)
+      .toContain('Maximized')
+    expect(surface.querySelectorAll('.theme-stack__ghost')).toHaveLength(4)
+    expect(surface.textContent).toContain('Nocturne')
+    expect(surface.textContent).toContain('Magenta')
+    expect(surface.textContent).toContain('Neon Han River')
+    expect(surface.textContent).toContain('Indigo Blockprint')
     expect(surface.textContent).toContain('Import')
     expect(surface.textContent).toContain('Export')
+    const themeHeading = [...surface.querySelectorAll('h2')]
+      .findIndex(({ textContent }) => textContent === 'Theme')
+    const libraryHeading = [...surface.querySelectorAll('h2')]
+      .findIndex(({ textContent }) => textContent === 'Theme library')
+    expect(themeHeading).toBeGreaterThanOrEqual(0)
+    expect(libraryHeading).toBeGreaterThan(themeHeading)
+    expect(
+      surface.querySelector('.theme-library-toolbar')?.textContent,
+    ).toContain('Import')
+
+    const mocha = surface.querySelector<HTMLButtonElement>(
+      '[data-testid="theme-card-mocha-mousse-2025"]',
+    )
+    await act(async () => {
+      mocha?.click()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(surface.textContent).toContain('PANTONE 17-1230')
+    expect(surface.textContent).toContain('Recent previews')
+    expect(surface.textContent).toContain('Maximal')
+    expect(terminalTypography.update).toHaveBeenCalled()
+    expect(general.setBackgroundEffectsEnabled).toHaveBeenCalledWith(false)
+
+    const search = surface.querySelector<HTMLInputElement>(
+      '[aria-label="Search themes"]',
+    )
+    await act(async () => {
+      if (search !== null) setInputValue(search, 'aurora')
+    })
+    expect(surface.querySelectorAll('.theme-grid .theme-card')).toHaveLength(1)
+    expect(surface.textContent).toContain('Arctic Aurora')
+  })
+
+  it('offers Maximized as the initial candy-paint preview', async () => {
+    const { capabilities, terminalTypography } = fakeCapabilities()
+    const surface = await renderGeneral(capabilities, 'themes')
+
+    act(() => {
+      surface.querySelector<HTMLButtonElement>(
+        '[data-testid="starter-theme-card"]',
+      )?.click()
+    })
+
+    expect(surface.textContent)
+      .toContain('turns on the candy-paint animated background shader')
+    expect(terminalTypography.update).not.toHaveBeenCalled()
+  })
+
+  it('warns before applying a theme with a shader', async () => {
+    const { capabilities, general, terminalTypography } = fakeCapabilities()
+    const surface = await renderGeneral(capabilities, 'themes')
+    const shaderTheme = surface.querySelector<HTMLButtonElement>(
+      '[data-testid="theme-card-neon-han-river"]',
+    )
+
+    act(() => shaderTheme?.click())
+
+    expect(surface.textContent).toContain('turns on the halftone animated background shader')
+    expect(terminalTypography.update).not.toHaveBeenCalled()
+
+    const confirm = [...surface.querySelectorAll<HTMLButtonElement>('button')]
+      .find(({ textContent }) => textContent?.includes('Preview shader theme'))
+    await act(async () => {
+      confirm?.click()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(general.setMaterial).toHaveBeenCalledWith(expect.objectContaining({
+      preset: 'halftone',
+    }))
+    expect(general.setBackgroundEffectsEnabled).toHaveBeenCalledWith(true)
+    expect(terminalTypography.update).toHaveBeenCalled()
+  })
+
+  it('edits the spatial canvas background from color palettes', async () => {
+    const { capabilities } = fakeCapabilities()
+    const surface = await renderGeneral(capabilities, 'palette')
+    const color = surface.querySelector<HTMLInputElement>(
+      '[data-testid="spatial-canvas-background"]',
+    )
+    if (color === null) {
+      throw new Error('spatial canvas background picker was not rendered')
+    }
+
+    await act(async () => {
+      setInputValue(color, '#123456')
+    })
+
+    expect(
+      document.documentElement.style.getPropertyValue(
+        '--shell-spatial-canvas-background',
+      ),
+    ).toBe('#123456')
   })
 
   it('enables native vibrancy from Appearance settings', async () => {
@@ -475,6 +647,36 @@ describe('GeneralSection', () => {
     expect(surface.querySelector('[data-testid="material-timezone"]')).not.toBeNull()
     expect(surface.querySelector('[data-testid="material-latitude"]')).not.toBeNull()
     expect(surface.querySelector('[data-testid="material-longitude"]')).not.toBeNull()
+    const direction = surface.querySelector<HTMLElement>(
+      '[data-testid="material-solar-direction"]',
+    )
+    const solarEffect = surface.querySelector<HTMLSelectElement>(
+      '[data-testid="material-solar-effect"]',
+    )
+    expect(direction?.getAttribute('aria-valuenow')).toBe('0')
+    expect(surface.querySelector('[data-testid="material-solar-strength"]'))
+      .not.toBeNull()
+    expect(solarEffect).not.toBeNull()
+    await act(async () => {
+      direction?.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'ArrowRight',
+        bubbles: true,
+      }))
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    await act(async () => {
+      if (solarEffect !== null) {
+        solarEffect.value = 'rays'
+        solarEffect.dispatchEvent(new Event('change', { bubbles: true }))
+      }
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(general.setMaterial).toHaveBeenCalledWith(
+      expect.objectContaining({ solarFacingOffset: 5 }),
+    )
+    expect(general.setMaterial).toHaveBeenLastCalledWith(
+      expect.objectContaining({ solarEffect: 'rays' }),
+    )
     expect(general.setMaterial).toHaveBeenLastCalledWith(
       expect.objectContaining({ preset: 'water', lighting: 'timezone' }),
     )
@@ -517,12 +719,13 @@ describe('GeneralSection', () => {
     expect(surface.querySelector('h1')).toBeNull()
     expect([...surface.querySelectorAll('h2')].map(({ textContent }) => textContent)).toEqual([
       'Desktop app',
+      'Assistant overlay',
       'Notifications',
     ])
-    expect(surface.querySelectorAll('.settings__group')).toHaveLength(2)
+    expect(surface.querySelectorAll('.settings__group')).toHaveLength(3)
     expect([
       ...surface.querySelectorAll(
-        '.settings__group .settings__item + .settings__item',
+        '.settings__section:first-of-type .settings__item + .settings__item',
       ),
     ].every((item) => item.getAttribute('data-divider') === 'false')).toBe(true)
     expect(surface.textContent).toContain('Desktop app version')
@@ -531,12 +734,51 @@ describe('GeneralSection', () => {
     expect(surface.textContent).toContain('Quick access shortcut')
     expect(surface.textContent).toContain('Ctrl Ctrl')
     expect(surface.textContent).toContain('Menu bar')
+    expect(surface.textContent).toContain('Default model')
+    expect(surface.textContent).toContain('Reasoning effort')
+    expect(
+      surface.querySelector<HTMLSelectElement>('[data-testid="assistant-default-model"]')
+        ?.value,
+    ).toBe('maximal:claude-haiku')
+    expect(
+      surface.querySelector<HTMLSelectElement>('[data-testid="assistant-default-effort"]')
+        ?.value,
+    ).toBe('medium')
+    expect(surface.querySelector('[data-testid="assistant-candy-switch"]')).not.toBeNull()
     expect(surface.textContent).toContain(
       'Manage notification permission, alerts, and sounds in system settings.',
     )
     expect(switchControl(surface).getAttribute('role')).toBe('switch')
     expect(switchControl(surface).getAttribute('data-layout')).toBe('compact')
     expect(surface.querySelector('[aria-live="assertive"]')).toBeNull()
+  })
+
+  it('updates the default assistant model and reasoning effort', async () => {
+    const { capabilities, general } = fakeCapabilities()
+    const surface = await renderGeneral(capabilities)
+    const model = surface.querySelector<HTMLSelectElement>(
+      '[data-testid="assistant-default-model"]',
+    )
+    const effort = surface.querySelector<HTMLSelectElement>(
+      '[data-testid="assistant-default-effort"]',
+    )
+    if (model === null || effort === null) {
+      throw new Error('Assistant defaults were not rendered')
+    }
+
+    await act(async () => {
+      model.value = 'maximal:claude-sonnet'
+      model.dispatchEvent(new Event('change', { bubbles: true }))
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(general.setAssistantModel).toHaveBeenCalledWith('maximal:claude-sonnet')
+
+    await act(async () => {
+      effort.value = 'high'
+      effort.dispatchEvent(new Event('change', { bubbles: true }))
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(general.setAssistantEffort).toHaveBeenCalledWith('high')
   })
 
   it('updates Electron login-item startup behavior', async () => {

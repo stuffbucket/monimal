@@ -12,9 +12,14 @@ export interface Point {
 }
 
 export const INITIAL_CAMERA: Camera = { x: 340, y: 100, zoom: 1 }
+const WHEEL_ZOOM_RATE = 0.0014
 
 export function clampZoom(value: number): number {
   return Math.min(4, Math.max(0.1, value))
+}
+
+export function wheelZoomFactor(deltaY: number): number {
+  return Math.exp(-deltaY * WHEEL_ZOOM_RATE)
 }
 
 export function screenToWorld(

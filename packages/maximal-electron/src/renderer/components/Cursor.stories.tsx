@@ -100,6 +100,7 @@ function MultiplayerSample({
       <SpatialCanvas>
         <SpatialCanvasViewport
           id={`isolated-cursor-${labeled ? 'labeled' : 'anonymous'}`}
+          camera={{ x: 120, y: 96, zoom: 1 }}
           tool="select"
           role="img"
           aria-label={labeled
@@ -235,6 +236,7 @@ export const PresenceStates: Story = {
       <SpatialCanvas>
         <SpatialCanvasViewport
           id="presence-cursor-states"
+          camera={{ x: 80, y: 80, zoom: 1 }}
           tool="select"
           role="img"
           aria-label="Seven labeled multiplayer cursor scenarios"

@@ -57,4 +57,22 @@ describe("inspector card positioning", () => {
     expect(card.style.right).toBe("104px")
     expect(card.style.left).toBe("")
   })
+
+  it("keeps the card inside the viewport when the target fills it", () => {
+    const card = document.createElement("section")
+    const target = document.createElement("div")
+    card.getBoundingClientRect = () => box({ width: 380 })
+    target.getBoundingClientRect = () =>
+      box({ bottom: 768, height: 768, left: 0, right: 1280, top: 0 })
+
+    positionInspectorCard(card, target, {
+      innerHeight: 768,
+      innerWidth: 1280,
+    })
+
+    expect(card.style.top).toBe("")
+    expect(card.style.bottom).toBe("16px")
+    expect(card.style.maxHeight).toBe("736px")
+    expect(card.style.left).toBe("16px")
+  })
 })

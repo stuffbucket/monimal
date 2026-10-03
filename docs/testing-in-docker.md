@@ -154,8 +154,14 @@ policy tests, workspace tests, cleanup, and the total run where each phase
 applies. The wrapper MUST NOT forward this control variable to package tests.
 
 `pnpm run test:all` and `pnpm run test:core` are fixed script aliases for the two
-explicit scopes. CI uses `pnpm run test:all`; the separate pinned-Linux workflow
-runs the policy suite weekly and offers full or policy-only manual dispatch on a
+explicit scopes. Required pull-request CI uses the affected native graph. The
+non-blocking Full test graph workflow runs `pnpm run test:all` once for each pull
+request head and `main` commit, cancelling the stale run when another commit
+arrives on the same ref; a separate privileged reporter maintains one issue per
+pull request, closes it when the latest full graph passes, and reopens it when a
+later commit fails. A failing `main` commit receives its own issue. The reporter
+does not check out or execute pull-request code. The pinned-Linux workflow runs
+the policy suite weekly and offers full or policy-only manual dispatch on a
 selected branch. GitHub-hosted pull-request runners use the same isolated native
 wrapper rather than nesting Docker or relying on an ambient marker.
 

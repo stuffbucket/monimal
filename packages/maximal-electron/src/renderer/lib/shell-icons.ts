@@ -1,7 +1,10 @@
 import {
+  Activity,
   FileText,
   Folder,
   Globe,
+  House,
+  LayoutDashboard,
   Map as MapIcon,
   Settings,
   SquareTerminal,
@@ -18,6 +21,9 @@ export const SHELL_ICON_NAMES = [
   'map',
   'settings',
   'terminal',
+  'home',
+  'overview',
+  'traffic',
 ] as const;
 
 export type ShellIconName = (typeof SHELL_ICON_NAMES)[number];
@@ -29,6 +35,9 @@ const SHELL_ICON_GLYPHS: Record<ShellIconName, LucideIcon> = {
   map: MapIcon,
   settings: Settings,
   terminal: SquareTerminal,
+  home: House,
+  overview: LayoutDashboard,
+  traffic: Activity,
 };
 
 /** The Lucide glyph assigned to a semantic shell icon name. */

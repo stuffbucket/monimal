@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   AppFrame,
   PRODUCT_TABS,
+  PROJECTS_TAB,
   SETTINGS_TAB,
   Status,
   SurfaceRail,
@@ -141,7 +142,7 @@ describe('AppFrame', () => {
     expect(shell.querySelector('.sb-shell.app .titlebar')).not.toBeNull()
   })
 
-  it('keeps product actions in the title bar', () => {
+  it('keeps the Assistant action in the title bar', async () => {
     const onOpenAssistant = vi.fn()
     const shell = renderFrame('overview', vi.fn(), <p>content</p>)
     act(() => {
@@ -151,7 +152,13 @@ describe('AppFrame', () => {
           activeTab="overview"
           surface="overview"
           onSelectTab={vi.fn()}
-          onOpenAssistant={onOpenAssistant}
+          assistant={{
+            recent: [],
+            hotkey: '⌘⇧Space',
+            onToggle: onOpenAssistant,
+            onOpenChat: vi.fn(),
+            onShowMore: vi.fn(),
+          }}
         >
           <p>content</p>
         </AppFrame>,
@@ -167,7 +174,15 @@ describe('AppFrame', () => {
     if (assistant === null) throw new Error('Assistant button was not rendered')
     if (rightPanelToggle === null) throw new Error('right-panel toggle was not rendered')
     expect(assistant.nextElementSibling).toBe(rightPanelToggle)
-    act(() => assistant.click())
+    await act(async () => {
+      assistant.dispatchEvent(new MouseEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+      }))
+    })
+    const toggleAssistant = document.querySelector<HTMLElement>('[data-testid="menu-toggle"]')
+    if (toggleAssistant === null) throw new Error('Assistant toggle was not rendered')
+    await act(async () => toggleAssistant.click())
     expect(onOpenAssistant).toHaveBeenCalledOnce()
   })
 
@@ -251,6 +266,35 @@ describe('AppFrame', () => {
     if (newTerminal === null) throw new Error('no new-terminal control was rendered')
     act(() => newTerminal.click())
     expect(onNewTab).toHaveBeenCalledOnce()
+  })
+
+  it.each([false, true])('shows a closable Projects document with no right pane (only tab: %s)', (onlyTab) => {
+    const onCloseTab = vi.fn()
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+    act(() => {
+      root?.render(
+        <AppFrame
+          tabs={onlyTab ? [PROJECTS_TAB] : [...FRAME_TABS, PROJECTS_TAB]}
+          activeTab={PROJECTS_TAB.id}
+          surface="projects"
+          onSelectTab={vi.fn()}
+          onCloseTab={onCloseTab}
+        >
+          <p>project browser</p>
+        </AppFrame>,
+      )
+    })
+
+    expect(
+      [...container.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent),
+    ).toEqual(onlyTab ? ['Projects'] : ['Settings', 'Projects'])
+    expect(container.querySelector('#right')).toBeNull()
+    const close = container.querySelector<HTMLElement>('[aria-label="Close Projects"]')
+    if (close === null) throw new Error('no close control was rendered for Projects')
+    act(() => close.click())
+    expect(onCloseTab).toHaveBeenCalledWith('projects')
   })
 
   it('limits navigation to the views available in the current app state', () => {

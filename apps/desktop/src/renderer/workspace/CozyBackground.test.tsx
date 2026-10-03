@@ -249,7 +249,13 @@ describe('CozyBackground', () => {
     const shaderOptions = pixi.shaderFrom.mock.calls[0]?.[0] as {
       resources: {
         cozyUniforms: {
-          uniforms: { uMaterial: number; uStrength: number; uMotion: number }
+          uniforms: {
+            uMaterial: number
+            uStrength: number
+            uMotion: number
+            uSolarStrength: number
+            uSolarMode: number
+          }
         }
       }
     }
@@ -257,7 +263,81 @@ describe('CozyBackground', () => {
       uMaterial: 5,
       uStrength: 0.75,
       uMotion: 0.5,
+      uSolarStrength: 0,
+      uSolarMode: 0,
     })
+  })
+
+  it('configures broken-cloud rays with the chosen follow strength', async () => {
+    await act(async () => {
+      root.render(
+        <CozyBackground
+          enabled
+          reducedMotion={false}
+          material={{
+            ...DEFAULT_MATERIAL_PREFERENCE,
+            lighting: 'timezone',
+            solarFacingOffset: 40,
+            solarFollowStrength: 0.75,
+            solarEffect: 'rays',
+          }}
+        />,
+      )
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    const shaderOptions = pixi.shaderFrom.mock.calls[0]?.[0] as {
+      gl: { fragment: string }
+      resources: {
+        cozyUniforms: {
+          uniforms: {
+            uLight: Float32Array
+            uSolarStrength: number
+            uSolarMode: number
+          }
+        }
+      }
+    }
+    expect(shaderOptions.gl.fragment).toContain('brokenClouds')
+    expect(shaderOptions.gl.fragment).toContain('rayBands')
+    expect(shaderOptions.resources.cozyUniforms.uniforms).toMatchObject({
+      uSolarStrength: 0.75,
+      uSolarMode: 1,
+    })
+    expect(
+      [...shaderOptions.resources.cozyUniforms.uniforms.uLight]
+        .every(Number.isFinite),
+    ).toBe(true)
+  })
+
+  it('renders the splash-screen candy-paint material', async () => {
+    await act(async () => {
+      root.render(
+        <CozyBackground
+          enabled
+          reducedMotion={false}
+          material={{
+            ...DEFAULT_MATERIAL_PREFERENCE,
+            preset: 'candy-paint',
+          }}
+        />,
+      )
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    const shaderOptions = pixi.shaderFrom.mock.calls[0]?.[0] as {
+      gl: { fragment: string }
+      resources: {
+        cozyUniforms: {
+          uniforms: { uMaterial: number }
+        }
+      }
+    }
+    expect(shaderOptions.resources.cozyUniforms.uniforms.uMaterial).toBe(10)
+    expect(shaderOptions.gl.fragment).toContain('candyFlakes')
+    expect(shaderOptions.gl.fragment).toContain('vec3(0.784,0.2,0.29)')
   })
 
   it('destroys once when disabled during asynchronous initialization', async () => {

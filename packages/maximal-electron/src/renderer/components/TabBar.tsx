@@ -86,7 +86,7 @@ export interface TabTransferOptions<T extends Tab> {
   onMoveTab?: (tabId: string, beforeTabId?: string) => void;
   onReceiveTab?: (transfer: TabTransfer, beforeTabId?: string) => void;
   onDetachTab?: (transfer: TabTransfer, position: TabDetachPosition) => void;
-  getTransfer?: (tab: T) => Pick<TabTransfer, 'sessionId' | 'pane' | 'title' | 'canRunInBackground'> | undefined;
+  getTransfer?: (tab: T) => Pick<TabTransfer, 'sessionId' | 'pane' | 'title' | 'canRunInBackground' | 'document'> | undefined;
   contextMenu?: (tab: T) => TabContextMenuItem[];
 }
 
@@ -211,10 +211,10 @@ export function TabBar<T extends Tab>({
 }) {
   const activeIndex = tabs.findIndex((tab) => tab.id === active);
   const activeItem = tabs[activeIndex];
-  // Closing the last tab is refused, so every close affordance hangs off this
-  // rather than repeating the condition.
-  const closeTab = tabs.length > 1 ? onClose : undefined;
-  const closeActiveTab = activeItem?.closable === false ? undefined : closeTab;
+  const canClose = (tab: T | undefined) => tab !== undefined
+    && tab.closable !== false && (tabs.length > 1 || tab.closable === true);
+  const closeTab = onClose;
+  const closeActiveTab = canClose(activeItem) ? closeTab : undefined;
   const portalContainer = useShellPortalContainer();
   const [contextMenu, setContextMenu] = useState<{
     tab: T;
@@ -294,7 +294,7 @@ export function TabBar<T extends Tab>({
    */
   const closeAndRefocus = (index: number) => {
     const tab = tabs[index];
-    if (!closeTab || !tab) return;
+    if (!closeTab || !tab || !canClose(tab)) return;
     focusAfterClose.current = (tabs[index + 1] ?? tabs[index - 1])?.id ?? null;
     closeTab(tab.id);
   };
@@ -315,7 +315,7 @@ export function TabBar<T extends Tab>({
         onDrop={(event) => dropTab(event)}
       >
         {tabs.map((tab, index) => {
-          const closeThisTab = tab.closable === false ? undefined : closeTab;
+          const closeThisTab = canClose(tab) ? closeTab : undefined;
           const Custom = icon?.(tab);
           const slot = tabSlot(tab, Custom !== undefined);
           const Named = tab.icon === undefined ? undefined : tabIcon(tab.icon);

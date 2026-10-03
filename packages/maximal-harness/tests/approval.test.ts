@@ -4,6 +4,7 @@ import {
   MAX_SUMMARY,
   describeToolCall,
   needsApproval,
+  permitsTool,
   riskOf,
 } from '../src/host/approval.js';
 
@@ -46,6 +47,23 @@ describe('needsApproval', () => {
     for (const risk of ['safe', 'mutating', 'dangerous'] as const) {
       expect(needsApproval('none', risk)).toBe(false);
     }
+  });
+
+  describe('permitsTool', () => {
+    it('allows only safe tools in read-only mode', () => {
+      expect(permitsTool('read-only', 'safe')).toBe(true);
+      expect(permitsTool('read-only', 'mutating')).toBe(false);
+      expect(permitsTool('read-only', 'dangerous')).toBe(false);
+    });
+
+    it.each(['all', 'writes', 'none'] as const)(
+      'leaves %s decisions to the approval policy',
+      (policy) => {
+        for (const risk of ['safe', 'mutating', 'dangerous'] as const) {
+          expect(permitsTool(policy, risk)).toBe(true);
+        }
+      },
+    );
   });
 
   it('always asks under "all", including for safe tools', () => {

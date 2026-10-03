@@ -65,6 +65,10 @@ interface CapabilitySupport {
   supported: boolean
 }
 
+interface ThinkingCapabilitySupport extends CapabilitySupport {
+  efforts?: Array<string>
+}
+
 export interface AnthropicModel {
   id: string
   type: "model"
@@ -76,7 +80,7 @@ export interface AnthropicModel {
     image_input: CapabilitySupport
     pdf_input: CapabilitySupport
     structured_outputs: CapabilitySupport
-    thinking: CapabilitySupport
+    thinking: ThinkingCapabilitySupport
   }
 }
 
@@ -108,7 +112,12 @@ export function toAnthropicModel(model: Model): AnthropicModel {
       image_input: { supported: profile.supportsVision },
       pdf_input: { supported: profile.supportsVision },
       structured_outputs: { supported: profile.supportsStructuredOutputs },
-      thinking: { supported: profile.isReasoning },
+      thinking: {
+        supported: profile.isReasoning,
+        ...(profile.reasoningEffortLadder === undefined ?
+          {}
+        : { efforts: [...profile.reasoningEffortLadder] }),
+      },
     },
   }
 }

@@ -14,8 +14,10 @@ import {
   type MaterialPreference,
   type MaterialPreset,
   type MaterialQuality,
+  type MaterialSolarEffect,
 } from '../../material-preference'
 import type { useMaterialPreference } from '../../useMaterialPreference'
+import { SolarDirectionControl } from './SolarDirectionControl'
 
 const TIMEZONE_OPTIONS = [
   'UTC',
@@ -39,6 +41,76 @@ const MOTION_OPTIONS = [
   { value: 0.75, label: 'Active' },
   { value: 1, label: 'Fluid' },
 ] as const
+
+const SOLAR_STRENGTH_OPTIONS = [
+  { value: 0, label: 'Off' },
+  { value: 0.25, label: 'Subtle' },
+  { value: 0.5, label: 'Balanced' },
+  { value: 0.75, label: 'Present' },
+  { value: 1, label: 'Strong' },
+] as const
+
+function SolarFollowSettings({
+  material,
+  disabled,
+  update,
+}: {
+  material: MaterialPreference
+  disabled: boolean
+  update: (next: MaterialPreference) => void
+}): ReactElement {
+  return (
+    <>
+      <div className="material-settings__solar-direction">
+        <SolarDirectionControl
+          key={String(material.solarFacingOffset)}
+          material={material}
+          disabled={disabled}
+          onChange={(solarFacingOffset) =>
+            update({ ...material, solarFacingOffset })}
+        />
+      </div>
+      <div className="material-settings__solar-strength">
+        <FormField
+          label="Follow strength"
+          hint="Controls how strongly the calculated sun direction shapes the material."
+        >
+          {(field) => (
+            <Slider
+              {...field}
+              label="Follow the sun strength"
+              value={material.solarFollowStrength}
+              options={SOLAR_STRENGTH_OPTIONS}
+              disabled={disabled}
+              onChange={(solarFollowStrength) =>
+                update({ ...material, solarFollowStrength })}
+              testId="material-solar-strength"
+            />
+          )}
+        </FormField>
+      </div>
+      <FormField
+        label="Sunlight"
+        hint="Atmosphere is a broad glow. Broken-cloud rays add soft, visible shafts."
+      >
+        {(field) => (
+          <Select<MaterialSolarEffect>
+            {...field}
+            value={material.solarEffect}
+            options={[
+              { value: 'atmospheric', label: 'Atmospheric glow' },
+              { value: 'rays', label: 'Rays through broken clouds' },
+            ]}
+            disabled={disabled}
+            onChange={(solarEffect) => update({ ...material, solarEffect })}
+            aria-label="Follow the sun effect"
+            testId="material-solar-effect"
+          />
+        )}
+      </FormField>
+    </>
+  )
+}
 
 function SolarLocationSettings({
   material,
@@ -117,6 +189,11 @@ function SolarLocationSettings({
           />
         )}
       </FormField>
+      <SolarFollowSettings
+        material={material}
+        disabled={disabled}
+        update={update}
+      />
     </div>
   )
 }

@@ -63,14 +63,12 @@ export type StdioAdapterOptions = StdioAdapterBaseOptions
       }
   )
 
-const encoder = new TextEncoder()
-
 export function encodeJson(value: object): Uint8Array {
-  return encoder.encode(`${JSON.stringify(value)}\n`)
+  return new TextEncoder().encode(`${JSON.stringify(value)}\n`)
 }
 
 export function encodeJsonLine(value: MachineRecord): Uint8Array {
-  return encoder.encode(`${JSON.stringify(value)}\n`)
+  return new TextEncoder().encode(`${JSON.stringify(value)}\n`)
 }
 
 type SupportedEncoding = "utf8" | "utf-16le" | "utf-16be"
@@ -212,7 +210,7 @@ export class JsonLineDecoder {
   #assertRecordSize(value: string): void {
     const byteLength =
       this.#encoding === "utf8" ?
-        encoder.encode(value).byteLength
+        new TextEncoder().encode(value).byteLength
       : value.length * 2
     if (byteLength > this.#maxRecordBytes) {
       throw new RangeError(

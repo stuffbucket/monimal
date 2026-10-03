@@ -5,9 +5,15 @@ import {
   type TabColor,
   type TerminalLaunchResult,
 } from '@maximal/maximal-electron/renderer'
-import { terminalPaneSessionIds, terminalProcessTitle, type TerminalPane } from '@maximal/maximal-terminal/renderer'
+import { terminalPaneSessionIds, terminalProcessTitle, type TerminalPane, type TerminalSession } from '@maximal/maximal-terminal/renderer'
 
-import { PRODUCT_TABS, SETTINGS_TAB, type AppTab } from './frame/AppFrame'
+import {
+  ASSISTANT_TAB,
+  PRODUCT_TABS,
+  PROJECTS_TAB,
+  SETTINGS_TAB,
+  type AppTab,
+} from './frame/AppFrame'
 import {
   createTerminalGroup as createGroup,
   moveTerminalToGroup as moveToGroup,
@@ -15,10 +21,13 @@ import {
   setTerminalTabColor as setTabColor,
 } from './terminal-tab-organization'
 import { terminalTransport } from './terminal/transport'
+import { terminalSessionResult, terminalSessionRoots } from './terminal/session-metadata'
+import { tabAfterClose } from './frame/document-tabs'
 import {
   useTerminalWindowTransfer,
   type DetachedTerminal,
 } from './terminal/window-transfer'
+import type { TerminalMenuEntry } from '../shared/host'
 
 function terminalTab(result: TerminalLaunchResult): AppTab {
   return {
@@ -29,6 +38,22 @@ function terminalTab(result: TerminalLaunchResult): AppTab {
     sessionId: result.sessionId,
     canRunInBackground: result.canRunInBackground,
   }
+}
+
+function terminalMenuEntries(
+  tabs: readonly AppTab[],
+  panes: ReadonlyMap<string, TerminalPane>,
+): TerminalMenuEntry[] {
+  return tabs.flatMap((tab) => {
+    if (tab.kind !== 'terminal' || !tab.sessionId) return []
+    return [{
+      id: tab.sessionId,
+      title: tab.title,
+      paneSessionIds: terminalPaneSessionIds(
+        panes.get(tab.id) ?? { sessionId: tab.sessionId },
+      ),
+    }]
+  })
 }
 
 function browserTab(session: BrowserSession): AppTab {
@@ -59,6 +84,7 @@ function upsertBrowserTab(tabs: AppTab[], session: BrowserSession): AppTab[] {
 
 export function useTerminalTabs(
   detachedWindow?: DetachedTerminal,
+  detachedProjects = false,
 ) {
   const initialTerminalTab = detachedWindow
     ? terminalTab({
@@ -68,14 +94,23 @@ export function useTerminalTabs(
       })
     : undefined
   const [tabs, setTabs] = useState<AppTab[]>(
-    initialTerminalTab ? [initialTerminalTab] : PRODUCT_TABS,
+    initialTerminalTab ? [initialTerminalTab] : detachedProjects ? [PROJECTS_TAB] : PRODUCT_TABS,
   )
-  const [activeTab, setActiveTab] = useState(initialTerminalTab?.id ?? 'overview')
+  const [activeTab, setActiveTab] = useState(initialTerminalTab?.id ?? (detachedProjects ? 'projects' : 'overview'))
+  const lastWorkspaceTab = useRef('overview')
+  useEffect(() => {
+    if (PRODUCT_TABS.some((tab) => tab.id === activeTab)) lastWorkspaceTab.current = activeTab
+  }, [activeTab])
   const [launcherOpen, setLauncherOpen] = useState(false)
   const [recentProfiles, setRecentProfiles] = useState<string[]>([])
   const [renameState, setRenameState] = useState<{ tabId: string; title: string }>()
   const [closeState, setCloseState] = useState<{ tabId: string; title: string }>()
   const [terminalError, setTerminalError] = useState<string>()
+  const [paneFocusRequest, setPaneFocusRequest] = useState<{
+    tabId: string
+    sessionId: string
+    generation: number
+  }>()
   const [browserError, setBrowserError] = useState<string>()
   const nextGroupId = useRef(1)
   const transfer = useTerminalWindowTransfer({
@@ -90,34 +125,53 @@ export function useTerminalTabs(
   })
 
   useEffect(() => {
-    if (detachedWindow) return
+    void window.maximal.terminal.syncMenu(
+      terminalMenuEntries(tabs, transfer.panes),
+    )
+  }, [tabs, transfer.panes])
+
+  useEffect(() => {
+    const stop = window.maximal.terminal.onMenuFocus((request) => {
+      const tab = tabs.find((candidate) =>
+        candidate.kind === 'terminal' && candidate.sessionId === request.id)
+      if (!tab) return
+      setActiveTab(tab.id)
+      if (request.paneSessionId) {
+        const sessionId = request.paneSessionId
+        setPaneFocusRequest((previous) => ({
+          tabId: tab.id,
+          sessionId,
+          generation: (previous?.generation ?? 0) + 1,
+        }))
+      }
+    })
+    return stop
+  }, [tabs])
+
+  useEffect(() => () => {
+    void window.maximal.terminal.syncMenu([])
+  }, [])
+
+  useEffect(() => {
+    if (detachedWindow || detachedProjects) return
     void terminalTransport.list().then((sessions) => {
       setTabs((current) => {
         const known = new Set(current.flatMap((tab) => tab.sessionId ?? []))
-        const paneLeaves = new Set(sessions.flatMap((session) =>
-          session.pane
-            ? terminalPaneSessionIds(session.pane).filter((id) => id !== session.id)
-            : []))
         for (const session of sessions) {
           if (!session.pane) continue
           const tabId = `terminal:${session.id}`
           transfer.panes.set(tabId, session.pane)
           transfer.paneRevisions.set(tabId, session.revision ?? 0)
         }
-        const restored = sessions
-          .filter((session) => !known.has(session.id) && !paneLeaves.has(session.id))
-          .map((session) => terminalTab({
-            sessionId: session.id,
-            label: session.title
-              ?? session.shell.split(/[\\/]/).at(-1)
-              ?? 'Terminal',
-            canRunInBackground: session.canRunInBackground ?? false,
-          }))
+        const restored = terminalSessionRoots(sessions)
+          .filter((session) => !known.has(session.id))
+          .map((session) => terminalTab(terminalSessionResult(session)))
         return restored.length === 0 ? current : [...current, ...restored]
       })
     })
   }, [
     detachedWindow,
+    detachedProjects,
     transfer.paneRevisions,
     transfer.panes,
   ])
@@ -130,11 +184,58 @@ export function useTerminalTabs(
     setActiveTab(tab.id)
   }, [])
 
+  const reopenTerminalSession = useCallback((session: TerminalSession) => {
+    if (session.pane) {
+      transfer.panes.set(`terminal:${session.id}`, session.pane)
+      transfer.paneRevisions.set(`terminal:${session.id}`, session.revision ?? 0)
+    }
+    onTerminalLaunched(terminalSessionResult(session))
+  }, [onTerminalLaunched, transfer.paneRevisions, transfer.panes])
+
+  useEffect(() => window.maximal.harness.onTerminalOpened(({ chatId, result }) => {
+    const tab = { ...terminalTab(result), assistantChatId: chatId }
+    setTabs((current) => current.some((candidate) => candidate.id === tab.id)
+      ? current
+      : [...current, tab])
+    setActiveTab(tab.id)
+  }), [])
+
+  const openAssistantChat = useCallback((chatId: string) => {
+    const existing = tabs.find((tab) => tab.assistantChatId === chatId)
+    if (existing) {
+      setActiveTab(existing.id)
+      return
+    }
+    void window.maximal.harness.chats.terminal(chatId, 80, 24).then((result) => {
+      const tab = { ...terminalTab(result), assistantChatId: chatId }
+      setTabs((current) => current.some((candidate) => candidate.id === tab.id)
+        ? current
+        : [...current, tab])
+      setActiveTab(tab.id)
+    }).catch(() => {
+      setTerminalError('The Assistant chat could not be opened in a terminal.')
+    })
+  }, [tabs])
+
   const openSettings = useCallback(() => {
     setTabs((current) => current.some((tab) => tab.id === SETTINGS_TAB.id)
       ? current
       : [...current, SETTINGS_TAB])
     setActiveTab(SETTINGS_TAB.id)
+  }, [])
+
+  const openProjects = useCallback(() => {
+    setTabs((current) => current.some((tab) => tab.id === PROJECTS_TAB.id)
+      ? current
+      : [...current, PROJECTS_TAB])
+    setActiveTab(PROJECTS_TAB.id)
+  }, [])
+
+  const openAssistant = useCallback(() => {
+    setTabs((current) => current.some((tab) => tab.id === ASSISTANT_TAB.id)
+      ? current
+      : [...current, ASSISTANT_TAB])
+    setActiveTab(ASSISTANT_TAB.id)
   }, [])
 
   const closeTab = useCallback((id: string) => {
@@ -145,17 +246,19 @@ export function useTerminalTabs(
         closing?.kind !== 'browser'
         && closing?.kind !== 'terminal'
         && closing?.kind !== 'settings'
+        && closing?.kind !== 'assistant'
+        && closing?.kind !== 'projects'
       )) return current
       const next = current.filter((tab) => tab.id !== id)
       setActiveTab((active) => active === id
-        ? (next[index] ?? next[index - 1] ?? PRODUCT_TABS[0])?.id ?? 'overview'
+        ? tabAfterClose(current, id, lastWorkspaceTab.current)
         : active)
       return next
     })
   }, [])
 
   useEffect(() => {
-    if (detachedWindow) return
+    if (detachedWindow || detachedProjects) return
     void window.maximal.browser.list().then((sessions) => {
       setTabs((current) => sessions.reduce(upsertBrowserTab, current))
     }).catch(() => setBrowserError('Browser tabs could not be restored.'))
@@ -169,7 +272,7 @@ export function useTerminalTabs(
         setActiveTab(`browser:${event.session.id}`)
       }
     })
-  }, [closeTab, detachedWindow])
+  }, [closeTab, detachedWindow, detachedProjects])
 
   const openBrowser = useCallback(async (url: string) => {
     try {
@@ -201,7 +304,7 @@ export function useTerminalTabs(
       }
       const next = current.filter((tab) => tab.id !== SETTINGS_TAB.id)
       setActiveTab((active) => active === SETTINGS_TAB.id
-        ? (next[index] ?? next[index - 1] ?? PRODUCT_TABS[0])?.id ?? 'overview'
+        ? tabAfterClose(current, SETTINGS_TAB.id, lastWorkspaceTab.current)
         : active)
       return next
     })
@@ -288,6 +391,9 @@ export function useTerminalTabs(
     transfer.paneRevisions.set(tabId, baseRevision)
     const tab = tabs.find((candidate) => candidate.id === tabId)
     if (tab?.sessionId) void window.maximal.terminal.syncPane(tab.sessionId, pane)
+    void window.maximal.terminal.syncMenu(
+      terminalMenuEntries(tabs, transfer.panes),
+    )
   }, [tabs, transfer.paneRevisions, transfer.panes])
 
   const rememberProfile = useCallback((profileId: string) => {
@@ -312,11 +418,16 @@ export function useTerminalTabs(
     setCloseState,
     terminalError,
     setTerminalError,
+    paneFocusRequest,
     browserError,
     setBrowserError,
     rememberProfile,
     onTerminalLaunched,
+    reopenTerminalSession,
+    openProjects,
+    openAssistantChat,
     openSettings,
+    openAssistant,
     openBrowser,
     closeBrowser,
     toggleSettings,

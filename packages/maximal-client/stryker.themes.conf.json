@@ -1,0 +1,37 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Focused mutation testing for theme parsing, snapshots, application, and solar material behavior.",
+  "packageManager": "npm",
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "pnpm test:mutation:themes"
+  },
+  "mutate": [
+    "src/renderer/theme-application.ts:76:0-166:1",
+    "src/renderer/theme-history.ts:184:0-220:1"
+  ],
+  "reporters": ["progress", "clear-text", "html", "json"],
+  "tempDirName": ".stryker-tmp",
+  "htmlReporter": {
+    "fileName": "reports/mutation/themes/index.html"
+  },
+  "jsonReporter": {
+    "fileName": "reports/mutation/themes/mutation.json"
+  },
+  "concurrency": 4,
+  "timeoutMS": 30000,
+  "coverageAnalysis": "off",
+  "thresholds": {
+    "break": 100
+  },
+  "ignorePatterns": [
+    "out",
+    ".vite",
+    "node_modules",
+    "dist",
+    "reports",
+    "test-results",
+    "playwright-report",
+    "e2e"
+  ]
+}

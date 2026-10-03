@@ -31,6 +31,17 @@ function requiredElement(container: ParentNode, selector: string): HTMLElement {
   return element
 }
 
+function expectedGridStyle(x: number, y: number, zoom: number) {
+  const spacing =
+    16 + 4 * Math.tanh(Math.log(Math.max(zoom, Number.EPSILON)) * 0.35)
+  const offset = (translation: number) =>
+    ((translation % spacing) + spacing) % spacing
+  return {
+    position: `${offset(x)}px ${offset(y)}px`,
+    size: `${spacing}px ${spacing}px`,
+  }
+}
+
 function typeTextarea(textarea: HTMLTextAreaElement, value: string): void {
   Object.getOwnPropertyDescriptor(
     HTMLTextAreaElement.prototype,
@@ -187,6 +198,86 @@ function renderProjectMap(container: HTMLElement, store: ProjectMapStore) {
   })
 }
 
+it("keeps the shared grid and scene on the same camera during pan and zoom", async () => {
+  const container = document.createElement("div")
+  document.body.append(container)
+  renderProjectMap(container, createYProjectMapStore())
+  const viewport = requiredElement(container, ".spatial-canvas__viewport")
+  const scene = requiredElement(container, ".spatial-canvas__scene")
+  const grid = requiredElement(container, ".spatial-canvas__grid")
+  let expectedGrid = expectedGridStyle(340, 100, 1)
+  expect(grid.style.backgroundPosition).toBe(expectedGrid.position)
+  expect(grid.style.backgroundSize).toBe(expectedGrid.size)
+
+  await act(async () => {
+    viewport.dispatchEvent(
+      new WheelEvent("wheel", {
+        bubbles: true,
+        deltaX: 30,
+        deltaY: -20,
+      }),
+    )
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+  expectedGrid = expectedGridStyle(310, 120, 1)
+  expect(grid.style.backgroundPosition).toBe(expectedGrid.position)
+  expect(scene.style.transform).toBe("translate3d(310px, 120px, 0) scale(1)")
+
+  await act(async () => {
+    viewport.dispatchEvent(
+      new WheelEvent("wheel", {
+        bubbles: true,
+        ctrlKey: true,
+        deltaY: -Math.log(2) / 0.0014,
+      }),
+    )
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+  expectedGrid = expectedGridStyle(620, 240, 2)
+  expect(grid.style.backgroundSize).toBe(expectedGrid.size)
+  expect(grid.style.backgroundPosition).toBe(expectedGrid.position)
+  expect(scene.style.transform).toBe("translate3d(620px, 240px, 0) scale(2)")
+})
+
+it("keeps new board IDs unique after tab remounts and window transfers", () => {
+  const container = document.createElement("div")
+  document.body.append(container)
+  let store = createYProjectMapStore()
+  for (let index = 0; index < 3; index++) {
+    renderProjectMap(container, store)
+    act(() =>
+      requiredElement(container, '[aria-label="Sticky note (S)"]').click(),
+    )
+    act(() => {
+      requiredElement(
+        container,
+        '[aria-label="Project map canvas"]',
+      ).dispatchEvent(
+        new MouseEvent("pointerdown", {
+          bubbles: true,
+          clientX: 400,
+          clientY: 300,
+        }),
+      )
+    })
+    const notes = store
+      .getSnapshot("projects")
+      .items.filter((item) => item.type === "sticky")
+    expect(notes).toHaveLength(index + 1)
+    expect(new Set(notes.map((note) => note.id)).size).toBe(notes.length)
+    act(() => root?.unmount())
+    root = undefined
+    if (index === 1) {
+      const transferred = createYProjectMapStore({
+        initialUpdate: store.encodeState(),
+      })
+      store.destroy()
+      store = transferred
+    }
+  }
+  store.destroy()
+})
+
 it("renders independent pages, board tools, presence, comments, and chat", () => {
   const store = createYProjectMapStore()
   const container = document.createElement("div")
@@ -197,8 +288,10 @@ it("renders independent pages, board tools, presence, comments, and chat", () =>
   expect(container.querySelector('[title="Map agent · agent"]')).not.toBeNull()
   expect(
     container.querySelector(".spatial-canvas__page-title")?.textContent,
-  ).toContain("Projects")
-  expect(container.querySelector('[aria-label="Pages"]')).not.toBeNull()
+  ).toContain("Page 1")
+  expect(container.querySelector('[aria-label="Pages: Page 1"]')).not.toBeNull()
+  act(() => requiredElement(container, ".spatial-canvas__page-title").click())
+  expect(container.querySelector('[aria-label="Map pages"]')).not.toBeNull()
 
   const stickyTool = requiredElement(
     container,

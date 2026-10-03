@@ -347,6 +347,11 @@ const config: ForgeConfig = {
       build: [
         { entry: 'src/main/index.ts', config: 'vite.main.config.mts', target: 'main' },
         { entry: 'src/main/workers/llama-worker.ts', config: 'vite.worker.config.mts', target: 'main' },
+        {
+          entry: '../../packages/maximal-harness/src/cli.ts',
+          config: 'vite.cli.config.mts',
+          target: 'main',
+        },
         { entry: 'src/preload/index.ts', config: 'vite.preload.config.mts', target: 'preload' },
       ],
       renderer: [{ name: 'main_window', config: 'vite.renderer.config.mts' }],

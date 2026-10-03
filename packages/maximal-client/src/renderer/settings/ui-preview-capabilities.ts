@@ -5,12 +5,14 @@ import {
   type SearchProvider,
 } from '@maximal/maximal-search'
 import { SYSTEM_ONE_DEFAULT_MODEL_DOWNLOAD_URLS } from '@maximal/maximal-core-contract/settings'
+import type { AgentEffort, ProviderStatus } from '@maximal/maximal-harness'
 
 import terminalFontDownloads from '../../shared/terminal-font-downloads.json' with { type: 'json' }
 import { TERMINAL_THICKEN_DEFAULT } from '../../shared/host'
 
 import type {
   AccountsListResponse,
+  AssistantOverlayPreferences,
   ConnectorSettingValue,
   MenuBarModeAttempt,
   MenuBarModeState,
@@ -307,6 +309,38 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
     })),
     ghosttyPath: '/Applications/Ghostty.app/Contents/MacOS/ghostty',
   })
+  let assistantOverlay: AssistantOverlayPreferences = {
+    candy: true,
+    approval: 'writes',
+    outputFont: 'auto',
+    hotkey: 'CommandOrControl+Shift+Space',
+  }
+  const assistantModels = [
+    {
+      key: 'maximal:claude-haiku',
+      label: 'Claude Haiku',
+      model: 'claude-haiku',
+      provider: 'maximal' as const,
+      description: 'Fast responses',
+      efforts: ['low', 'medium', 'high'] as AgentEffort[],
+    },
+    {
+      key: 'maximal:claude-sonnet',
+      label: 'Claude Sonnet',
+      model: 'claude-sonnet',
+      provider: 'maximal' as const,
+      description: 'Extended reasoning',
+      efforts: ['low', 'medium', 'high', 'xhigh'] as AgentEffort[],
+    },
+  ]
+  let assistantProvider: ProviderStatus = {
+    state: 'ready',
+    provider: 'maximal',
+    model: assistantModels[0].model,
+    modelKey: assistantModels[0].key,
+    models: assistantModels,
+    effort: 'medium',
+  }
   const menuBarState = (): MenuBarModeState => ({
     enabled: menuBarEnabled,
     pending: menuBarAttempt !== null,
@@ -475,6 +509,9 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
         motion: 0.5,
         lighting: 'fixed',
         timezone: 'UTC',
+        solarFacingOffset: 0,
+        solarFollowStrength: 0.5,
+        solarEffect: 'atmospheric',
       }),
       setMaterial: (preference) => Promise.resolve(preference),
       onMaterialChange: () => () => {},
@@ -508,6 +545,32 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
       systemNotificationStatus: () =>
         Promise.resolve({ supported: true, canOpenSettings: true }),
       openSystemNotificationSettings: () => Promise.resolve(),
+      assistantOverlay: () => Promise.resolve(assistantOverlay),
+      assistantProvider: () => Promise.resolve(assistantProvider),
+      setAssistantModel: (modelKey) => {
+        const model = assistantModels.find(({ key }) => key === modelKey)
+        if (model === undefined) return Promise.reject(new Error('Model is unavailable.'))
+        assistantProvider = {
+          state: 'ready',
+          provider: model.provider,
+          model: model.model,
+          modelKey: model.key,
+          models: assistantModels,
+          effort: model.efforts.includes('medium') ? 'medium' : model.efforts[0],
+        }
+        return Promise.resolve(assistantProvider)
+      },
+      setAssistantEffort: (effort) => {
+        if (assistantProvider.state !== 'ready') {
+          return Promise.reject(new Error('Assistant model is unavailable.'))
+        }
+        assistantProvider = { ...assistantProvider, effort }
+        return Promise.resolve(assistantProvider)
+      },
+      updateAssistantOverlay: (update) => {
+        assistantOverlay = { ...assistantOverlay, ...update }
+        return Promise.resolve(assistantOverlay)
+      },
     },
     providerOnboarding: {
       get: () => Promise.resolve({ dismissed: false }),

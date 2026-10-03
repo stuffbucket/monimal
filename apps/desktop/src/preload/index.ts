@@ -106,6 +106,11 @@ const bridge = {
     refresh: (rootId) => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsRefresh, rootId),
     opened: (projectId) => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsOpened, projectId),
     onChange: (listener) => subscribe(BRIDGE_CHANNELS.projectsChanged, listener),
+    undockWindow: (request) => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsUndockWindow, request),
+    redockWindow: (request) => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsRedockWindow, request),
+    windowState: () => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsWindowState),
+    onWindowRedocked: (listener) => subscribe(BRIDGE_CHANNELS.projectsWindowRedocked, listener),
+    openWorkspaceSettings: () => ipcRenderer.invoke(BRIDGE_CHANNELS.projectsOpenWorkspaceSettings),
   },
   terminalTypography: {
     get: () => ipcRenderer.invoke(BRIDGE_CHANNELS.terminalTypographyGet),
@@ -122,22 +127,67 @@ const bridge = {
   },
   harness: {
     show: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessShow),
+    toggle: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessToggle),
+    openChat: (id) => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessOpenChat, id),
     hide: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessHide),
     provider: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessProvider),
     selectModel: (modelKey) =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.harnessSelectModel, modelKey),
     selectEffort: (effort) =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.harnessSelectEffort, effort),
-    ask: (prompt) => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessAsk, { prompt }),
+    ask: (prompt, chatId, attachments) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.harnessAsk, {
+        prompt,
+        ...(chatId ? { chatId } : {}),
+        ...(attachments?.length ? { attachments } : {}),
+      }),
+    steer: (prompt, chatId) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.harnessSteer, {
+        prompt,
+        ...(chatId ? { chatId } : {}),
+      }),
     abort: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessAbort),
     approve: (request) => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessApprove, request),
     ensureModel: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessEnsureModel),
+    preferences: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessPreferences),
+    updatePreferences: (update) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.harnessUpdatePreferences, update),
     onDelta: (listener) =>
       subscribe<{ text: string }>(BRIDGE_CHANNELS.harnessDelta, ({ text }) => listener(text)),
     onTool: (listener) => subscribe(BRIDGE_CHANNELS.harnessTool, listener),
     onApproval: (listener) => subscribe(BRIDGE_CHANNELS.harnessApproval, listener),
     onEnd: (listener) => subscribe(BRIDGE_CHANNELS.harnessEnd, listener),
     onModelProgress: (listener) => subscribe(BRIDGE_CHANNELS.harnessModelProgress, listener),
+    onShown: (listener) => subscribe(BRIDGE_CHANNELS.harnessShown, listener),
+    onDismissRequested: (listener) =>
+      subscribe(BRIDGE_CHANNELS.harnessDismissRequested, listener),
+    onPreferences: (listener) =>
+      subscribe(BRIDGE_CHANNELS.harnessPreferencesChanged, listener),
+    onChatSelected: (listener) =>
+      subscribe<{ id: string }>(
+        BRIDGE_CHANNELS.harnessChatSelected,
+        ({ id }) => listener(id),
+      ),
+    onChatsChanged: (listener) =>
+      subscribe(BRIDGE_CHANNELS.harnessChatsChanged, listener),
+    onTerminalOpened: (listener) =>
+      subscribe(BRIDGE_CHANNELS.harnessTerminalOpened, listener),
+    chats: {
+      list: (query) => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessChatsList, query),
+      create: (title) => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessChatCreate, title),
+      open: (id) => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessChatOpen, id),
+      update: (id, update) =>
+        ipcRenderer.invoke(BRIDGE_CHANNELS.harnessChatUpdate, { id, update }),
+      remove: (id) => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessChatRemove, id),
+      messages: (id) =>
+        ipcRenderer.invoke(BRIDGE_CHANNELS.harnessChatMessages, id),
+      terminal: (id, cols, rows) =>
+        ipcRenderer.invoke(BRIDGE_CHANNELS.harnessChatTerminal, {
+          id,
+          cols,
+          rows,
+        }),
+    },
   },
   browser: {
     list: () => ipcRenderer.invoke(BRIDGE_CHANNELS.browserList),
@@ -181,10 +231,12 @@ const bridge = {
     copy: (request) => ipcRenderer.invoke(BRIDGE_CHANNELS.terminalCopy, request),
     redock: (request) => ipcRenderer.invoke(BRIDGE_CHANNELS.terminalRedock, request),
     syncPane: (id, pane) => ipcRenderer.invoke(BRIDGE_CHANNELS.terminalPaneSync, { id, pane }),
+    syncMenu: (entries) => ipcRenderer.invoke(BRIDGE_CHANNELS.terminalMenuSync, entries),
     onData: (listener) => subscribe(BRIDGE_CHANNELS.terminalData, listener),
     onExit: (listener) => subscribe(BRIDGE_CHANNELS.terminalExit, listener),
     onTabRedocked: (listener) => subscribe(BRIDGE_CHANNELS.terminalTabRedocked, listener),
     onPaneChanged: (listener) => subscribe(BRIDGE_CHANNELS.terminalPaneChanged, listener),
+    onMenuFocus: (listener) => subscribe(BRIDGE_CHANNELS.terminalMenuFocus, listener),
   },
   onOpenSettings: (listener) => subscribe(BRIDGE_CHANNELS.menuOpenSettings, listener),
   onOpenLicenses: (listener) => {

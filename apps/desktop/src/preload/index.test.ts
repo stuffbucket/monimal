@@ -9,7 +9,7 @@ import type { MaximalHost } from '@maximal/maximal-client/shared/host'
 
 const { exposeInMainWorld, invoke, on, off } = vi.hoisted(() => ({
   exposeInMainWorld: vi.fn(),
-  invoke: vi.fn(() => Promise.resolve(undefined)),
+  invoke: vi.fn((): Promise<unknown> => Promise.resolve(undefined)),
   on: vi.fn(),
   off: vi.fn(),
 }))
@@ -34,6 +34,38 @@ beforeEach(() => {
 })
 
 describe('preload bridge allowlist', () => {
+  it('forwards Projects window requests and return values without interpreting state', async () => {
+    const undock = { x: 120, y: -20, state: 'opaque Projects state' }
+    const redock = { sourceFrameId: '2', targetFrameId: '1', state: 'new state' }
+    invoke.mockResolvedValueOnce(true)
+    await expect(bridge.projects.undockWindow(undock)).resolves.toBe(true)
+    invoke.mockResolvedValueOnce(false)
+    await expect(bridge.projects.redockWindow(redock)).resolves.toBe(false)
+    invoke.mockResolvedValueOnce(undock.state)
+    await expect(bridge.projects.windowState()).resolves.toBe(undock.state)
+    expect(invoke.mock.calls).toEqual([
+      [BRIDGE_CHANNELS.projectsUndockWindow, undock],
+      [BRIDGE_CHANNELS.projectsRedockWindow, redock],
+      [BRIDGE_CHANNELS.projectsWindowState],
+    ])
+  })
+
+  it('subscribes to Projects redocking without exposing the Electron event and unsubscribes', () => {
+    const listener = vi.fn()
+    const unsubscribe = bridge.projects.onWindowRedocked(listener)
+    expect(on).toHaveBeenCalledWith(BRIDGE_CHANNELS.projectsWindowRedocked, expect.any(Function))
+    const callback = on.mock.calls[0]?.[1] as (event: unknown, state: string) => void
+    callback({ sender: 'private' }, 'opaque state')
+    expect(listener).toHaveBeenCalledExactlyOnceWith('opaque state')
+    unsubscribe()
+    expect(off).toHaveBeenCalledExactlyOnceWith(BRIDGE_CHANNELS.projectsWindowRedocked, callback)
+  })
+
+  it('delegates Projects settings navigation to the workspace host without arguments', async () => {
+    await expect(bridge.projects.openWorkspaceSettings()).resolves.toBeUndefined()
+    expect(invoke).toHaveBeenCalledExactlyOnceWith(BRIDGE_CHANNELS.projectsOpenWorkspaceSettings)
+  })
+
   it('exposes exactly the documented deep key set', () => {
     expect(Object.keys(bridge).sort()).toEqual([
       'appearance',
@@ -156,17 +188,38 @@ describe('preload bridge allowlist', () => {
       'abort',
       'approve',
       'ask',
+      'chats',
       'ensureModel',
       'hide',
       'onApproval',
+      'onChatSelected',
+      'onChatsChanged',
       'onDelta',
+      'onDismissRequested',
       'onEnd',
       'onModelProgress',
+      'onPreferences',
+      'onShown',
+      'onTerminalOpened',
       'onTool',
+      'openChat',
+      'preferences',
       'provider',
       'selectEffort',
       'selectModel',
       'show',
+      'steer',
+      'toggle',
+      'updatePreferences',
+    ])
+    expect(Object.keys(bridge.harness.chats).sort()).toEqual([
+      'create',
+      'list',
+      'messages',
+      'open',
+      'remove',
+      'terminal',
+      'update',
     ])
     expect(Object.keys(bridge.menuBarMode).sort()).toEqual([
       'beginEnable',
@@ -190,12 +243,17 @@ describe('preload bridge allowlist', () => {
     expect(Object.keys(bridge.projects).sort()).toEqual([
       'addRoot',
       'onChange',
+      'onWindowRedocked',
+      'openWorkspaceSettings',
       'opened',
+      'redockWindow',
       'refresh',
       'removeRoot',
       'search',
       'snapshot',
+      'undockWindow',
       'updateRoot',
+      'windowState',
     ])
     expect(Object.keys(bridge.terminalTypography).sort()).toEqual([
       'fonts',
@@ -219,12 +277,14 @@ describe('preload bridge allowlist', () => {
       'list',
       'onData',
       'onExit',
+      'onMenuFocus',
       'onPaneChanged',
       'onTabRedocked',
       'profiles',
       'redock',
       'resize',
       'spawn',
+      'syncMenu',
       'syncPane',
       'terminate',
       'undock',
@@ -326,6 +386,9 @@ describe('preload bridge allowlist', () => {
       motion: 0.25,
       lighting: 'timezone',
       timezone: 'UTC',
+      solarFacingOffset: 25,
+      solarFollowStrength: 0.75,
+      solarEffect: 'rays',
     })
     await bridge.terminalTypography.get()
     await bridge.terminalTypography.update({
@@ -354,9 +417,11 @@ describe('preload bridge allowlist', () => {
     await bridge.harness.selectModel('ollama:qwen3:4b')
     await bridge.harness.selectEffort('high')
     await bridge.harness.ask('Explain this file')
+    await bridge.harness.steer('Focus on tests')
     await bridge.harness.abort()
     await bridge.harness.approve({ id: 'approval-1', allow: true, remember: false })
     await bridge.harness.ensureModel()
+    await bridge.harness.chats.terminal('chat-1', 80, 24)
     await bridge.terminal.spawn({ id: 'terminal-1', cols: 80, rows: 24 })
     await bridge.terminal.write('terminal-1', 'pwd\r')
     await bridge.terminal.resize('terminal-1', 120, 40)
@@ -384,6 +449,11 @@ describe('preload bridge allowlist', () => {
       targetFrameId: '1',
     })
     await bridge.terminal.syncPane('terminal-1', { sessionId: 'terminal-1' })
+    await bridge.terminal.syncMenu([{
+      id: 'terminal-1',
+      title: 'Build workspace',
+      paneSessionIds: ['terminal-1', 'terminal-2'],
+    }])
     await bridge.shutdown.current()
     await bridge.shutdown.force()
 
@@ -484,6 +554,9 @@ describe('preload bridge allowlist', () => {
           motion: 0.25,
           lighting: 'timezone',
           timezone: 'UTC',
+          solarFacingOffset: 25,
+          solarFollowStrength: 0.75,
+          solarEffect: 'rays',
         },
       ],
       [BRIDGE_CHANNELS.terminalTypographyGet],
@@ -516,9 +589,11 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.harnessSelectModel, 'ollama:qwen3:4b'],
       [BRIDGE_CHANNELS.harnessSelectEffort, 'high'],
       [BRIDGE_CHANNELS.harnessAsk, { prompt: 'Explain this file' }],
+      [BRIDGE_CHANNELS.harnessSteer, { prompt: 'Focus on tests' }],
       [BRIDGE_CHANNELS.harnessAbort],
       [BRIDGE_CHANNELS.harnessApprove, { id: 'approval-1', allow: true, remember: false }],
       [BRIDGE_CHANNELS.harnessEnsureModel],
+      [BRIDGE_CHANNELS.harnessChatTerminal, { id: 'chat-1', cols: 80, rows: 24 }],
       [BRIDGE_CHANNELS.terminalSpawn, { id: 'terminal-1', cols: 80, rows: 24 }],
       [BRIDGE_CHANNELS.terminalWrite, { id: 'terminal-1', data: 'pwd\r' }],
       [BRIDGE_CHANNELS.terminalResize, { id: 'terminal-1', cols: 120, rows: 40 }],
@@ -539,6 +614,14 @@ describe('preload bridge allowlist', () => {
         BRIDGE_CHANNELS.terminalPaneSync,
         { id: 'terminal-1', pane: { sessionId: 'terminal-1' } },
       ],
+      [
+        BRIDGE_CHANNELS.terminalMenuSync,
+        [{
+          id: 'terminal-1',
+          title: 'Build workspace',
+          paneSessionIds: ['terminal-1', 'terminal-2'],
+        }],
+      ],
       [BRIDGE_CHANNELS.shutdownCurrent],
       [BRIDGE_CHANNELS.shutdownForce],
     ])
@@ -547,22 +630,36 @@ describe('preload bridge allowlist', () => {
   it('wraps terminal events and removes only their listeners', () => {
     const onData = vi.fn()
     const onExit = vi.fn()
+    const onMenuFocus = vi.fn()
     const unsubscribeData = bridge.terminal.onData(onData)
     const unsubscribeExit = bridge.terminal.onExit(onExit)
+    const unsubscribeMenuFocus = bridge.terminal.onMenuFocus(onMenuFocus)
     const dataHandler = on.mock.calls[0]?.[1] as (event: unknown, payload: unknown) => void
     const exitHandler = on.mock.calls[1]?.[1] as (event: unknown, payload: unknown) => void
+    const menuFocusHandler = on.mock.calls[2]?.[1] as (
+      event: unknown,
+      payload: unknown,
+    ) => void
     const data = { id: 'terminal-1', data: 'ready', sequence: 1 }
     const exit = { id: 'terminal-1', exitCode: 0 }
+    const menuFocus = { id: 'terminal-1', paneSessionId: 'terminal-2' }
 
     dataHandler({}, data)
     exitHandler({}, exit)
+    menuFocusHandler({}, menuFocus)
     expect(onData).toHaveBeenCalledWith(data)
     expect(onExit).toHaveBeenCalledWith(exit)
+    expect(onMenuFocus).toHaveBeenCalledWith(menuFocus)
 
     unsubscribeData()
     unsubscribeExit()
+    unsubscribeMenuFocus()
     expect(off).toHaveBeenCalledWith(BRIDGE_CHANNELS.terminalData, dataHandler)
     expect(off).toHaveBeenCalledWith(BRIDGE_CHANNELS.terminalExit, exitHandler)
+    expect(off).toHaveBeenCalledWith(
+      BRIDGE_CHANNELS.terminalMenuFocus,
+      menuFocusHandler,
+    )
   })
 
   it('wraps lifecycle payloads and removes only its own listener', () => {
@@ -629,6 +726,9 @@ describe('preload bridge allowlist', () => {
       motion: 0.25,
       lighting: 'timezone',
       timezone: 'UTC',
+      solarFacingOffset: 25,
+      solarFollowStrength: 0.75,
+      solarEffect: 'rays',
     }
 
     handler({ raw: 'electron-event' }, preference)

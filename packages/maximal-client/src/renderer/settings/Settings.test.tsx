@@ -156,6 +156,9 @@ function fakeCapabilities(): SettingsCapabilities {
         motion: 0.5,
         lighting: 'fixed' as const,
         timezone: 'UTC',
+        solarFacingOffset: 0,
+        solarFollowStrength: 0.5,
+        solarEffect: 'atmospheric' as const,
       })),
       setMaterial: vi.fn(
         async (preference: PersistedMaterialPreference) => preference,
@@ -171,6 +174,67 @@ function fakeCapabilities(): SettingsCapabilities {
         canOpenSettings: true,
       })),
       openSystemNotificationSettings: vi.fn(async () => {}),
+      assistantOverlay: vi.fn(async () => ({
+        candy: true,
+        approval: 'writes' as const,
+        outputFont: 'auto' as const,
+        hotkey: 'CommandOrControl+Shift+Space',
+      })),
+      assistantProvider: vi.fn(async () => ({
+        state: 'ready' as const,
+        provider: 'maximal' as const,
+        model: 'claude-haiku',
+        modelKey: 'maximal:claude-haiku',
+        effort: 'medium' as const,
+        models: [{
+          key: 'maximal:claude-haiku',
+          label: 'Claude Haiku',
+          model: 'claude-haiku',
+          provider: 'maximal' as const,
+          description: 'Fast',
+          efforts: ['low', 'medium', 'high'] as Array<'low' | 'medium' | 'high'>,
+        }],
+      })),
+      setAssistantModel: vi.fn(async (modelKey: string) => ({
+        state: 'ready' as const,
+        provider: 'maximal' as const,
+        model: 'claude-haiku',
+        modelKey,
+        effort: 'medium' as const,
+        models: [{
+          key: 'maximal:claude-haiku',
+          label: 'Claude Haiku',
+          model: 'claude-haiku',
+          provider: 'maximal' as const,
+          description: 'Fast',
+          efforts: ['low', 'medium', 'high'] as Array<'low' | 'medium' | 'high'>,
+        }],
+      })),
+      setAssistantEffort: vi.fn(async (effort: 'low' | 'medium' | 'high' | 'xhigh' | 'max') => ({
+        state: 'ready' as const,
+        provider: 'maximal' as const,
+        model: 'claude-haiku',
+        modelKey: 'maximal:claude-haiku',
+        effort,
+        models: [{
+          key: 'maximal:claude-haiku',
+          label: 'Claude Haiku',
+          model: 'claude-haiku',
+          provider: 'maximal' as const,
+          description: 'Fast',
+          efforts: ['low', 'medium', 'high'] as Array<'low' | 'medium' | 'high'>,
+        }],
+      })),
+      updateAssistantOverlay: vi.fn(async (update: {
+        candy?: boolean
+        approval?: 'all' | 'read-only' | 'writes' | 'none'
+        outputFont?: 'auto' | 'default' | 'terminal' | 'open-dyslexic' | 'serif'
+      }) => ({
+        candy: update.candy ?? true,
+        approval: update.approval ?? 'writes',
+        outputFont: update.outputFont ?? 'auto',
+        hotkey: 'CommandOrControl+Shift+Space',
+      })),
     },
     providerOnboarding: {
       get: vi.fn(async () => ({ dismissed: false })),

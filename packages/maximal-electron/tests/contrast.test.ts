@@ -149,10 +149,15 @@ describe('CONTRAST_PAIRS', () => {
 });
 
 /**
- * Set at run time by the `[data-status]` and `[data-band]` rules rather than
- * supplied by a palette. Requiring them would fail every consumer.
+ * Set at run time by shell state or component primitives rather than supplied
+ * by a palette. Requiring them would fail every consumer.
  */
-const RUNTIME_ONLY = ['--status', '--status-soft', '--band'];
+const RUNTIME_ONLY = [
+  '--status',
+  '--status-soft',
+  '--band',
+  '--radix-dropdown-menu-content-available-height',
+];
 
 /** Every `var(--…)` the shell's own stylesheets read. */
 function referencedTokens(): string[] {
@@ -203,13 +208,10 @@ describe('REQUIRED_TOKENS', () => {
     expect(new Set(REQUIRED_TOKENS).size).toBe(REQUIRED_TOKENS.length);
   });
 
-  it('omits the run-time status properties', () => {
-    // `--status`, `--status-soft` and `--band` are set by the `[data-status]`
-    // and `[data-band]` rules, not supplied by a palette. Requiring them would
-    // fail every consumer.
-    expect(REQUIRED_TOKENS).not.toContain('--status');
-    expect(REQUIRED_TOKENS).not.toContain('--status-soft');
-    expect(REQUIRED_TOKENS).not.toContain('--band');
+  it('omits runtime properties', () => {
+    for (const token of RUNTIME_ONLY) {
+      expect(REQUIRED_TOKENS).not.toContain(token);
+    }
   });
 });
 

@@ -29,6 +29,13 @@ export const HARNESS_CONFIG = {
   },
 } as const;
 
+export const HARNESS_SYSTEM_PROMPT = [
+  'You are a concise coding assistant in the Maximal desktop application.',
+  'You have read, write, edit, and bash tools for the working directory.',
+  'Use a tool only when it is needed to answer or act.',
+  'Answer general questions directly and never run a destructive command unless asked.',
+].join(' ');
+
 export const HARNESS_COPY = {
   common: {
     cancelled: 'Cancelled.',
@@ -45,6 +52,7 @@ export const HARNESS_COPY = {
     modelUnavailable: (model: string) =>
       `The preferred model ${model} is not available.`,
     probing: 'Still looking for a model backend.',
+    readOnlyDenied: 'Read-only permissions do not allow this tool call.',
   },
   embedded: {
     droppedTools: (names: readonly string[]) =>
@@ -55,7 +63,7 @@ export const HARNESS_COPY = {
   overlay: {
     allow: 'Allow',
     allowAlways: (tool: string) => `Allow every ${tool}`,
-    approvalHint: 'Enter to allow · Esc to deny',
+    approvalHint: '⌘ Enter to allow · Esc to skip',
     approvalStatus: (tool: string) => `Waiting for you to approve ${tool}`,
     deny: 'Deny',
     dismissHint: 'Enter to send · Esc to dismiss',
@@ -69,11 +77,14 @@ export const HARNESS_COPY = {
     modelMissing: (model: string) => `${model} is not downloaded yet`,
     modelPickerLabel: 'Model',
     modelSelectionRequired: 'Choose an available model to continue.',
+    selectedModelUnavailable:
+      'The selected model is not available at this time. Select a new model to continue.',
     probing: 'Looking for a local model…',
     requestFailed: 'The request could not be started.',
     runToolPrefix: 'Run',
     questionMark: '?',
     running: (tool: string) => `Running ${tool}…`,
+    skip: 'Skip',
     stopHint: 'Esc to stop',
     thinking: 'Thinking…',
     title: 'Ask the agent',

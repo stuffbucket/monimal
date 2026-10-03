@@ -288,14 +288,17 @@ test('packaged preload exposes only the closed named bridge', async () => {
   expect(exposed).toEqual({
     topLevel: [
       'appearance',
+      'browser',
       'clientInstallations',
       'control',
+      'generalSettings',
       'getCoreStatus',
       'getProxyUrl',
       'harness',
       'licenses',
       'localModels',
       'logs',
+      'material',
       'menuBarMode',
       'ollamaRuntime',
       'onCoreStatus',
@@ -303,9 +306,14 @@ test('packaged preload exposes only the closed named bridge', async () => {
       'onOpenSettings',
       'openExternal',
       'pendingSettingsRequest',
+      'projects',
       'providerOnboarding',
+      'recordings',
       'shutdown',
+      'systemNotifications',
       'terminal',
+      'terminalTypography',
+      'workbar',
     ],
     control: [
       'accountsList',
@@ -326,6 +334,7 @@ test('packaged preload exposes only the closed named bridge', async () => {
       'connectionsAct',
       'connectionsList',
       'connectionsRevealCredential',
+      'copilotUsageGet',
       'diagnosticsGet',
       'modelsList',
       'modelsRefresh',
@@ -341,27 +350,111 @@ test('packaged preload exposes only the closed named bridge', async () => {
       'searchProviderValidate',
       'searchSettingsGet',
       'searchSettingsUpdate',
+      'systemOneSettingsGet',
+      'systemOneSettingsUpdate',
       'usageGet',
     ],
     harness: [
       'abort',
       'approve',
       'ask',
+      'chats',
       'ensureModel',
       'hide',
       'onApproval',
+      'onChatSelected',
+      'onChatsChanged',
       'onDelta',
+      'onDismissRequested',
       'onEnd',
       'onModelProgress',
+      'onPreferences',
+      'onShown',
+      'onTerminalOpened',
       'onTool',
+      'openChat',
+      'preferences',
       'provider',
       'selectEffort',
       'selectModel',
       'show',
+      'steer',
+      'toggle',
+      'updatePreferences',
     ],
     hasCoreOrigin: false,
     hasWindowRequire: false,
   })
+})
+
+test('packaged harness accepts pointer interaction', async () => {
+  await expect.poll(() =>
+    running.app.windows().some((page) => page.url().includes('overlay')),
+  ).toBe(true)
+  const overlay = running.app.windows().find((page) => page.url().includes('overlay'))
+  if (!overlay) throw new Error('The startup summon did not create the overlay window.')
+
+  await overlay.evaluate(() => window.maximal.harness.hide())
+  if (process.platform === 'darwin') {
+    await execFileAsync('/usr/bin/osascript', ['-e', 'tell application "Finder" to activate'])
+    await expect.poll(() => running.app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getFocusedWindow(),
+    )).toBeNull()
+  }
+  const page = await mainWindow()
+  await page.evaluate(() => window.maximal.harness.show())
+  await expect.poll(() => running.app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .find((window) => window.webContents.getURL().includes('overlay'))
+      ?.isFocused(),
+  )).toBe(true)
+
+  const input = overlay.locator('[data-testid="overlay-input"]')
+  const card = overlay.locator('[data-testid="overlay-card"]')
+  await expect(input).toBeFocused()
+  await input.click()
+  if (process.platform === 'darwin') {
+    await execFileAsync('/usr/bin/osascript', [
+      '-e',
+      'tell application "System Events" to keystroke "Pointer interaction probe"',
+    ])
+  } else {
+    await input.pressSequentially('Pointer interaction probe')
+  }
+  await expect(input).toHaveValue('Pointer interaction probe')
+
+  await overlay.locator('[data-testid="overlay-model-picker"]').click()
+  await expect(overlay.locator('[data-testid="overlay-model-menu"]')).toBeVisible()
+  await overlay.keyboard.press('Escape')
+  await input.press('Escape')
+  await expect(input).toHaveValue('')
+  await card.evaluate((element) => {
+    element.style.animationDuration = '5s'
+  })
+  await overlay.evaluate(() => window.maximal.harness.toggle())
+  await expect(card).toHaveClass(/mh-card--exiting/)
+  expect(await running.app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .find((window) => window.webContents.getURL().includes('overlay'))
+      ?.isVisible(),
+  )).toBe(true)
+  await card.dispatchEvent('animationend')
+  await expect.poll(() => running.app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .find((window) => window.webContents.getURL().includes('overlay'))
+      ?.isVisible(),
+  )).toBe(false)
+
+  await overlay.evaluate(() => window.maximal.harness.show())
+  await card.evaluate((element) => {
+    element.style.removeProperty('animation-duration')
+  })
+  await expect.poll(() => running.app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .find((window) => window.webContents.getURL().includes('overlay'))
+      ?.isVisible(),
+  )).toBe(true)
+  await expect(input).toBeFocused()
 })
 
 test('packaged harness opens focused, resolves its theme, and streams an answer', async ({ page: _page }, testInfo) => {
@@ -798,6 +891,51 @@ test('terminal splits preserve geometry, focus navigation, and theme tokens', as
     const sessions = await window.maximal.terminal.list()
     await Promise.all(sessions.map(({ id }) => window.maximal.terminal.terminate(id)))
   })
+})
+
+test('recent Assistant chat opens the resumable CLI in wterm', async () => {
+  const page = await mainWindow()
+  const chat = await page.evaluate(() =>
+    window.maximal.harness.chats.create('CLI terminal E2E'),
+  )
+  await page.evaluate(() => {
+    const state = window as typeof window & {
+      __assistantTerminalOutput?: Array<{ id: string; data: string }>
+    }
+    state.__assistantTerminalOutput = []
+    window.maximal.terminal.onData((message) => {
+      state.__assistantTerminalOutput?.push(message)
+    })
+  })
+
+  await page.getByTestId('open-assistant').click()
+  const recentChat = page.getByTestId(`menu-chat-${chat.id}`)
+  await expect(recentChat).toBeVisible()
+  await recentChat.click()
+
+  await expect(page.getByRole('tab', { name: 'CLI terminal E2E' })).toBeVisible()
+  await expect(page.locator('.terminal[data-session-id]')).toBeVisible()
+  await expect.poll(() => page.evaluate(() => {
+    const state = window as typeof window & {
+      __assistantTerminalOutput?: Array<{ id: string; data: string }>
+    }
+    return state.__assistantTerminalOutput
+      ?.map(({ data }) => data)
+      .join('') ?? ''
+  })).toContain('Maximal Assistant · CLI terminal E2E')
+
+  const sessionId = await page.evaluate(() => {
+    const state = window as typeof window & {
+      __assistantTerminalOutput?: Array<{ id: string; data: string }>
+    }
+    return state.__assistantTerminalOutput?.find(({ data }) =>
+      data.includes('Maximal Assistant'))?.id
+  })
+  expect(sessionId).toBeTruthy()
+  if (!sessionId) throw new Error('Assistant CLI did not publish a PTY session.')
+
+  await expect(page.locator(`.terminal[data-session-id="${sessionId}"]`)).toBeVisible()
+  await page.evaluate((id) => window.maximal.terminal.write(id, '/exit\r'), sessionId)
 })
 
 test('native Settings flyout opens every restored section in the packaged UI', async () => {

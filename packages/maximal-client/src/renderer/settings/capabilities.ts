@@ -30,6 +30,11 @@ import type {
   TokenUsagePeriod,
   TokenUsageSummary,
 } from '@maximal/maximal-core-contract/settings'
+import type {
+  AgentEffort,
+  AssistantOverlayPreferences,
+  ProviderStatus,
+} from '@maximal/maximal-harness'
 import type { LogFile } from '@maximal/maximal-logging'
 import type {
   DiscoveryRoot,
@@ -86,6 +91,7 @@ export type {
   ClientInstallation,
   DiagnosticsResponse,
   GeneralDesktopSettings,
+  AssistantOverlayPreferences,
   MenuBarModeAttempt,
   MenuBarModeState,
   ModelsListResponse,
@@ -167,6 +173,16 @@ export interface SettingsCapabilities {
     disableMenuBarOnly(): Promise<MenuBarModeState>
     systemNotificationStatus(): Promise<SystemNotificationStatus>
     openSystemNotificationSettings(): Promise<void>
+    assistantOverlay(): Promise<AssistantOverlayPreferences>
+    assistantProvider(): Promise<ProviderStatus>
+    setAssistantModel(modelKey: string): Promise<ProviderStatus>
+    setAssistantEffort(effort: AgentEffort): Promise<ProviderStatus>
+    updateAssistantOverlay(
+      update: Partial<Pick<
+        AssistantOverlayPreferences,
+        'candy' | 'approval' | 'outputFont'
+      >>,
+    ): Promise<AssistantOverlayPreferences>
   }
   providerOnboarding: {
     get(): Promise<ProviderOnboardingPreference>
@@ -405,6 +421,11 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
       systemNotificationStatus: () => bridge.systemNotifications.status(),
       openSystemNotificationSettings: () =>
         bridge.systemNotifications.openSettings(),
+      assistantOverlay: () => bridge.harness.preferences(),
+      assistantProvider: () => bridge.harness.provider(),
+      setAssistantModel: (modelKey) => bridge.harness.selectModel(modelKey),
+      setAssistantEffort: (effort) => bridge.harness.selectEffort(effort),
+      updateAssistantOverlay: (update) => bridge.harness.updatePreferences(update),
     },
     providerOnboarding: {
       get: () => bridge.providerOnboarding.get(),

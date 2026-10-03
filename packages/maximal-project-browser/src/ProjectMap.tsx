@@ -21,14 +21,12 @@ import {
   type WheelEvent,
 } from "react"
 
-import type {
-  ProjectMapPageDraft,
-  ProjectMapStore,
-  ProjectMapViewer,
-} from "./store.ts"
+import type { ProjectMapProps } from "./ProjectMapProps.ts"
+import type { ProjectMapPageDraft } from "./store.ts"
 
 import {
   connectorSegment,
+  itemRectangle,
   rectanglesIntersect,
   type Rectangle,
 } from "./geometry.ts"
@@ -37,13 +35,10 @@ import {
   newItemDefinition,
   PROJECT_MAP_TOOLS,
   selectionAfterPointer,
+  type ProjectMapDragState,
+  type ProjectMapPendingMove,
 } from "./interaction.ts"
-import {
-  layoutProjects,
-  type ProjectMapProject,
-  type ProjectMapTool,
-  type SceneItem,
-} from "./model.ts"
+import { layoutProjects, type ProjectMapTool, type SceneItem } from "./model.ts"
 import { ProjectMapChrome } from "./ProjectMapChrome.tsx"
 import { ProjectMapCommentPlacement } from "./ProjectMapCommentPlacement.tsx"
 import {
@@ -60,46 +55,11 @@ import {
   INITIAL_CAMERA,
   screenToWorld,
   useRafCamera,
-  type Camera,
+  wheelZoomFactor,
   type Point,
 } from "./view.ts"
 
-interface DragState {
-  mode: "pan" | "move" | "marquee"
-  pointerId: number
-  origin: Point
-  camera: Camera
-  worldOrigin: Point
-  itemOrigins: Map<string, Point>
-}
-
-interface PendingMove {
-  itemOrigins: Map<string, Point>
-  dx: number
-  dy: number
-}
-
-export interface ProjectMapProps {
-  projects: Array<ProjectMapProject>
-  query: string
-  onQueryChange: (query: string) => void
-  onOpenProject: (project: ProjectMapProject) => void
-  onOpenSettings: () => void
-  onAddFolder: () => void
-  busy?: boolean
-  error?: string
-  store: ProjectMapStore
-  pageId: string
-  onPageChange: (pageId: string) => void
-  viewer: ProjectMapViewer
-  viewId?: string
-}
-
-function itemRectangle(item: SceneItem): Rectangle | undefined {
-  return "x" in item ?
-      { x: item.x, y: item.y, width: item.width, height: item.height }
-    : undefined
-}
+export type { ProjectMapProps } from "./ProjectMapProps.ts"
 
 // eslint-disable-next-line max-lines-per-function
 export function ProjectMap({
@@ -116,19 +76,24 @@ export function ProjectMap({
   onPageChange,
   viewer,
   viewId: providedViewId,
+  initialCamera = INITIAL_CAMERA,
+  onCameraChange,
 }: ProjectMapProps) {
   const generatedViewId = useId()
   const viewId = providedViewId ?? generatedViewId
   const panelId = `${generatedViewId}-panel`
   const viewport = useRef<HTMLDivElement>(null)
-  const drag = useRef<DragState | undefined>(undefined)
-  const pendingMove = useRef<PendingMove | undefined>(undefined)
+  const drag = useRef<ProjectMapDragState | undefined>(undefined)
+  const pendingMove = useRef<ProjectMapPendingMove | undefined>(undefined)
   const moveFrame = useRef<number | undefined>(undefined)
   const nextId = useRef(0)
+  // Retained and transferred boards must not reuse another mount's IDs.
+  const [idPrefix] = useState(() => crypto.randomUUID())
   const connectorStart = useRef<string | undefined>(undefined)
   const cursor = useRef<Point | undefined>(undefined)
   const [storeRevision, setStoreRevision] = useState(0)
-  const [camera, scheduleCamera] = useRafCamera(INITIAL_CAMERA)
+  const [camera, scheduleCamera] = useRafCamera(initialCamera)
+  useEffect(() => onCameraChange?.(camera), [camera, onCameraChange])
   const [tool, setTool] = useState<ProjectMapTool>("select")
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [marquee, setMarquee] = useState<Rectangle | undefined>(undefined)
@@ -139,7 +104,14 @@ export function ProjectMap({
     () => store.getSnapshot(pageId),
     [pageId, store, storeRevision],
   )
-  const { items, comments, messages, pages, presence: collaborators } = snapshot
+  const {
+    projectName,
+    items,
+    comments,
+    messages,
+    pages,
+    presence: collaborators,
+  } = snapshot
   const updatePage = useCallback(
     (update: (draft: ProjectMapPageDraft) => void) =>
       store.transact(pageId, update),
@@ -171,7 +143,7 @@ export function ProjectMap({
     )
   }, [setItems])
   const scheduleMove = useCallback(
-    (next: PendingMove) => {
+    (next: ProjectMapPendingMove) => {
       pendingMove.current = next
       if (moveFrame.current !== undefined) return
       moveFrame.current = requestAnimationFrame(() => {
@@ -271,8 +243,8 @@ export function ProjectMap({
     [items],
   )
   const nextCommentId = useCallback(
-    (kind: "comment" | "reply") => `${kind}:${++nextId.current}`,
-    [],
+    (kind: "comment" | "reply") => `${kind}:${idPrefix}:${++nextId.current}`,
+    [idPrefix],
   )
   const {
     activeComment,
@@ -316,7 +288,7 @@ export function ProjectMap({
   const onWheel = (event: WheelEvent<HTMLDivElement>) => {
     event.preventDefault()
     if (event.ctrlKey || event.metaKey) {
-      zoomAt(Math.exp(-event.deltaY * 0.002), {
+      zoomAt(wheelZoomFactor(event.deltaY), {
         x: event.clientX,
         y: event.clientY,
       })
@@ -336,7 +308,7 @@ export function ProjectMap({
       return
     }
     if (tool !== "sticky" && tool !== "shape" && tool !== "section") return
-    const id = `local:${++nextId.current}`
+    const id = `local:${idPrefix}:${++nextId.current}`
     const definition = newItemDefinition(tool)
     setItems((current) => [
       ...current,
@@ -411,7 +383,7 @@ export function ProjectMap({
         setItems((current) => [
           ...current,
           {
-            id: `local:${++nextId.current}`,
+            id: `local:${idPrefix}:${++nextId.current}`,
             type: "connector",
             fromId: start,
             toId: item.id,
@@ -646,10 +618,14 @@ export function ProjectMap({
           projects={projects}
           busy={busy}
           onOpenProject={onOpenProject}
+          projectName={projectName}
+          onProjectRename={(name) => store.renameProject(name)}
           pages={pages}
           pageId={pageId}
           onPageChange={onPageChange}
           onAddPage={() => onPageChange(store.addPage().id)}
+          onPageRename={(id, name) => store.renamePage(id, name)}
+          onPageMove={(id, targetId) => store.movePage(id, targetId)}
           presence={collaborators}
           comments={comments}
           {...(activeCommentId ? { activeCommentId } : {})}
@@ -673,7 +649,7 @@ export function ProjectMap({
           onAddComment={(body) =>
             updatePage((draft) => {
               draft.comments.push({
-                id: `comment:${++nextId.current}`,
+                id: `comment:${idPrefix}:${++nextId.current}`,
                 author: viewer.name,
                 authorId: viewer.id,
                 authorInitials: viewer.initials,
@@ -690,7 +666,7 @@ export function ProjectMap({
           onAddMessage={(body) =>
             updatePage((draft) => {
               draft.messages.push({
-                id: `message:${++nextId.current}`,
+                id: `message:${idPrefix}:${++nextId.current}`,
                 author: viewer.name,
                 body,
               })
@@ -700,6 +676,7 @@ export function ProjectMap({
 
         <SpatialCanvasViewport
           ref={viewport}
+          camera={camera}
           id={panelId}
           tool={tool}
           tabIndex={0}
