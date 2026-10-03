@@ -59,6 +59,7 @@
     "@electron/asar": "^4.3.0",
     "@electron/packager": "^20.3.0",
     "@maximal/eslint-config": "workspace:*",
+    "@maximal/maximal-project-browser": "workspace:*",
     "@maximal/maximal-react-component": "workspace:*",
     "@playwright/test": "^1.62.1",
     "@stryker-mutator/core": "^10.0.0",
