@@ -157,33 +157,11 @@ const applicationSettingsSchema = z.object({
 })
 type ApplicationSettings = z.infer<typeof applicationSettingsSchema>
 
-const applicationSettingsPersistence = {
-  assistantOverlayCandy: 'user',
-  assistantOutputFont: 'user',
-  agentApproval: 'user',
-  agentTools: 'user',
-  agentCwd: 'user',
-  agentModel: 'user',
-  agentToolsets: 'user',
-  terminalDiagnostics: 'user',
-  terminalSessionPrefix: 'user',
-  terminalTmuxStatus: 'user',
-  terminalTypography: 'user',
-  workbarLayout: 'user',
-  ollamaStartOnLaunch: 'user',
-  vibrancyEnabled: 'user',
-  backgroundEffectsEnabled: 'user',
-  reducedMotionEnabled: 'user',
-  materialPreset: 'user',
-  materialQuality: 'user',
-  materialStrength: 'user',
-  materialMotion: 'user',
-  materialLighting: 'user',
-  materialTimezone: 'user',
-  materialSolarFacingOffset: 'user',
-  materialSolarFollowStrength: 'user',
-  materialSolarEffect: 'user',
-} as const
+const applicationSettingsPersistence = Object.fromEntries(
+  Object.keys(applicationSettingsSchema.shape).map(
+    (key): [string, 'user'] => [key, 'user'],
+  ),
+)
 const reportListenerError = (error: unknown): never => {
   throw error
 }
