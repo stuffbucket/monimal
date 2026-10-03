@@ -494,6 +494,9 @@ importers:
       '@maximal/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@maximal/maximal-storybook':
+        specifier: workspace:*
+        version: link:../maximal-storybook
       '@playwright/test':
         specifier: ^1.62.1
         version: 1.62.1
