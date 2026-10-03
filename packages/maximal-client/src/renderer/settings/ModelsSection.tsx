@@ -8,8 +8,9 @@ import {
   type ModelCard,
 } from '@maximal/maximal-electron/renderer'
 import {
+  MAXIMAL_MODEL_CATALOG,
   reconcileModelInventory,
-  type ModelCatalogIndex,
+  type ModelCatalogLookup,
   type ModelInventoryEntry,
   type RuntimeModelObservation,
 } from '@maximal/maximal-model-catalog'
@@ -85,7 +86,7 @@ function modelCard(
 }
 
 function modelCards(
-  catalog: ModelCatalogIndex | null,
+  catalog: ModelCatalogLookup | null,
   observations: ReadonlyArray<RuntimeModelObservation>,
   providers: ReadonlyMap<string, ModelProviderInventory>,
 ): ModelCard[] {
@@ -141,7 +142,7 @@ export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElemen
         registry.providers.map((provider) => [provider.id, provider]),
       )
       const cards = modelCards(
-        null,
+        MAXIMAL_MODEL_CATALOG,
         cloudModelObservations(cloudModels, providerById),
         providerById,
       )
@@ -151,12 +152,12 @@ export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElemen
         cloudProviders: [...new Set(cards.map((model) => model.provider ?? ''))],
         localCards: [
           ...modelCards(
-            null,
+            MAXIMAL_MODEL_CATALOG,
             cloudModelObservations(localProviderModels, providerById),
             providerById,
           ),
           ...modelCards(
-            null,
+            MAXIMAL_MODEL_CATALOG,
             localModelObservations(local?.models ?? []),
             providerById,
           ),

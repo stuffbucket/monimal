@@ -26,6 +26,17 @@ merged field-by-field into a provider's tiered prices.
 The default export is runtime-neutral. Import `@maximal/maximal-model-catalog/node`
 only from a Node host that is responsible for downloading a pinned release.
 
+`MAXIMAL_MODEL_CATALOG` is the reviewed first-party supplement for identities
+owned by Maximal integrations rather than the upstream release. Consumers MUST
+use it as lookup data during reconciliation; it MUST NOT override live runtime
+availability, routing, provisioning, or capability evidence. The supplement
+currently owns the canonical GLiNER2.5 identities and the
+`maximal-gliner25` provider offerings.
+
+Pinned model revisions, artifact hashes, download approval, and installed
+state remain runtime facts owned by `gliner-runner`; the descriptive catalog
+MUST NOT duplicate or override them.
+
 ## Development
 
 From the workspace root:

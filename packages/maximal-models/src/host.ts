@@ -5,7 +5,6 @@ import type {
   ProviderDiagnostic,
   ProviderDispatch,
   ProviderGateway,
-  ProviderOperation,
   ProviderStatus,
   ProviderTopology,
   ProviderTopologyListener,
@@ -51,11 +50,6 @@ export interface ProviderPluginHostReconcileResult {
   readonly restartRequired: boolean
   readonly revision: number
 }
-
-const operations = Object.freeze<Array<ProviderOperation>>([
-  "messages",
-  "models",
-])
 
 function immutableDiagnostic(
   diagnostic: ProviderDiagnostic,
@@ -236,7 +230,7 @@ class Generation {
         provider: provider.id,
         displayName: provider.name,
         state: "available",
-        operations,
+        operations: provider.operations,
         diagnostics: [],
       })
     }

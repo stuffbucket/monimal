@@ -48,6 +48,7 @@ has ended.
 | `packages/project-catalog` (`@maximal/project-catalog`) | Local project discovery, Git interrogation, catalog contracts, and ranking. |
 | `packages/model-qwen3-0.6b-q8-gguf` | Qwen3 artifact metadata and provisioning. |
 | `packages/model-runtimes/anthropic` | Anthropic Messages adapter. |
+| `packages/model-runtimes/gliner25` | Cordis System One adapter for standalone GLiNER2.5 runner endpoints. |
 | `packages/model-runtimes/omlx` | oMLX HTTP adapter. |
 
 ## Asset provenance
@@ -151,6 +152,7 @@ Both are monorepo-native;
 | Model topology | `maximal-model-contract` owns Cordis-independent execution targets binding model IDs to provider/accounts, runners, endpoints, operation adapters, tokenizer evidence, and separately owned intrinsic/effective limits; `maximal-models` mounts the revisioned `modelTopology` Cordis service and binds target registrations to explicit lifetimes. Reviewed catalog facts remain separate from effective execution-target evidence. |
 | `maximal-model-catalog` | Released catalog data is descriptive; local manifests and live provider discovery remain authoritative for runtime behavior, and runtime offering evidence resolves before release-catalog offering values without replacing canonical descriptive facts. |
 | Observability packages | The contract is runtime-neutral; renderer surfaces depend on it, not the reverse. |
+| `model-runtimes/gliner25` | Ships as a profile-installed Cordis adapter and delegates tensor execution and model lifecycle to an explicitly configured standalone `gliner-runner` endpoint. |
 | `model-runtimes/omlx` | Ships as a profile-installed Cordis adapter, not as compiled Core code. |
 | `maximal` / `apps/desktop` | Core dependencies are workspace links; the desktop sidecar builds the Maximal composition. |
 | `maximal-core` / `maximal` | Desktop-spawned Core (`start --desktop-ipc`) uses inherited Node child-process IPC for control RPC and events instead of binding its private HTTP listener; standalone Core keeps its loopback control listener and public proxy unchanged. |

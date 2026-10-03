@@ -12,7 +12,7 @@ import type {
 import type {
   CanonicalModelSnapshot,
   DeepReadonly,
-  ModelCatalogIndex,
+  ModelCatalogLookup,
   ProviderOfferingSnapshot,
 } from "./catalog.ts"
 import type {
@@ -227,7 +227,7 @@ function featureEvidence(
 }
 
 interface ResolveCanonicalOptions {
-  readonly index: ModelCatalogIndex | null
+  readonly index: ModelCatalogLookup | null
   readonly observation: RuntimeModelObservation
   readonly providerId: string
   readonly offering: ProviderOfferingSnapshot | undefined
@@ -336,7 +336,7 @@ interface CatalogMatch {
 }
 
 function matchCatalog(
-  index: ModelCatalogIndex | null,
+  index: ModelCatalogLookup | null,
   observation: RuntimeModelObservation,
   providerId: string,
 ): CatalogMatch {
@@ -374,7 +374,7 @@ function inventoryName(
 }
 
 function inventoryProviderName(
-  index: ModelCatalogIndex | null,
+  index: ModelCatalogLookup | null,
   observation: RuntimeModelObservation,
   providerId: string,
 ): string {
@@ -441,7 +441,7 @@ function inventoryEvidence(
 }
 
 function inventoryModel(
-  index: ModelCatalogIndex | null,
+  index: ModelCatalogLookup | null,
   observation: RuntimeModelObservation,
 ): ModelInventoryEntry {
   const providerId = requiredProviderId(observation)
@@ -484,7 +484,7 @@ function inventoryModel(
 }
 
 export function reconcileModelInventory(
-  index: ModelCatalogIndex | null,
+  index: ModelCatalogLookup | null,
   observations: ReadonlyArray<RuntimeModelObservation>,
 ): ModelInventory {
   const models = observations.map((observation) =>

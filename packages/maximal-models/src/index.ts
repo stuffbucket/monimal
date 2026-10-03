@@ -25,6 +25,14 @@ export {
   type SystemOneHttpProviderConfig,
   type SystemOneHttpProviderFetch,
 } from "./system-one-http-provider.ts"
+export {
+  type SystemOneModelInfo,
+  type SystemOneProviderRegistration,
+  type SystemOneRegistration,
+  SystemOneRegistry,
+  type SystemOneRequestHandler,
+  type SystemOneService,
+} from "./system-one-registry.ts"
 export type * from "@maximal/maximal-model-contract"
 
 /**

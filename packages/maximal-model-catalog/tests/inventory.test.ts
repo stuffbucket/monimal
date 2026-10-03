@@ -3,6 +3,8 @@ import test from "node:test"
 
 import {
   createModelCatalogIndex,
+  MAXIMAL_GLINER25_PROVIDER_ID,
+  MAXIMAL_MODEL_CATALOG,
   normalizeProviderId,
   providerDisplayName,
   reconcileModelInventory,
@@ -65,6 +67,30 @@ void test("preserves runtime tokenizer and operations", () => {
       },
       unit: { currency: null, tokensPerBatch: 1_000_000 },
     },
+  })
+
+  void test("reconciles the GLiNER runner offering with its canonical model", () => {
+    const inventory = reconcileModelInventory(MAXIMAL_MODEL_CATALOG, [
+      {
+        id: "gliner25:340m",
+        name: "Runtime GLiNER",
+        kind: "classification",
+        location: "local",
+        provider: {
+          id: MAXIMAL_GLINER25_PROVIDER_ID,
+          name: "Local GLiNER2.5",
+        },
+        operations: ["systemone"],
+        features: { structuredOutput: true },
+      },
+    ])
+
+    const model = inventory.models[0]
+    assert.ok(model)
+    assert.equal(model.canonicalModelId, "fastino/GLiNER2.5-Decide")
+    assert.equal(model.catalog.canonical?.license, "Apache-2.0")
+    assert.equal(model.catalog.offering?.status, "active")
+    assert.deepEqual(model.operations, ["systemone"])
   })
 
   assert.deepEqual(model.selection, {

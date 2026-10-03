@@ -430,6 +430,13 @@ export function createProviderDispatcher(
                 (value): Array<ProviderCatalogueModel> => {
                   const model = asRecord(value)
                   if (typeof model?.id !== "string") return []
+                  const capabilities =
+                    Array.isArray(model.capabilities) ?
+                      model.capabilities.filter(
+                        (capability): capability is string =>
+                          typeof capability === "string",
+                      )
+                    : []
                   const operations = status.operations.filter(
                     (operation) =>
                       operation !== "count-tokens" && operation !== "models",
@@ -442,6 +449,10 @@ export function createProviderDispatcher(
                           model.display_name
                         : model.id,
                       enabled: true,
+                      ...(capabilities.length === 0 ? {} : { capabilities }),
+                      ...(typeof model.family === "string" ?
+                        { family: model.family }
+                      : {}),
                       ...(operations.length === 0 ? {} : { operations }),
                       provider: status.provider,
                       providerName: status.displayName ?? status.provider,

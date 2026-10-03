@@ -50,6 +50,18 @@
       "cycleEdges": [],
       "duplicatePairs": []
     },
+    "@maximal/maximal-runtime-gliner25": {
+      "root": "packages/model-runtimes/gliner25",
+      "dependsOn": [
+        "@maximal/eslint-config",
+        "@maximal/maximal-model-catalog",
+        "@maximal/maximal-models",
+        "@maximal/maximal-provider-decision-model",
+        "@maximal/maximal-provider-gliner25"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
     "@maximal/eslint-config": {
       "root": "packages/eslint-config",
       "dependsOn": [],
