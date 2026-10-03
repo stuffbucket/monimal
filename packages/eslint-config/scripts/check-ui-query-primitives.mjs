@@ -35,6 +35,16 @@ export const allowedAdhocUiQueries = new Map([
     [
       'browser-storage:localStorage',
       'browser-storage:localStorage',
+      'browser-storage:localStorage',
+      'browser-storage:localStorage',
+    ],
+  ],
+  [
+    'packages/maximal-client/src/renderer/theme-history.ts',
+    [
+      'browser-storage:localStorage',
+      'browser-storage:localStorage',
+      'browser-storage:localStorage',
     ],
   ],
   [

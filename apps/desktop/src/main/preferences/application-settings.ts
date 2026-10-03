@@ -151,33 +151,17 @@ const applicationSettingsSchema = z.object({
   materialMotion: z.number().min(0).max(1),
   materialLighting: z.enum(['fixed', 'timezone']),
   materialTimezone: z.string().refine((value) => materialTimezones.has(value)),
+  materialSolarFacingOffset: z.number().min(-180).max(180),
+  materialSolarFollowStrength: z.number().min(0).max(1),
+  materialSolarEffect: z.enum(['atmospheric', 'rays']),
 })
 type ApplicationSettings = z.infer<typeof applicationSettingsSchema>
 
-const applicationSettingsPersistence = {
-  assistantOverlayCandy: 'user',
-  assistantOutputFont: 'user',
-  agentApproval: 'user',
-  agentTools: 'user',
-  agentCwd: 'user',
-  agentModel: 'user',
-  agentToolsets: 'user',
-  terminalDiagnostics: 'user',
-  terminalSessionPrefix: 'user',
-  terminalTmuxStatus: 'user',
-  terminalTypography: 'user',
-  workbarLayout: 'user',
-  ollamaStartOnLaunch: 'user',
-  vibrancyEnabled: 'user',
-  backgroundEffectsEnabled: 'user',
-  reducedMotionEnabled: 'user',
-  materialPreset: 'user',
-  materialQuality: 'user',
-  materialStrength: 'user',
-  materialMotion: 'user',
-  materialLighting: 'user',
-  materialTimezone: 'user',
-} as const
+const applicationSettingsPersistence = Object.fromEntries(
+  Object.keys(applicationSettingsSchema.shape).map(
+    (key): [string, 'user'] => [key, 'user'],
+  ),
+)
 const reportListenerError = (error: unknown): never => {
   throw error
 }
@@ -248,6 +232,12 @@ function applicationSettingsDefaults(
     materialTimezone: applicationSettingsSchema.shape.materialTimezone.catch(
       Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
     ),
+    materialSolarFacingOffset:
+      applicationSettingsSchema.shape.materialSolarFacingOffset.catch(0),
+    materialSolarFollowStrength:
+      applicationSettingsSchema.shape.materialSolarFollowStrength.catch(0.5),
+    materialSolarEffect:
+      applicationSettingsSchema.shape.materialSolarEffect.catch('atmospheric'),
   }).parse(legacy)
   return defaults
 }
@@ -415,6 +405,9 @@ export async function setMaterialPreference(
     motion: applicationSettingsSchema.shape.materialMotion,
     lighting: applicationSettingsSchema.shape.materialLighting,
     timezone: applicationSettingsSchema.shape.materialTimezone,
+    solarFacingOffset: applicationSettingsSchema.shape.materialSolarFacingOffset,
+    solarFollowStrength: applicationSettingsSchema.shape.materialSolarFollowStrength,
+    solarEffect: applicationSettingsSchema.shape.materialSolarEffect,
   }).parse(input)
   const store = applicationSettingsStore(userDataDirectory)
   const settings = [
@@ -424,6 +417,9 @@ export async function setMaterialPreference(
     ['materialMotion', preference.motion],
     ['materialLighting', preference.lighting],
     ['materialTimezone', preference.timezone],
+    ['materialSolarFacingOffset', preference.solarFacingOffset],
+    ['materialSolarFollowStrength', preference.solarFollowStrength],
+    ['materialSolarEffect', preference.solarEffect],
   ] as const
   for (const [settingPath, value] of settings) {
     try {
@@ -451,6 +447,9 @@ export function materialPreferenceFrom(
     motion: settings.materialMotion,
     lighting: settings.materialLighting,
     timezone: settings.materialTimezone,
+    solarFacingOffset: settings.materialSolarFacingOffset,
+    solarFollowStrength: settings.materialSolarFollowStrength,
+    solarEffect: settings.materialSolarEffect,
   }
 }
 

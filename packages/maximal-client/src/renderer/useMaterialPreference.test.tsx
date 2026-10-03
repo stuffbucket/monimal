@@ -19,6 +19,9 @@ const persisted: PersistedMaterialPreference = {
   motion: 0.5,
   lighting: 'fixed',
   timezone: 'UTC',
+  solarFacingOffset: 0,
+  solarFollowStrength: 0.5,
+  solarEffect: 'atmospheric',
 }
 
 let container: HTMLElement

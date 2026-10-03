@@ -134,6 +134,9 @@ describe('loadApplicationSettings', () => {
       motion: 0.25,
       lighting: 'timezone',
       timezone: 'America/Los_Angeles',
+      solarFacingOffset: 35,
+      solarFollowStrength: 0.75,
+      solarEffect: 'rays',
     } as const
 
     await setVibrancyEnabled(directory, true)
@@ -151,6 +154,9 @@ describe('loadApplicationSettings', () => {
       materialMotion: 0.25,
       materialLighting: 'timezone',
       materialTimezone: 'America/Los_Angeles',
+      materialSolarFacingOffset: 35,
+      materialSolarFollowStrength: 0.75,
+      materialSolarEffect: 'rays',
     })
     await expect(setMaterialPreference(directory, {
       ...material,
@@ -159,6 +165,14 @@ describe('loadApplicationSettings', () => {
     await expect(setMaterialPreference(directory, {
       ...material,
       timezone: 'Invalid/Timezone',
+    })).rejects.toThrow()
+    await expect(setMaterialPreference(directory, {
+      ...material,
+      solarFacingOffset: 181,
+    })).rejects.toThrow()
+    await expect(setMaterialPreference(directory, {
+      ...material,
+      solarFollowStrength: -0.1,
     })).rejects.toThrow()
 
     await setVibrancyEnabled(directory, false)

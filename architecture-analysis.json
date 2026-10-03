@@ -234,6 +234,7 @@
         "@maximal/maximal-observability-contract",
         "@maximal/maximal-ollama",
         "@maximal/maximal-project-browser",
+        "@maximal/maximal-storybook",
         "@maximal/project-catalog",
         "@maximal/maximal-search",
         "@maximal/maximal-terminal"
