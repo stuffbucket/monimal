@@ -1,4 +1,5 @@
 import type { ModelProgress } from '../contracts.js';
+import type { ModelRunnerMessage } from '../runner-contract.js';
 import {
   ENGINE_PHASE_DETAIL,
   LLAMA_CONFIG,
@@ -45,6 +46,17 @@ export type EngineRequest =
       contextSize: number;
       tools: ToolOffer[];
     }
+  | {
+      kind: 'score-token-candidates';
+      id: string;
+      modelPath: string;
+      contextSize: number;
+      systemPrompt?: string;
+      rows: ReadonlyArray<{
+        messages: ReadonlyArray<ModelRunnerMessage>;
+        candidates: ReadonlyArray<string>;
+      }>;
+    }
   | { kind: 'abort' }
   | { kind: 'tool-result'; callId: string; text: string }
   /** The packaged self check. Proves supervision by dying on purpose. */
@@ -71,6 +83,13 @@ export type EngineEvent =
   | { kind: 'tool-call'; id: string; callId: string; name: string; args: unknown }
   /** Tools with no expressible grammar. Named, never silently dropped. */
   | { kind: 'dropped'; id: string; names: string[] }
+  | {
+      kind: 'candidate-scores';
+      id: string;
+      probabilities: ReadonlyArray<ReadonlyArray<number>>;
+      inputTokens: number;
+      outputTokens: number;
+    }
   | { kind: 'done'; id: string }
   | { kind: 'failed'; id: string; reason: string };
 

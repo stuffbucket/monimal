@@ -1,9 +1,10 @@
-import type {
-  AccountsListResponse,
-  AuthStatus,
-  ConnectionEntry,
-  SearchSettingsResponse,
-  TokenUsagePeriod,
+import {
+  SYSTEM_ONE_DEFAULT_MODEL_DOWNLOAD_URLS,
+  type AccountsListResponse,
+  type AuthStatus,
+  type ConnectionEntry,
+  type SearchSettingsResponse,
+  type TokenUsagePeriod,
 } from '@maximal/maximal-core-contract/settings'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -381,6 +382,7 @@ function fakeBridge(): MaximalHost {
             'tev1',
             'tev1:0.8b',
           ] as Array<'nimble' | 'tev1' | 'tev1:0.8b'>,
+          model_download_urls: SYSTEM_ONE_DEFAULT_MODEL_DOWNLOAD_URLS,
           fallback_to_local: true,
         }),
       ),
@@ -396,6 +398,7 @@ function fakeBridge(): MaximalHost {
             'tev1',
             'tev1:0.8b',
           ] as Array<'nimble' | 'tev1' | 'tev1:0.8b'>,
+          model_download_urls: SYSTEM_ONE_DEFAULT_MODEL_DOWNLOAD_URLS,
           fallback_to_local: true,
         }),
       ),

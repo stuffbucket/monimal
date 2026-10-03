@@ -2,7 +2,7 @@
 
 `@maximal/maximal-harness` owns provider discovery, the coding-agent loop,
 the approval gate, and the transport-driven overlay.
-`@maximal/maximal-llama-cpp` owns embedded model management and
+`@maximal/maximal-runner-llama-cpp` owns embedded model management and
 utility-process supervision. The application owns IPC names, request
 validation, sender authorization, panel creation, shortcuts, lifecycle, worker
 bundle paths, and native package mutation.
@@ -68,10 +68,10 @@ Tool events MUST include the engine's stable tool-call identifier. The overlay
 MUST retain bounded completed and failed activity instead of replacing one
 global tool label. Partial tool arguments MUST NOT be sent to the renderer.
 
-`@maximal/maximal-llama-cpp/worker` is the only source that loads
+`@maximal/maximal-runner-llama-cpp/worker` is the only source that loads
 `node-llama-cpp`. It
 runs in an Electron `utilityProcess` because a native abort cannot be caught by
-the application process. `@maximal/maximal-llama-cpp/host` supervises that process.
+the application process. `@maximal/maximal-runner-llama-cpp/host` supervises that process.
 Never add a second runtime import path.
 
 The llama.cpp package translates TypeBox schemas into the grammar shape

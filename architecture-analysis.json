@@ -87,7 +87,7 @@
         "@maximal/maximal-observability-contract",
         "@maximal/maximal-search",
         "@maximal/maximal-settings",
-        "@maximal/maximal-systemone"
+        "@maximal/maximal-provider-decision-model"
       ],
       "existingRatchets": true
     },
@@ -104,7 +104,7 @@
       "dependsOn": [
         "@maximal/eslint-config",
         "@maximal/maximal-model-contract",
-        "@maximal/maximal-systemone"
+        "@maximal/maximal-provider-decision-model"
       ],
       "cycleEdges": [],
       "duplicatePairs": []
@@ -202,10 +202,21 @@
       "cycleEdges": [],
       "duplicatePairs": []
     },
-    "@maximal/maximal-systemone": {
-      "root": "packages/maximal-systemone",
+    "@maximal/maximal-provider-decision-model": {
+      "root": "packages/maximal-provider-decision-model",
       "dependsOn": [
-        "@maximal/eslint-config"
+        "@maximal/eslint-config",
+        "@maximal/maximal-runner-llama-cpp"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@maximal/maximal-provider-gliner25": {
+      "root": "packages/maximal-provider-gliner25",
+      "dependsOn": [
+        "@maximal/eslint-config",
+        "@maximal/maximal-provider-decision-model",
+        "@maximal/maximal-runner-llama-cpp"
       ],
       "cycleEdges": [],
       "duplicatePairs": []
@@ -260,7 +271,7 @@
         "@maximal/maximal-core-contract",
         "@maximal/maximal-electron",
         "@maximal/maximal-harness",
-        "@maximal/maximal-llama-cpp",
+        "@maximal/maximal-runner-llama-cpp",
         "@maximal/maximal-logging",
         "@maximal/maximal-observability",
         "@maximal/maximal-observability-contract",
@@ -305,13 +316,23 @@
       "dependsOn": [
         "@maximal/eslint-config",
         "@maximal/maximal-electron",
-        "@maximal/maximal-llama-cpp"
+        "@maximal/maximal-runner-llama-cpp"
       ],
       "cycleEdges": [],
       "duplicatePairs": []
     },
-    "@maximal/maximal-llama-cpp": {
-      "root": "packages/maximal-llama-cpp",
+    "@maximal/maximal-runner-gliner2": {
+      "root": "packages/maximal-runner-gliner2",
+      "dependsOn": [
+        "@maximal/eslint-config",
+        "@maximal/maximal-provider-decision-model",
+        "@maximal/maximal-runner-llama-cpp"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@maximal/maximal-runner-llama-cpp": {
+      "root": "packages/maximal-runner-llama-cpp",
       "dependsOn": [
         "@maximal/eslint-config"
       ],

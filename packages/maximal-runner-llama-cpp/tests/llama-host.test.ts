@@ -20,6 +20,7 @@ import {
   describeEngineExit,
   exhaustedMessage,
 } from '../src/host/llama-protocol.js';
+import { LlamaCppModelRunner } from '../src/host/model-runner.js';
 
 class FakeUtilityProcess {
   readonly kill = vi.fn(() => true);
@@ -117,6 +118,63 @@ describe('llama utility-process supervisor', () => {
 
     expect(child.postMessage.mock.calls).toEqual([[first], [second], [third]]);
     expect(electron.fork).toHaveBeenCalledOnce();
+  });
+
+  it('executes candidate scoring through the supervised worker', async () => {
+    const runner = new LlamaCppModelRunner({
+      resolveModel: (model) => ({
+        modelPath: `/models/${model}.gguf`,
+        contextSize: 4096,
+        systemPrompt: 'Choose one candidate.',
+      }),
+    });
+    const resultPromise = runner.execute(
+      {
+        kind: 'score-token-candidates',
+        model: 'nimble',
+        rows: [
+          {
+            messages: [{ role: 'user', content: 'Requested field: "route"' }],
+            candidates: ['A', 'B'],
+          },
+        ],
+      },
+      { signal: new AbortController().signal },
+    );
+    await vi.waitFor(() => expect(children).toHaveLength(1));
+    const child = latestChild();
+    child.emit('spawn');
+    await vi.waitFor(() => expect(child.postMessage).toHaveBeenCalledOnce());
+    const request: unknown = child.postMessage.mock.calls[0]?.[0];
+    if (
+      typeof request !== 'object'
+      || request === null
+      || !('id' in request)
+      || typeof request.id !== 'string'
+    ) {
+      throw new TypeError('Expected a candidate scoring worker request.');
+    }
+    expect(request).toMatchObject({
+      kind: 'score-token-candidates',
+      modelPath: '/models/nimble.gguf',
+      contextSize: 4096,
+      systemPrompt: 'Choose one candidate.',
+    });
+
+    child.emit('message', {
+      kind: 'candidate-scores',
+      id: request.id,
+      probabilities: [[0.1, 0.9]],
+      inputTokens: 12,
+      outputTokens: 1,
+    });
+
+    await expect(resultPromise).resolves.toEqual({
+      kind: 'score-token-candidates',
+      model: 'nimble',
+      probabilities: [[0.1, 0.9]],
+      usage: { inputTokens: 12, outputTokens: 1 },
+    });
   });
 
   it('propagates a worker crash to every pending request', () => {

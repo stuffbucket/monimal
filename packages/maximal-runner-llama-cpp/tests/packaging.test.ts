@@ -20,7 +20,7 @@ const failures = (checks: Array<{ name: string; ok: boolean }>) =>
 
 describe('llama package selection', () => {
   it('publishes package and runtime dependency identity from its manifest', () => {
-    expect(LLAMA_PACKAGE_NAME).toBe('@maximal/maximal-llama-cpp');
+    expect(LLAMA_PACKAGE_NAME).toBe('@maximal/maximal-runner-llama-cpp');
     expect(LLAMA_EXTERNAL_MODULES).toEqual(['node-llama-cpp']);
     expect(LLAMA_BACKENDS_VARIABLE).toBe('STUFFBUCKET_LLAMA_BACKENDS');
     expect(LLAMA_WORKER_FILENAME).toBe(RUNTIME_LLAMA_WORKER_FILENAME);

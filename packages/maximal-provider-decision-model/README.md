@@ -1,8 +1,46 @@
-# Maximal System One
+# Maximal Decision Model Provider
 
-Provider-neutral TypeScript contracts and conformance utilities for
-`POST /v1/systemone`. This package does not select, route, or run a model
-provider.
+Decision-model adapters, TypeScript contracts, and conformance utilities for
+`POST /v1/systemone`. The package translates System One questions into
+capability-specific runner requests and translates runner results back into
+System One answers.
+
+## Model families
+
+- GLiNER2.5 Decide models use one `classify-labels` request. The System One
+  state is the classification text, each question is one task, instructions
+  are task prompts, and criteria become labels with descriptions. The runner
+  MUST return every label probability.
+- Nimble and Tev use `score-token-candidates`. The adapter serializes the
+  System One state and schema once, creates one requested-field row per
+  question, and assigns candidates the single-character codes `A` through
+  `Z`. The runner MUST render the model's chat template and return one
+  next-token probability per candidate.
+
+Both paths normalize their runner values and emit the same System One answer
+semantics. Choice selects the first maximum, Noul returns the normalized
+probability of `true`, Score returns the probability-weighted rubric index,
+and confidence is one minus normalized entropy.
+
+The package accepts the `fastino/GLiNER2.5-Decide`,
+`fastino/GLiNER2.5-Decide-1B`, and
+`fastino/GLiNER2.5-multi-Decide` identities and their `gliner25` aliases,
+along with Nimble and Tev aliases. It owns adapters, not tensor execution:
+runner implementations are injected through the contract exported by
+`@maximal/maximal-runner-llama-cpp`.
+
+`@maximal/maximal-provider-gliner25` implements that contract for the
+standalone `stuffbucket/gliner-runner` HTTP service. It preserves task prompts,
+label descriptions, ordinal tasks, cancellation, and encoded-token usage while
+requiring an explicit runner URL, backend, precision, and optional model-ID
+mapping.
+
+Maximal's System One settings provide immutable model-artifact URLs. Tev1 4B
+Q8_0 and Tev1 0.8B Q8_0 use revision-pinned Hugging Face files. Nimble 9B Q8_0
+uses its content-addressed Ollama model layer because the published Hugging Face
+repositories do not provide a standalone GGUF that llama.cpp can load. Each URL
+can be overridden independently without changing model identity or fallback
+order.
 
 ## Contracts
 
@@ -100,7 +138,7 @@ counts, corpus generation/hash, and Ollama identity guards.
 Run a pinned live candidate with:
 
 ```sh
-pnpm --filter @maximal/maximal-systemone eval:live \
+pnpm --filter @maximal/maximal-provider-decision-model eval:live \
   --model nimble:latest
 ```
 
@@ -114,7 +152,7 @@ An unstable repeated label is rejected.
 Baseline refresh is intentionally separate and requires an output path:
 
 ```sh
-pnpm --filter @maximal/maximal-systemone eval:live \
+pnpm --filter @maximal/maximal-provider-decision-model eval:live \
   --model nimble:latest \
   --refresh-baseline fixtures/evaluation/nimble-latest.json
 ```

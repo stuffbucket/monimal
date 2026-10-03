@@ -124,6 +124,13 @@ export const AppConfigSchema = z
             "System One model order must contain each supported local model exactly once.",
           )
           .optional(),
+        modelDownloadUrls: z
+          .object({
+            nimble: z.httpUrl().max(4096).optional(),
+            tev1: z.httpUrl().max(4096).optional(),
+            "tev1:0.8b": z.httpUrl().max(4096).optional(),
+          })
+          .optional(),
         fallbackToLocal: z.boolean().optional(),
       })
       .optional(),

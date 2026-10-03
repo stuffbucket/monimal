@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@maximal/maximal-runner-gliner2",
+  "version": "0.0.0",
+  "description": "Standalone GLiNER2 classification runner backed by the official Python runtime.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stuffbucket/monimal"
+  },
+  "license": "MIT",
+  "author": "stuffbucket",
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json",
+    "./worker.py": "./worker.py",
+    "./runtime-requirements.txt": "./runtime-requirements.txt"
+  },
+  "files": [
+    "dist",
+    "worker.py",
+    "runtime-requirements.txt",
+    "THIRD_PARTY_NOTICES.md",
+    "README.md"
+  ],
+  "scripts": {
+    "analyze": "bun ../maximal-core/scripts/analyze.ts",
+    "build": "tsup src/index.ts --format esm --dts --clean --target node24 --out-dir dist",
+    "lint": "eslint .",
+    "prepack": "pnpm run build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "verify:worker": "python3 -c \"compile(open('worker.py', encoding='utf-8').read(), 'worker.py', 'exec')\""
+  },
+  "dependencies": {
+    "@maximal/maximal-runner-llama-cpp": "workspace:*"
+  },
+  "devDependencies": {
+    "@maximal/eslint-config": "workspace:*",
+    "@maximal/maximal-provider-decision-model": "workspace:*",
+    "@types/node": "^26.4.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "eslint": "^10.9.1",
+    "tsup": "^8.5.1",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vitest": "^5.0.1"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

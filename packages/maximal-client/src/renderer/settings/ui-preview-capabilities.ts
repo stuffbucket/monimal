@@ -4,6 +4,7 @@ import {
   ollamaSearchProvider,
   type SearchProvider,
 } from '@maximal/maximal-search'
+import { SYSTEM_ONE_DEFAULT_MODEL_DOWNLOAD_URLS } from '@maximal/maximal-core-contract/settings'
 
 import terminalFontDownloads from '../../shared/terminal-font-downloads.json' with { type: 'json' }
 import { TERMINAL_THICKEN_DEFAULT } from '../../shared/host'
@@ -400,6 +401,7 @@ export function createPreviewSettingsCapabilities(): SettingsCapabilities {
         local_provider: 'maximal',
         ollama_configured: false,
         model_order: ['nimble', 'tev1', 'tev1:0.8b'],
+        model_download_urls: SYSTEM_ONE_DEFAULT_MODEL_DOWNLOAD_URLS,
         fallback_to_local: true,
       }),
       update: unavailable,

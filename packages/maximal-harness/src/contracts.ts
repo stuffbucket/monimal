@@ -29,7 +29,7 @@ export type ProviderStatus =
   | { state: 'needs-model'; model: string; approxMb: number }
   | { state: 'unavailable'; reason: string }
 
-export type { ModelProgress } from '@maximal/maximal-llama-cpp'
+export type { ModelProgress } from '@maximal/maximal-runner-llama-cpp'
 
 export interface AskRequest {
   prompt: string

@@ -1,4 +1,7 @@
-import { SystemOneSettingsUpdateRequest } from "@maximal/maximal-core-contract/settings"
+import {
+  SYSTEM_ONE_DEFAULT_MODEL_DOWNLOAD_URLS,
+  SystemOneSettingsUpdateRequest,
+} from "@maximal/maximal-core-contract/settings"
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 
 import { DEFAULT_OLLAMA_BASE_URL } from "~/lib/config/config"
@@ -39,6 +42,7 @@ describe("System One settings", () => {
       local_provider: "ollama",
       ollama_configured: true,
       model_order: ["tev1:0.8b", "nimble", "tev1"],
+      model_download_urls: SYSTEM_ONE_DEFAULT_MODEL_DOWNLOAD_URLS,
       fallback_to_local: false,
     })
 
@@ -60,5 +64,30 @@ describe("System One settings", () => {
     ).toThrow(
       "System One model order must contain each supported local model exactly once.",
     )
+  })
+
+  test("uses pinned model artifacts and accepts HTTP download URL overrides", () => {
+    const tev1DownloadOverride = `${SYSTEM_ONE_DEFAULT_MODEL_DOWNLOAD_URLS.tev1}?download=true`
+
+    expect(getSystemOneSettings().model_download_urls).toEqual(
+      SYSTEM_ONE_DEFAULT_MODEL_DOWNLOAD_URLS,
+    )
+    expect(
+      getSystemOneSettings({
+        systemOne: {
+          modelDownloadUrls: {
+            tev1: tev1DownloadOverride,
+          },
+        },
+      }).model_download_urls,
+    ).toEqual({
+      ...SYSTEM_ONE_DEFAULT_MODEL_DOWNLOAD_URLS,
+      tev1: tev1DownloadOverride,
+    })
+    expect(() =>
+      SystemOneSettingsUpdateRequest.parse({
+        model_download_urls: { tev1: "file:///tmp/tev1.gguf" },
+      }),
+    ).toThrow("System One model download URL must use HTTP or HTTPS")
   })
 })

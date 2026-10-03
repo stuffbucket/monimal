@@ -29,12 +29,14 @@ has ended.
 | `packages/maximal-storybook` | Workspace Storybook configuration, preview decorators, browser checks, and developer commands. |
 | `packages/maximal-github` | Runtime-neutral GitHub contracts, device authentication, Octokit API adapter, host profiles, and read-only GitHub CLI interoperability. |
 | `packages/maximal-harness` | Local agent orchestration and renderer. |
-| `packages/maximal-llama-cpp` | Standalone Electron-hosted llama.cpp provider, worker, and packaging policy. |
+| `packages/maximal-runner-gliner2` | Standalone GLiNER2 classification runner and pinned Python worker contract. |
+| `packages/maximal-runner-llama-cpp` | Standalone Electron-hosted llama.cpp runner, worker, and packaging policy. |
 | `packages/maximal-search` | Search connector contract, first-party providers, and provider settings manifest. |
 | `packages/maximal-logging` | Persistent structured runtime logging and log discovery. |
 | `packages/maximal-model-catalog` | Trusted released model metadata, release verification, and runtime inventory reconciliation. |
 | `packages/maximal-model-contract` | Runtime-neutral model gateway, discovery descriptor, tokenizer identity, and operation vocabulary. |
-| `packages/maximal-systemone` | Provider-neutral System One HTTP API contract and runtime schemas. |
+| `packages/maximal-provider-decision-model` | Decision-model provider, System One HTTP API contract, family adapters, and runtime schemas. |
+| `packages/maximal-provider-gliner25` | Strict adapter from Maximal label classification to the standalone GLiNER2.5 runner HTTP API. |
 | `packages/maximal-cli` | Transport-neutral command contracts, adapters, and conformance suites. |
 | `packages/maximal-core-contract` | Core's settings wire types and control-plane contract; Core republishes them. |
 | `packages/maximal-models` | Provider plugin lifecycle and model dispatch. |
@@ -60,15 +62,19 @@ has ended.
 
 | Contract | Source | Commit |
 | --- | --- | --- |
-| `packages/maximal-systemone/src/index.ts` | `ollama/ollama` `docs/openapi.yaml` | `1abe35e6e6e777e858bbfbba283667ee8d516801` |
-| `packages/maximal-systemone` TypeSafe profile and Jev oracle | `typesafe-ai/typesafe-sdk-js` | `66880ccded6cb642dc1809620c2b108c33730214` |
-| `packages/maximal-systemone/fixtures/oracles/typesafe-jev-latest.json` | `docs.typesafe.ai` OpenAPI `0.2.0` and quick start | OpenAPI SHA-256 `a191f8a7df6bd6fedced8120dd0fd106f88575d1d1c8360d08900a6c7c0360d5` |
-| `packages/maximal-systemone/fixtures/oracles/ollama-nimble.json` | Ollama `0.35.0`, `nimble:latest` | Model digest `24e550a16a7081881be2f1f0d91e8cc13a597472735c04119f035a0a85c67e0c` |
-| `packages/maximal-systemone/fixtures/oracles/ollama-tev1-0.8b.json` | Ollama `0.35.0`, `tev1:0.8b` | Model digest `d45e875d63fed9465390a4eb9e55f51f470390a446667b55d0a075a15e0336bf` |
-| `packages/maximal-systemone/fixtures/oracles/ollama-tev1-4b.json` | Ollama `0.35.0`, `tev1:4b` | Model digest `cef45ef93cf6df8bf32bdd689b0a8fd01f88ae9034d33ce890c54f77e4cd981e` |
-| `packages/maximal-systemone` Nimble evaluation methodology | `bespokelabsai/nimble` (`public_benchmarks.py`, `evaluate_public.py`, `compare_public.py`, `summarize_public_suite.py`) | `62076b4f2d365b5879dafcf7f6dd072a1fe76df7` |
-| `packages/maximal-systemone` Tev evaluation methodology | `togethercomputer/tev1` (`scripts/evaluate.py`) | `1dde7782382c9f49d627153759b8d1deab426ce0` |
-| `packages/maximal-systemone/fixtures/evaluation` | Project-authored 600-decision corpus; live Ollama `0.35.0` captures | Corpus SHA-256 `557a91a7278fa31a37ee56b99603843e5e87b8502a071eea33c345122c73cb28` |
+| `packages/maximal-provider-decision-model/src/index.ts` | `ollama/ollama` `docs/openapi.yaml` | `1abe35e6e6e777e858bbfbba283667ee8d516801` |
+| `packages/maximal-provider-decision-model` TypeSafe profile and Jev oracle | `typesafe-ai/typesafe-sdk-js` | `66880ccded6cb642dc1809620c2b108c33730214` |
+| `packages/maximal-provider-decision-model/fixtures/oracles/typesafe-jev-latest.json` | `docs.typesafe.ai` OpenAPI `0.2.0` and quick start | OpenAPI SHA-256 `a191f8a7df6bd6fedced8120dd0fd106f88575d1d1c8360d08900a6c7c0360d5` |
+| `packages/maximal-provider-decision-model/fixtures/oracles/ollama-nimble.json` | Ollama `0.35.0`, `nimble:latest` | Model digest `24e550a16a7081881be2f1f0d91e8cc13a597472735c04119f035a0a85c67e0c` |
+| `packages/maximal-provider-decision-model/fixtures/oracles/ollama-tev1-0.8b.json` | Ollama `0.35.0`, `tev1:0.8b` | Model digest `d45e875d63fed9465390a4eb9e55f51f470390a446667b55d0a075a15e0336bf` |
+| `packages/maximal-provider-decision-model/fixtures/oracles/ollama-tev1-4b.json` | Ollama `0.35.0`, `tev1:4b` | Model digest `cef45ef93cf6df8bf32bdd689b0a8fd01f88ae9034d33ce890c54f77e4cd981e` |
+| `packages/maximal-provider-decision-model` Nimble evaluation methodology | `bespokelabsai/nimble` (`public_benchmarks.py`, `evaluate_public.py`, `compare_public.py`, `summarize_public_suite.py`) | `62076b4f2d365b5879dafcf7f6dd072a1fe76df7` |
+| `packages/maximal-provider-decision-model` Tev evaluation methodology | `togethercomputer/tev1` (`scripts/evaluate.py`) | `1dde7782382c9f49d627153759b8d1deab426ce0` |
+| `packages/maximal-provider-decision-model` GLiNER2.5 classification adapter | `fastino-ai/GLiNER2` (`gliner2/classification`) and `fastino/GLiNER2.5-Decide` model contract | `55656fbfa01d3d4a77485e1a1eeeaf682990ccdf` |
+| `packages/maximal-runner-gliner2` Python runtime | `fastino-ai/GLiNER2` release `2.0.0`; PyTorch; Transformers | GLiNER2 wheel SHA-256 `6f7c4cba0ef3173636d8bd9404aa94d4e0ccf36d4b4b9a0d27d740dd2d3236c3`; `torch==2.7.0`; `transformers==4.57.6` |
+| `packages/maximal-runner-gliner2` model registry | `fastino/GLiNER2.5-Decide`; `fastino/GLiNER2.5-Decide-1B`; `fastino/GLiNER2.5-multi-Decide` | Revisions `5a7adf72a23b4d311abae6ce050d7f0012bb3416`, `688cd7ba8917a0855ad3ce929cba5a9998932e79`, `a35a0cd3b7a0f00f2effc576f454cd48fa98aa5f`; weight SHA-256 `40a5a23ff860dc3dff426cecd1048cacdd29c648c96db209dad818e9686dc997`, `02c567d791aed26550d300064c7f0c0094fd65291503c65969b45b30786e33b3`, `9efe0f88c99f2aa794452e9559dc60e98d60d9fa2bf1b60cf2710411b6da5b4e` |
+| `packages/maximal-core-contract/src/settings.ts` System One default model downloads | Ollama `nimble:latest` model layer; `bartowski/togethercomputer_Tev1-4B-experimental-GGUF`; `DreamBlooms/Tev1-0.8B-experimental-GGUF` | Nimble SHA-256 `bbf1d6fc03bb0ed24d88f4c214ed7b5d1768aeb43d5cf433fb69eff0c8578013`, size `9527501312`; Tev1 4B revision `02b75e9ce9d967c52a6b0bd44e266f93e101445e`, file `togethercomputer_Tev1-4B-experimental-Q8_0.gguf`, LFS SHA-256 `a2917a77bf40b5a4eb3b933e06ac16cf1cf207c4ad7333b271060368fba534d8`, size `4622131232`; Tev1 0.8B revision `2bb70a6cb6e740a6a1a432453aa967cd4782bc0b`, file `tev1-Q8_0.gguf`, LFS SHA-256 `f5233c6dae6f5c520f4a19a48486757a8cd81eead25cc6cf0cdec1c93a1587d4`, size `811843360` |
+| `packages/maximal-provider-decision-model/fixtures/evaluation` | Project-authored 600-decision corpus; live Ollama `0.35.0` captures | Corpus SHA-256 `557a91a7278fa31a37ee56b99603843e5e87b8502a071eea33c345122c73cb28` |
 
 ## Rules
 
@@ -126,7 +132,8 @@ Both are monorepo-native;
 | `maximal-electron` | `Workbar` owns the persistent activity navigation geometry and the shared shell-icon vocabulary so consumers do not specialize collapsed side navigation or remap tab icons locally. |
 | `maximal-electron` | `StatusProvider` owns keyed, ordered status registration; `StatusViewport` owns paging and per-entry dismissal; and `AppFrame` composes them so status layout follows visible content rather than a consumer-owned region flag. |
 | `maximal-electron` / `apps/desktop` | Profile avatars accept authenticated HTTPS image URLs in the desktop renderer and fall back to account initials when an image cannot load; the signed-out profile identity invokes the consumer-owned account setup action. |
-| `maximal-systemone` | The evaluation corpus and fixtures are project-authored internal regression material; no upstream harness code or restricted benchmark text is copied, and results MUST NOT be described as upstream benchmark equivalence. |
+| `maximal-provider-decision-model` | The evaluation corpus and fixtures are project-authored internal regression material; no upstream harness code or restricted benchmark text is copied, and results MUST NOT be described as upstream benchmark equivalence. |
+| `maximal-provider-gliner25` | The HTTP adapter follows the Apache-2.0 `stuffbucket/gliner-runner` API contract; the standalone repository remains the owner of its wire schema and execution behavior. |
 | `maximal-electron` / `maximal-project-browser` / `maximal-client` / `apps/desktop` | `maximal-electron` owns token-driven spatial canvas presentation and control primitives; the reusable project map owns interaction and collaborative state, the client owns project discovery and opening, and desktop owns composition and shared shell stylesheet loading. |
 | `maximal-storybook` | Owns workspace Storybook integration while stories and deterministic fixtures remain beside the packages they exercise. |
 | `maximal-electron` | `NumberInput` owns bounded numeric draft-and-commit behavior; `UnitValueInput` owns automatic/manual presentation and persisted display units while consumers own canonical conversion; `TypefaceControls` composes reusable compact typeface fields; and `TerminalTabs` forwards consumer-owned live typography to terminal views without owning its persistence or font discovery. |

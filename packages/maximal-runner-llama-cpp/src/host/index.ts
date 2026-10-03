@@ -26,3 +26,8 @@ export type {
   EngineRequest,
   ToolOffer,
 } from './llama-protocol.js'
+export {
+  LlamaCppModelRunner,
+  type LlamaCppModelRunnerOptions,
+  type LlamaCppResolvedModel,
+} from './model-runner.js'

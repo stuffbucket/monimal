@@ -57,7 +57,7 @@
     "packages/maximal-core/src/services/providers/provider-dispatcher.ts::environment:OLLAMA_API_KEY": 1,
     "packages/maximal-harness/src/host/agent.ts::environment:STUFFBUCKET_PROVIDER": 1,
     "packages/maximal-harness/src/host/agent.ts::environment:STUFFBUCKET_PROVIDER_URL": 1,
-    "packages/maximal-llama-cpp/src/host/llama.ts::environment:STUFFBUCKET_MODEL_PATH": 1,
+    "packages/maximal-runner-llama-cpp/src/host/llama.ts::environment:STUFFBUCKET_MODEL_PATH": 1,
     "packages/maximal-ollama/src/runtime.ts::environment:*": 1,
     "packages/maximal-recording/src/ffmpeg.ts::environment:*": 2,
     "packages/maximal-settings/src/settings.ts::settings-file": 2,

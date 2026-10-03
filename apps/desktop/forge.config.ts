@@ -23,7 +23,7 @@ import {
   LLAMA_SOURCE_INPUTS,
   llamaPackagePlan,
   parseLlamaBackends,
-} from '@maximal/maximal-llama-cpp/packaging'
+} from '@maximal/maximal-runner-llama-cpp/packaging'
 
 import {
   externalClosure,

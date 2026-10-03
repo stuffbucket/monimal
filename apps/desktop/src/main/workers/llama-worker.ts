@@ -1,1 +1,1 @@
-import '@maximal/maximal-llama-cpp/worker'
+import '@maximal/maximal-runner-llama-cpp/worker'

@@ -6,6 +6,7 @@ import type {} from 'electron';
 import { LLAMA_CONFIG, LLAMA_COPY } from '../constants.js';
 import { ENGINE_LIFECYCLE } from '../host/llama-protocol.js';
 import type { EngineEvent, EngineRequest } from '../host/llama-protocol.js';
+import type { ModelRunnerMessage } from '../runner-contract.js';
 import { toGrammarSchema } from './grammar.js';
 
 /**
@@ -76,10 +77,54 @@ async function library(): Promise<Record<string, unknown>> {
 }
 
 interface LoadedModel {
+  dispose: () => Promise<void>;
+  tokenizer: {
+    (text: string, specialTokens?: boolean, options?: 'trimLeadingSpace'): unknown[];
+  };
   createContext: (options: { contextSize: number }) => Promise<{
-    getSequence: () => unknown;
+    getSequence: () => {
+      clearHistory: () => Promise<void>;
+      evaluateWithMetadata: (
+        tokens: unknown[],
+        metadata: { probabilities: true },
+        options: {
+          temperature: number;
+          minP: number;
+          topK: number;
+          topP: number;
+          tokenBias: TokenBias;
+        },
+      ) => AsyncGenerator<{
+        token: unknown;
+        probabilities: Map<unknown, number>;
+      }>;
+    };
     dispose: () => Promise<void>;
   }>;
+}
+
+interface RenderedContext {
+  contextText: {
+    tokenize: (tokenizer: LoadedModel['tokenizer']) => unknown[];
+  };
+}
+
+interface ChatWrapper {
+  generateContextState: (options: {
+    chatHistory: ReadonlyArray<
+      | { type: 'system'; text: string }
+      | { type: 'user'; text: string }
+      | { type: 'model'; response: string[] }
+    >;
+  }) => RenderedContext;
+}
+
+interface TokenBias {
+  set: (token: unknown, bias: { logit: number }) => TokenBias;
+}
+
+interface TokenBiasConstructor {
+  for: (model: LoadedModel) => TokenBias;
 }
 
 interface ChatSessionCtor {
@@ -124,14 +169,19 @@ async function probe(id: string): Promise<string> {
  *
  * Loading costs seconds and holds a gigabyte, so it is cached for the life of
  * this process. The overlay is summoned briefly and often. There is
- * deliberately no counterpart that frees them: disposal is native async work,
- * and started while the process is exiting it completes into an environment
- * that is being torn down, which aborts. The operating system reclaims the
- * memory when the supervisor kills this process.
+ * Switching paths explicitly disposes the previous model before loading the
+ * next one so model selection cannot retain multiple sets of weights. Shutdown
+ * still relies on process reclamation: beginning native async disposal while
+ * Electron tears down the utility process can abort.
  */
 async function model(modelPath: string, id: string): Promise<LoadedModel> {
   if (loaded?.path === modelPath) return loaded.model;
 
+  if (loaded) {
+    const previous = loaded;
+    loaded = undefined;
+    await previous.model.dispose();
+  }
   await probe(id);
   const nlc = await library();
   const getLlama = nlc.getLlama as (
@@ -254,6 +304,10 @@ function callTool(id: string, name: string, args: unknown): Promise<string> {
 
 async function run(request: Extract<EngineRequest, { kind: 'run' }>): Promise<void> {
   const id = request.id;
+  if (running) {
+    post({ kind: 'failed', id, reason: 'The llama.cpp runner is busy.' });
+    return;
+  }
   const controller = new AbortController();
   running = controller;
 
@@ -328,6 +382,130 @@ async function run(request: Extract<EngineRequest, { kind: 'run' }>): Promise<vo
   }
 }
 
+function chatHistory(
+  messages: ReadonlyArray<ModelRunnerMessage>,
+  systemPrompt?: string,
+): ReadonlyArray<
+  | { type: 'system'; text: string }
+  | { type: 'user'; text: string }
+  | { type: 'model'; response: string[] }
+> {
+  const history: Array<
+    | { type: 'system'; text: string }
+    | { type: 'user'; text: string }
+    | { type: 'model'; response: string[] }
+  > = []
+  if (systemPrompt) history.push({ type: 'system', text: systemPrompt })
+  for (const message of messages) {
+    if (message.role === 'assistant') {
+      history.push({ type: 'model', response: [message.content] })
+    } else {
+      history.push({ type: message.role, text: message.content })
+    }
+  }
+  return history
+}
+
+async function scoreTokenCandidates(
+  request: Extract<EngineRequest, { kind: 'score-token-candidates' }>,
+): Promise<void> {
+  if (running) {
+    post({
+      kind: 'failed',
+      id: request.id,
+      reason: 'The llama.cpp runner is busy.',
+    })
+    return
+  }
+  const controller = new AbortController()
+  running = controller
+
+  try {
+    const nlc = await library()
+    const opened = await model(request.modelPath, request.id)
+    const resolveChatWrapper = nlc.resolveChatWrapper as (
+      model: LoadedModel,
+    ) => ChatWrapper
+    const TokenBias = nlc.TokenBias as TokenBiasConstructor
+    const wrapper = resolveChatWrapper(opened)
+    const context = await opened.createContext({
+      contextSize: request.contextSize,
+    })
+
+    try {
+      const sequence = context.getSequence()
+      const rows: number[][] = []
+      let inputTokens = 0
+      for (const row of request.rows) {
+        if (controller.signal.aborted) throw controller.signal.reason
+        const candidateTokens = row.candidates.map((candidate) => {
+          const tokens = opened.tokenizer(
+            candidate,
+            false,
+            'trimLeadingSpace',
+          )
+          if (tokens.length !== 1) {
+            throw new Error(
+              `Candidate ${JSON.stringify(candidate)} tokenized to `
+                + `${String(tokens.length)} tokens; exactly one is required.`,
+            )
+          }
+          return tokens[0]
+        })
+        const rendered = wrapper.generateContextState({
+          chatHistory: chatHistory(row.messages, request.systemPrompt),
+        })
+        const promptTokens = rendered.contextText.tokenize(opened.tokenizer)
+        inputTokens += promptTokens.length
+        // Equal bias plus top-k isolates the candidate set without changing
+        // relative candidate logits.
+        const tokenBias = TokenBias.for(opened)
+        for (const token of candidateTokens) {
+          tokenBias.set(token, { logit: 100 })
+        }
+        const evaluation = sequence.evaluateWithMetadata(
+          promptTokens,
+          { probabilities: true },
+          {
+            temperature: 1,
+            minP: 0,
+            topK: candidateTokens.length,
+            topP: 1,
+            tokenBias,
+          },
+        )
+        const first = await evaluation.next()
+        if (first.done) {
+          throw new Error('The llama.cpp scorer returned no token metadata.')
+        }
+        rows.push(
+          candidateTokens.map(
+            (token) => first.value.probabilities.get(token) ?? 0,
+          ),
+        )
+        await sequence.clearHistory()
+      }
+      post({
+        kind: 'candidate-scores',
+        id: request.id,
+        probabilities: rows,
+        inputTokens,
+        outputTokens: request.rows.length,
+      })
+    } finally {
+      await context.dispose().catch(() => undefined)
+    }
+  } catch (error) {
+    post({
+      kind: 'failed',
+      id: request.id,
+      reason: error instanceof Error ? error.message : String(error),
+    })
+  } finally {
+    running = undefined
+  }
+}
+
 /* --------------------------------------------------------------- the port */
 
 function handle(request: EngineRequest): void {
@@ -357,6 +535,9 @@ function handle(request: EngineRequest): void {
       return;
     case 'run':
       void run(request);
+      return;
+    case 'score-token-candidates':
+      void scoreTokenCandidates(request);
       return;
     case 'abort':
       running?.abort();

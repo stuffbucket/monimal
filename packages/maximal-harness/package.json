@@ -30,7 +30,7 @@
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.84.4",
     "@earendil-works/pi-ai": "0.84.4",
-    "@maximal/maximal-llama-cpp": "workspace:*",
+    "@maximal/maximal-runner-llama-cpp": "workspace:*",
     "typebox": "1.3.23"
   },
   "devDependencies": {

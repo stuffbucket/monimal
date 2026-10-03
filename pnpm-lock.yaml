@@ -58,9 +58,6 @@ importers:
       '@maximal/maximal-harness':
         specifier: workspace:*
         version: link:../../packages/maximal-harness
-      '@maximal/maximal-llama-cpp':
-        specifier: workspace:*
-        version: link:../../packages/maximal-llama-cpp
       '@maximal/maximal-logging':
         specifier: workspace:*
         version: link:../../packages/maximal-logging
@@ -76,6 +73,9 @@ importers:
       '@maximal/maximal-recording':
         specifier: workspace:*
         version: link:../../packages/maximal-recording
+      '@maximal/maximal-runner-llama-cpp':
+        specifier: workspace:*
+        version: link:../../packages/maximal-runner-llama-cpp
       '@maximal/maximal-settings':
         specifier: workspace:*
         version: link:../../packages/maximal-settings
@@ -646,15 +646,15 @@ importers:
       '@maximal/maximal-observability-contract':
         specifier: workspace:*
         version: link:../maximal-observability-contract
+      '@maximal/maximal-provider-decision-model':
+        specifier: workspace:*
+        version: link:../maximal-provider-decision-model
       '@maximal/maximal-search':
         specifier: workspace:*
         version: link:../maximal-search
       '@maximal/maximal-settings':
         specifier: workspace:*
         version: link:../maximal-settings
-      '@maximal/maximal-systemone':
-        specifier: workspace:*
-        version: link:../maximal-systemone
       citty:
         specifier: ^0.2.2
         version: 0.2.2
@@ -958,9 +958,9 @@ importers:
       '@earendil-works/pi-ai':
         specifier: 0.84.4
         version: 0.84.4(supports-color@8.1.1)(ws@8.21.3)(zod@4.5.4)
-      '@maximal/maximal-llama-cpp':
+      '@maximal/maximal-runner-llama-cpp':
         specifier: workspace:*
-        version: link:../maximal-llama-cpp
+        version: link:../maximal-runner-llama-cpp
       typebox:
         specifier: 1.3.23
         version: 1.3.23
@@ -995,40 +995,6 @@ importers:
       react-dom:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
-      tsup:
-        specifier: ^8.5.1
-        version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
-      typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      vitest:
-        specifier: ^5.0.1
-        version: 5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
-
-  packages/maximal-llama-cpp:
-    dependencies:
-      node-llama-cpp:
-        specifier: 3.20.0
-        version: 3.20.0(@typescript/typescript6@6.0.2)(supports-color@8.1.1)
-    devDependencies:
-      '@maximal/eslint-config':
-        specifier: workspace:*
-        version: link:../eslint-config
-      '@stryker-mutator/core':
-        specifier: ^10.0.0
-        version: 10.0.0(@types/node@26.4.0)
-      '@types/node':
-        specifier: ^26.4.0
-        version: 26.4.0
-      '@typescript/native':
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
-      electron:
-        specifier: 44.1.0
-        version: 44.1.0(supports-color@8.1.1)
-      eslint:
-        specifier: ^10.9.1
-        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
@@ -1115,9 +1081,9 @@ importers:
       '@maximal/maximal-model-contract':
         specifier: workspace:*
         version: link:../maximal-model-contract
-      '@maximal/maximal-systemone':
+      '@maximal/maximal-provider-decision-model':
         specifier: workspace:*
-        version: link:../maximal-systemone
+        version: link:../maximal-provider-decision-model
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.2
@@ -1298,6 +1264,65 @@ importers:
         specifier: ^5.0.1
         version: 5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
 
+  packages/maximal-provider-decision-model:
+    dependencies:
+      '@maximal/maximal-runner-llama-cpp':
+        specifier: workspace:*
+        version: link:../maximal-runner-llama-cpp
+      zod:
+        specifier: ^4.5.4
+        version: 4.5.4
+    devDependencies:
+      '@maximal/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+
+  packages/maximal-provider-gliner25:
+    dependencies:
+      '@maximal/maximal-provider-decision-model':
+        specifier: workspace:*
+        version: link:../maximal-provider-decision-model
+      '@maximal/maximal-runner-llama-cpp':
+        specifier: workspace:*
+        version: link:../maximal-runner-llama-cpp
+      zod:
+        specifier: ^4.5.4
+        version: 4.5.4
+    devDependencies:
+      '@maximal/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+
   packages/maximal-react-component:
     devDependencies:
       '@maximal/eslint-config':
@@ -1378,6 +1403,71 @@ importers:
       eslint:
         specifier: ^10.9.1
         version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+
+  packages/maximal-runner-gliner2:
+    dependencies:
+      '@maximal/maximal-runner-llama-cpp':
+        specifier: workspace:*
+        version: link:../maximal-runner-llama-cpp
+    devDependencies:
+      '@maximal/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@maximal/maximal-provider-decision-model':
+        specifier: workspace:*
+        version: link:../maximal-provider-decision-model
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0))
+
+  packages/maximal-runner-llama-cpp:
+    dependencies:
+      node-llama-cpp:
+        specifier: 3.20.0
+        version: 3.20.0(@typescript/typescript6@6.0.2)(supports-color@8.1.1)
+    devDependencies:
+      '@maximal/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@stryker-mutator/core':
+        specifier: ^10.0.0
+        version: 10.0.0(@types/node@26.4.0)
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.0
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      electron:
+        specifier: 44.1.0
+        version: 44.1.0(supports-color@8.1.1)
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
         version: '@typescript/typescript6@6.0.2'
@@ -1503,31 +1593,6 @@ importers:
       vite:
         specifier: ^8.2.2
         version: 8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)
-
-  packages/maximal-systemone:
-    dependencies:
-      zod:
-        specifier: ^4.5.4
-        version: 4.5.4
-    devDependencies:
-      '@maximal/eslint-config':
-        specifier: workspace:*
-        version: link:../eslint-config
-      '@types/node':
-        specifier: ^26.4.0
-        version: 26.4.0
-      '@typescript/native':
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
-      eslint:
-        specifier: ^10.9.1
-        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
-      tsup:
-        specifier: ^8.5.1
-        version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
-      typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
 
   packages/maximal-terminal:
     devDependencies:

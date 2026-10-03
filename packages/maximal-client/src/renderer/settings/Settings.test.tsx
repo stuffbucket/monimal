@@ -1,7 +1,8 @@
-import type {
-  AccountsListResponse,
-  AuthStatus,
-  TokenUsagePeriod,
+import {
+  SYSTEM_ONE_DEFAULT_MODEL_DOWNLOAD_URLS,
+  type AccountsListResponse,
+  type AuthStatus,
+  type TokenUsagePeriod,
 } from '@maximal/maximal-core-contract/settings'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
@@ -82,6 +83,7 @@ function fakeCapabilities(): SettingsCapabilities {
           'tev1',
           'tev1:0.8b',
         ] as Array<'nimble' | 'tev1' | 'tev1:0.8b'>,
+        model_download_urls: SYSTEM_ONE_DEFAULT_MODEL_DOWNLOAD_URLS,
         fallback_to_local: true,
       })),
       update: vi.fn(),

@@ -14,14 +14,14 @@ import {
   setAgentEffortPreference,
   shutdownAgent,
 } from '@maximal/maximal-harness/host'
-import { LLAMA_WORKER_FILENAME } from '@maximal/maximal-llama-cpp'
+import { LLAMA_WORKER_FILENAME } from '@maximal/maximal-runner-llama-cpp'
 import {
   configureLlamaHost,
   configureModel,
   DEFAULT_EMBEDDED_MODEL_FILE,
   ensureModel,
   stopEngine,
-} from '@maximal/maximal-llama-cpp/host'
+} from '@maximal/maximal-runner-llama-cpp/host'
 import {
   app,
   BrowserWindow,

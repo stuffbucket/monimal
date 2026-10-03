@@ -3,7 +3,7 @@ import type { ProviderDispatch } from "@maximal/maximal-model-contract"
 import {
   SYSTEM_ONE_MEDIA_TYPE,
   SYSTEM_ONE_PATH,
-} from "@maximal/maximal-systemone"
+} from "@maximal/maximal-provider-decision-model"
 
 export interface SystemOneHttpProviderConfig {
   readonly apiKey: string

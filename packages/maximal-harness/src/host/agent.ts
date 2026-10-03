@@ -4,7 +4,7 @@ import {
   EMBEDDED_MODEL_MB,
   listEmbeddedModels,
   selectEmbeddedModel,
-} from '@maximal/maximal-llama-cpp';
+} from '@maximal/maximal-runner-llama-cpp';
 
 import {
   Agent,

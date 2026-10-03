@@ -38,6 +38,7 @@ export interface AppConfig {
   systemOne?: {
     localProvider?: "maximal" | "ollama"
     modelOrder?: Array<"nimble" | "tev1" | "tev1:0.8b">
+    modelDownloadUrls?: Partial<Record<"nimble" | "tev1" | "tev1:0.8b", string>>
     fallbackToLocal?: boolean
   }
   providerHost?: {

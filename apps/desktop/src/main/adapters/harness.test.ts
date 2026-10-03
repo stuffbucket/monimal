@@ -168,7 +168,7 @@ vi.mock('@maximal/maximal-harness/host', () => ({
   shutdownAgent: shutdownAgentMock,
 }))
 
-vi.mock('@maximal/maximal-llama-cpp/host', () => ({
+vi.mock('@maximal/maximal-runner-llama-cpp/host', () => ({
   DEFAULT_EMBEDDED_MODEL_FILE: 'Qwen3-0.6B-Q8_0.gguf',
   configureLlamaHost: configureLlamaHostMock,
   configureModel: configureModelMock,
