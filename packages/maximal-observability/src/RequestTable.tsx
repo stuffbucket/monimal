@@ -45,7 +45,7 @@ export function RequestTable({
                   {onSelect ?
                     <button
                       type="button"
-                      className="mo-request-link"
+                      className="mo-request-link data-viz-focusable"
                       aria-pressed={selected}
                       onClick={() => onSelect(id)}
                     >

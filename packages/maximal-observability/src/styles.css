@@ -136,12 +136,6 @@
   cursor: pointer;
 }
 
-.mo-request-link:focus-visible,
-.mo-flow-node:focus-visible {
-  outline: 2px solid var(--maximal-color-border-selected);
-  outline-offset: 2px;
-}
-
 .mo-table-scroll {
   max-width: 100%;
   overflow-x: auto;
@@ -149,8 +143,6 @@
 
 .mo-flow-chart,
 .mo-token-chart {
-  display: block;
-  width: 100%;
   min-width: 42rem;
 }
 
@@ -163,11 +155,6 @@
 .mo-flow-node rect {
   fill: var(--maximal-color-bg-tertiary);
   stroke: var(--maximal-color-border-strong, var(--maximal-color-border-default));
-}
-
-.mo-flow-node text {
-  fill: var(--maximal-color-text-default);
-  font: var(--shell-font);
 }
 
 .mo-token-segment {

@@ -925,7 +925,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                     <div className="mh-setup__actions">
                       <button
                         type="button"
-                        className="mh-pill mh-pill--primary"
+                        className="btn btn--primary mh-pill"
                         onClick={startDownload}
                         data-testid="overlay-download-start"
                       >
@@ -977,7 +977,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                   <div className="mh-approval__actions">
                     <button
                       type="button"
-                      className="mh-pill"
+                      className="btn mh-pill"
                       onClick={() => decide(false)}
                       data-testid="overlay-deny"
                     >
@@ -986,7 +986,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                     </button>
                     <button
                       type="button"
-                      className="mh-pill mh-pill--primary"
+                      className="btn btn--primary mh-pill"
                       onClick={() => decide(true)}
                       data-testid="overlay-allow"
                     >

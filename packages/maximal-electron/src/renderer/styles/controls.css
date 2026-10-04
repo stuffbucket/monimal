@@ -173,47 +173,62 @@ svg {
 }
 
 .btn--primary {
-  background: var(--maximal-color-bg-brand);
-  border-color: var(--maximal-color-border-brand);
   color: var(--maximal-color-text-onbrand);
 }
-.btn--primary:hover:not(:disabled) {
+
+.btn--danger {
+  color: var(--maximal-color-text-ondanger);
+}
+
+.btn--primary {
   background: var(--maximal-color-bg-brand);
-  filter: brightness(1.08);
+  border-color: var(--maximal-color-border-brand);
 }
 
 .btn--danger {
   background: var(--maximal-color-bg-danger);
   border-color: var(--maximal-color-border-danger);
-  color: var(--maximal-color-text-ondanger);
 }
-.btn--danger:hover:not(:disabled) {
-  background: var(--maximal-color-bg-danger);
+
+.btn--primary:hover:not(:disabled) {
   filter: brightness(1.08);
+  background: var(--maximal-color-bg-brand);
+}
+
+.btn--danger:hover:not(:disabled) {
+  filter: brightness(1.08);
+  background: var(--maximal-color-bg-danger);
 }
 
 /* ---------------------------------------------------------------- dialog */
 
-.dialog__scrim {
+.dialog__scrim,
+.dialog {
   position: fixed;
+}
+
+.dialog__scrim {
   inset: 0;
   background: rgb(0 0 0 / 0.34);
 }
 
 .dialog {
-  position: fixed;
+  display: flex;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
-  width: min(520px, 90vw);
-  display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  width: min(520px, 90vw);
   padding: var(--space-4);
   border-radius: var(--radius-dialog);
+  box-shadow: var(--elevation-dialog);
+  transform: translate(-50%, -50%);
+}
+
+.dialog,
+.menu {
   background: var(--maximal-color-bg-tertiary);
   border: 1px solid var(--maximal-color-border-strong);
-  box-shadow: var(--elevation-dialog);
 }
 
 /* ------------------------------------------------------------------ menu */
@@ -224,8 +239,6 @@ svg {
   overflow-y: auto;
   padding: var(--space-1);
   border-radius: var(--radius-input);
-  background: var(--maximal-color-bg-tertiary);
-  border: 1px solid var(--maximal-color-border-strong);
   box-shadow: var(--elevation-popover);
 }
 

@@ -68,12 +68,18 @@
 
 .mcw-turn-picker-button:hover {
   background: var(--maximal-color-bg-hover);
+}
+
+.mcw-turn-picker-button:hover {
   color: var(--maximal-color-text-default);
 }
 
 .mcw-turn-picker-button[aria-pressed="true"] {
   border-color: var(--maximal-color-border-brand);
   background: var(--maximal-color-bg-selected, var(--maximal-color-bg-pressed));
+}
+
+.mcw-turn-picker-button[aria-pressed="true"] {
   color: var(--maximal-color-text-onselected);
 }
 
