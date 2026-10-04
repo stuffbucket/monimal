@@ -99,6 +99,7 @@ export function ShellLayout<T extends Tab>({
   activeTab,
   onSelectTab,
   onCloseTab,
+  onRenameTab,
   onNewTab,
   tabsLabel,
   newTabLabel,
@@ -279,6 +280,7 @@ export function ShellLayout<T extends Tab>({
             activeTab={activeTab}
             onSelectTab={onSelectTab}
             onCloseTab={onCloseTab}
+            onRenameTab={onRenameTab}
             onNewTab={onNewTab}
             tabsLabel={tabsLabel}
             newTabLabel={newTabLabel}

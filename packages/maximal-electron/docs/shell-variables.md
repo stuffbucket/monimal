@@ -85,6 +85,7 @@ focus rings, type, and optical details are not spacing increments.
 
 | Variable | Value | What it sets |
 | --- | --- | --- |
+| `--shell-border-width-thin` | `1px` | A standard control or surface stroke. |
 | `--shell-control-sm` | `24px` | A compact control height. |
 | `--shell-control-md` | `28px` | The default control height. |
 | `--shell-control-lg` | `32px` | The tallest control height. |
@@ -122,7 +123,8 @@ focus rings, type, and optical details are not spacing increments.
 | `--shell-radius-large` | `4px` | A card corner. |
 | `--shell-radius-pill` | `9999px` | A fully rounded control. |
 | `--shell-row-height` | `32px` | A compact navigation, menu, or list row. |
-| `--shell-tab-max` | `168px` | The maximum document-tab width. |
+| `--shell-tab-fade` | `12px` | The fade at the clipped edge of a crowded document tab. |
+| `--shell-tab-max` | `384px` | The maximum document-tab width before a title is truncated. |
 | `--shell-tab-min` | `72px` | The minimum document-tab width. |
 | `--shell-space-1` | `4px` | The tightest gap. |
 | `--shell-space-2` | `8px` | A gap inside a control. |
@@ -188,7 +190,6 @@ looks exactly like an ordinary hovered one.
 | Variable | Fallback | Drawn by |
 | --- | --- | --- |
 | `--maximal-color-bg-danger` | `--maximal-color-bg-hover` | destructive icon button, destructive `Button` fill, highlighted destructive menu item |
-| `--maximal-color-bg-success` | `--maximal-color-bg-brand` | the marker on a green tab or tab group |
 | `--maximal-color-bg-warning` | `--maximal-color-bg-brand` | the attention marker on a tab |
 | `--maximal-color-border-danger` | `--maximal-color-border-brand` | the outline of a destructive control or of a field that failed validation |
 | `--maximal-color-border-selected` | `--maximal-color-border-brand` | focus ring on every control |

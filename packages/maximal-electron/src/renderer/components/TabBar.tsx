@@ -10,6 +10,7 @@ import {
   useState,
   type ComponentType,
   type DragEvent,
+  type ReactNode,
 } from 'react';
 
 import {
@@ -25,6 +26,10 @@ import {
   type TabDetachPosition,
   type TabTransfer,
 } from '../lib/tab-transfer.js';
+import {
+  EditableLabel,
+  type EditableLabelState,
+} from './controls/EditableLabel.js';
 import { useShellPortalContainer } from './controls/Overlays.js';
 
 /** Stable color names accepted by tabs and tab groups. */
@@ -69,6 +74,7 @@ export interface TabStripProps<T extends Tab> {
   activeTab: string;
   onSelectTab: (id: string) => void;
   onCloseTab?: (id: string) => void;
+  onRenameTab?: (id: string, title: string) => void;
   onNewTab?: () => void;
   /** Only one tab strip on a page can be the primary one. */
   tabsLabel?: string;
@@ -165,11 +171,17 @@ function useTruncated(): [
 }
 
 /** One tab's label, faded only when it does not fit. */
-function TabLabel({ title }: { title: string }) {
+function TabLabel({
+  title,
+  children = title,
+}: {
+  title: string;
+  children?: ReactNode;
+}) {
   const [ref, truncated] = useTruncated();
   return (
     <span className="tab__label" ref={ref} data-truncated={truncated || undefined}>
-      {title}
+      {children}
     </span>
   );
 }
@@ -191,6 +203,7 @@ export function TabBar<T extends Tab>({
   active,
   onSelect,
   onClose,
+  onRename,
   onNew,
   icon,
   transfer,
@@ -202,6 +215,7 @@ export function TabBar<T extends Tab>({
   active: string;
   onSelect: (id: string) => void;
   onClose?: (id: string) => void;
+  onRename?: (id: string, title: string) => void;
   onNew?: () => void;
   /** A component for the slot, overriding whatever `tab.icon` names. */
   icon?: (tab: T) => ComponentType<{ size?: number }> | undefined;
@@ -221,6 +235,7 @@ export function TabBar<T extends Tab>({
     x: number;
     y: number;
   }>();
+  const [editingTab, setEditingTab] = useState<string>();
   const root = useRef<HTMLDivElement>(null);
   const dragDropHandled = useRef(false);
 
@@ -321,6 +336,9 @@ export function TabBar<T extends Tab>({
           const Named = tab.icon === undefined ? undefined : tabIcon(tab.icon);
           const Glyph = slot === 'custom' ? Custom : slot === 'icon' ? Named : undefined;
           const words = adornmentLabel(tab);
+          const labelState: EditableLabelState = editingTab === tab.id
+            ? 'editing'
+            : tab.id === active ? 'active' : 'inactive';
           const groupStarts = tab.group !== undefined
             && tabs[index - 1]?.group?.id !== tab.group.id;
           return (
@@ -340,6 +358,7 @@ export function TabBar<T extends Tab>({
                 data-color={tab.color ?? tab.group?.color}
                 data-emphasis={tab.emphasis}
                 id={getTabTriggerId(tabIdBase, tab.id)}
+                aria-label={editingTab === tab.id ? tab.title : undefined}
               /*
                * The caller renders one panel, for the active tab. Naming a
                * panel that no tab is showing points `aria-controls` at an ID
@@ -393,6 +412,14 @@ export function TabBar<T extends Tab>({
                 );
               }}
               onKeyDown={(event) => {
+                if (
+                  onRename
+                  && (event.key === 'F2' || (event.key === 'Enter' && tab.id === active))
+                ) {
+                  event.preventDefault();
+                  setEditingTab(tab.id);
+                  return;
+                }
                 if (!closeThisTab) return;
                 // The key macOS prints as "delete" sends Backspace, so both
                 // close. Neither has a default action worth keeping on a tab.
@@ -401,12 +428,27 @@ export function TabBar<T extends Tab>({
                 closeAndRefocus(index);
               }}
               >
-                {Glyph && <Glyph size={12} />}
+                {Glyph && <Glyph size={16} />}
                 {slot === 'status' && (
                   <span className="dot" data-status={tab.status} aria-hidden="true" />
                 )}
                 {tab.emphasis && <span className="tab__emphasis" aria-hidden="true" />}
-                <TabLabel title={tab.title} />
+                <TabLabel title={tab.title}>
+                  {onRename
+                    ? (
+                      <EditableLabel
+                        value={tab.title}
+                        state={labelState}
+                        onActivate={() => onSelect(tab.id)}
+                        onStateChange={(state) => {
+                          setEditingTab(state === 'editing' ? tab.id : undefined);
+                        }}
+                        onCommit={(title) => onRename(tab.id, title)}
+                        ariaLabel={`Rename ${tab.title}`}
+                      />
+                    )
+                    : tab.title}
+                </TabLabel>
                 {/* After the label, so the tab reads "Terminal 1, Working". */}
                 {words !== undefined && <VisuallyHidden>{words}</VisuallyHidden>}
                 {closeThisTab && (
@@ -419,7 +461,7 @@ export function TabBar<T extends Tab>({
                       closeThisTab(tab.id);
                     }}
                   >
-                    <X size={12} />
+                    <X size={16} />
                   </span>
                 )}
               </Tabs.Trigger>
@@ -434,7 +476,7 @@ export function TabBar<T extends Tab>({
           aria-label={`Close ${activeItem.title}`}
           onClick={() => closeAndRefocus(activeIndex)}
         >
-          <X size={12} />
+          <X size={16} />
         </button>
       )}
         {onNew && (

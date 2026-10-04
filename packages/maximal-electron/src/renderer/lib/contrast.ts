@@ -90,6 +90,7 @@ export const CONTRAST_PAIRS: ContrastPair[] = [
  * set by component state or third-party primitives are deliberately absent.
  */
 export const REQUIRED_TOKENS: string[] = [
+  '--border-width-thin',
   '--control-lg',
   '--control-md',
   '--control-sm',
@@ -114,7 +115,6 @@ export const REQUIRED_TOKENS: string[] = [
   '--maximal-color-bg-pressed',
   '--maximal-color-bg-secondary',
   '--maximal-color-bg-selected',
-  '--maximal-color-bg-success',
   '--maximal-color-bg-success-secondary',
   '--maximal-color-bg-tertiary',
   '--maximal-color-bg-warning',

@@ -1,4 +1,4 @@
-import { Sparkles } from 'lucide-react';
+import { Braces, Sparkles, Tag } from 'lucide-react';
 import { useState, type ComponentType } from 'react';
 import type { Meta, StoryObj } from '@maximal/maximal-storybook';
 import { expect, userEvent, within } from '@maximal/maximal-storybook/test';
@@ -81,6 +81,7 @@ function Strip({
   label = 'Open documents',
   icon,
   draggable = false,
+  editable = false,
 }: {
   tabs: Tab[];
   width: number;
@@ -91,6 +92,7 @@ function Strip({
   /** The caller-supplied override. Most strips let `tab.icon` decide. */
   icon?: (tab: Tab) => ComponentType<{ size?: number }> | undefined;
   draggable?: boolean;
+  editable?: boolean;
 }) {
   const [open, setOpen] = useState(tabs);
   const [active, setActive] = useState(initial ?? tabs[0]?.id ?? '');
@@ -99,6 +101,11 @@ function Strip({
     const rest = open.filter((tab) => tab.id !== id);
     setOpen(rest);
     if (id === active) setActive(rest[0]?.id ?? '');
+  };
+  const rename = (id: string, title: string) => {
+    setOpen((current) => current.map((tab) => (
+      tab.id === id ? { ...tab, title } : tab
+    )));
   };
 
   return (
@@ -123,6 +130,7 @@ function Strip({
           active={active}
           onSelect={setActive}
           onClose={close}
+          onRename={editable ? rename : undefined}
           onNew={() => undefined}
           icon={icon}
           label={label}
@@ -177,6 +185,54 @@ type Story = StoryObj<typeof meta>;
 
 /** Room for everything. The separators are the only thing dividing them. */
 export const Default: Story = {};
+
+/** A tab label is selected with its tab and edited only by an explicit rename gesture. */
+export const EditableLabels: Story = {
+  render: () => (
+    <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
+      <p style={{ margin: 0, color: 'var(--maximal-color-text-secondary)' }}>
+        Single-click focuses a tab. Double-click either label to focus its tab and
+        edit with all text selected. Enter commits; Escape cancels; F2 edits the
+        focused tab.
+      </p>
+      <Strip
+        tabs={[
+          { id: 'lorem', title: 'Lorem ipsum dolor sit amet', closable: true },
+          { id: 'notes', title: 'notes.md', closable: true },
+        ]}
+        width={640}
+        active="notes"
+        editable
+        icon={() => Tag}
+        idBase="editable-labels"
+      />
+    </div>
+  ),
+};
+
+/** The supplied 4px-grid filename tab reference, expressed as measurable CSS. */
+export const FilenameReference: Story = {
+  render: () => (
+    <Strip
+      tabs={[{ id: 'package', title: 'package.json', closable: true }]}
+      width={320}
+      icon={() => Braces}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const tab = within(canvasElement).getByRole('tab', { name: 'package.json' });
+    const label = tab.querySelector('.tab__label');
+    const style = getComputedStyle(tab);
+    if (!(label instanceof HTMLElement)) throw new Error('tab label did not render');
+
+    await expect(style.height).toBe('32px');
+    await expect(style.paddingLeft).toBe('12px');
+    await expect(style.gap).toBe('8px');
+    await expect(style.borderTopWidth).toBe('1px');
+    await expect(style.borderTopLeftRadius).toBe('4px');
+    await expect(getComputedStyle(label).fontSize).toBe('14px');
+  },
+};
 
 /** Tabs can be dragged before another tab or onto the strip's trailing space. */
 export const Reorder: Story = {
@@ -297,11 +353,10 @@ export const WithConsumerIcon: Story = {
 /**
  * Emphasis: what the tab says when a 7px dot is the wrong size to say it.
  *
- * Two treatments, and only two. `attention` is a rule down the leading edge,
- * full height, for a tab that needs a human — the approval gate in
- * stuffbucket/maximal#424. `busy` is a short bar travelling along the bottom,
- * for work still in flight. Geometry carries both, so neither depends on hue,
- * and `adornmentLabel` gives a screen reader the words.
+ * Two treatments, and only two. `attention` is a static rule on the bottom
+ * inner edge. `busy` is a full-width shimmer along that edge for work still in
+ * flight. Geometry carries both, so neither depends on hue, and
+ * `adornmentLabel` gives a screen reader the words.
  *
  * The third tab carries a status and an emphasis at once. The dot takes the
  * slot; the emphasis is drawn on the tab, so both are visible and the name
@@ -318,7 +373,7 @@ export const WithEmphasis: Story = {
   },
 };
 
-/** Emphasis on the selected tab, where it competes with the accent underline. */
+/** Emphasis remains inside the selected tab's bottom edge. */
 export const EmphasisSelected: Story = {
   render: () => (
     <Strip tabs={SESSIONS} width={640} idBase="emphasis-selected" active="b" />

@@ -9,6 +9,7 @@
   --shell-space-3: 12px;
   --shell-space-4: 16px;
   --shell-space-5: 24px;
+  --shell-border-width-thin: 1px;
   --shell-radius: 4px;
   --shell-radius-large: 4px;
   --shell-radius-dialog: 4px;
@@ -56,7 +57,8 @@
   --shell-icon-optical-terminal-scale: 1.111111;
   --shell-icon-optical-folder-offset-y: 0.5px;
   --shell-tab-min: 72px;
-  --shell-tab-max: 168px;
+  --shell-tab-max: 384px;
+  --shell-tab-fade: 12px;
   --shell-row-height: 32px;
 }
 }

@@ -55,6 +55,9 @@
   --space-6: 32px;
   --space-7: 48px;
 
+  /* ---- Border widths ---- */
+  --border-width-thin: 1px;
+
   /* ---- Radii ---- */
   --radius-input: 4px;
   --radius-card: 4px;
@@ -75,7 +78,7 @@
   --icon-optical-folder-offset-y: 0.5px;
   --icon-stroke: 1.5;
   --tab-min: 72px;
-  --tab-max: 168px;
+  --tab-max: 384px;
 
   /*
    * ---- Control heights ----
@@ -96,7 +99,7 @@
    * stops one long title from taking the strip; past it, the label fades.
    */
   --tab-min: 72px;
-  --tab-max: 168px;
+  --tab-max: 384px;
 
   /*
    * ---- Navigation rail ----
@@ -114,7 +117,7 @@
   --nav-default: 228px;
   --nav-heading: 24px;
   /* How far the fade reaches back from the right edge of a truncated label. */
-  --tab-fade: 24px;
+  --tab-fade: 12px;
 
   /*
    * ---- Focus ----

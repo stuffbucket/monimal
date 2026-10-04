@@ -344,7 +344,7 @@
 
 .sb-shell .tabbar {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   height: 100%;
   min-width: 0;
   overflow-x: auto;
@@ -433,13 +433,15 @@
 .sb-shell .tab {
   display: inline-flex;
   align-items: center;
-  gap: var(--shell-space-1);
+  gap: var(--shell-space-2);
+  height: var(--shell-control-lg);
   min-width: var(--shell-tab-min);
   max-width: var(--shell-tab-max);
-  padding: 0 var(--shell-space-2);
+  padding: 0 var(--shell-space-3);
   color: var(--maximal-color-text-tertiary);
   white-space: nowrap;
-  border-radius: var(--shell-radius) var(--shell-radius) 0 0;
+  border: var(--shell-border-width-thin) solid transparent;
+  border-radius: var(--shell-radius);
   /* The emphasis marker is absolute inside the tab. */
   position: relative;
   cursor: default;
@@ -453,24 +455,12 @@
   background: var(--maximal-color-bg-hover);
 }
 
-/* The selected tab's own fill, which is the canvas it opens onto until a host
-   names something else. `tokens.css` keeps a dedicated `--tab-active` because
-   a tab sits on the title bar rather than inside a panel, and the step it
-   needs is not the canvas in either scheme. */
+/* The selected tab is a complete compact control rather than a title-bar
+   segment: its fill and outline remain visible on every host surface. */
 .sb-shell .tab[data-state='active'] {
   color: var(--maximal-color-text-default);
   background: var(--shell-tab-active, var(--maximal-color-bg-secondary));
-  font-weight: 500;
-}
-
-.sb-shell .tab[data-state='active']::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 2px;
-  background: var(--maximal-color-bg-brand);
+  border-color: var(--maximal-color-border-strong, var(--maximal-color-border-default));
 }
 
 .sb-shell .tab[data-color='blue'] {
@@ -505,38 +495,6 @@
   );
 }
 
-.sb-shell .tab[data-color='blue'][data-state='active']::after {
-  background: var(--maximal-color-bg-brand);
-}
-
-.sb-shell .tab[data-color='green'][data-state='active']::after {
-  background: var(--maximal-color-bg-success, var(--maximal-color-bg-brand));
-}
-
-.sb-shell .tab[data-color='yellow'][data-state='active']::after {
-  background: var(--maximal-color-bg-warning, var(--maximal-color-bg-brand));
-}
-
-.sb-shell .tab[data-color='red'][data-state='active']::after {
-  background: var(--maximal-color-bg-danger, var(--maximal-color-bg-brand));
-}
-
-.sb-shell .tab[data-color='purple'][data-state='active']::after {
-  background: color-mix(
-    in srgb,
-    var(--maximal-color-bg-brand) 60%,
-    var(--maximal-color-bg-danger, var(--maximal-color-bg-brand))
-  );
-}
-
-.sb-shell .tab[data-color='orange'][data-state='active']::after {
-  background: color-mix(
-    in srgb,
-    var(--maximal-color-bg-warning, var(--maximal-color-bg-brand)) 65%,
-    var(--maximal-color-bg-danger, var(--maximal-color-bg-brand))
-  );
-}
-
 /* `min-width: 0` is what lets the label shrink below its own text. Without it
    the flex item refuses to narrow and the ellipsis never engages, so a long
    title widens the tab instead of truncating inside it. */
@@ -544,15 +502,23 @@
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: inherit;
+}
+
+.sb-shell .tab__label[data-truncated] {
+  mask-image: linear-gradient(
+    to right,
+    currentColor calc(100% - var(--shell-tab-fade)),
+    transparent 100%
+  );
 }
 
 .sb-shell .tab__close {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: var(--shell-icon-size);
+  height: var(--shell-icon-size);
   flex: none;
   color: inherit;
   border-radius: var(--shell-radius-small, 4px);
@@ -561,7 +527,7 @@
 
 .sb-shell .tab:hover .tab__close,
 .sb-shell .tab[data-state='active'] .tab__close {
-  opacity: 0.7;
+  opacity: 1;
 }
 
 .sb-shell .tab__close:hover {
@@ -624,21 +590,28 @@
 }
 
 .sb-shell .tab[data-emphasis='attention'] .tab__emphasis {
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 3px;
-  border-radius: var(--shell-radius) 0 0 0;
+  right: var(--shell-space-3);
+  bottom: 1px;
+  left: var(--shell-space-3);
+  height: 2px;
   background: var(--maximal-color-bg-warning, var(--maximal-color-bg-brand));
 }
 
 .sb-shell .tab[data-emphasis='busy'] .tab__emphasis {
-  bottom: 5px;
-  left: var(--shell-space-3);
-  width: 34%;
-  height: 2px;
-  background: var(--maximal-color-bg-brand);
-  animation: sb-tab-busy 1.4s ease-out infinite;
+  right: var(--shell-border-width-thin);
+  bottom: 1px;
+  left: var(--shell-border-width-thin);
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--maximal-color-bg-selected) 32%,
+    color-mix(in srgb, var(--maximal-color-bg-brand) 55%, transparent) 50%,
+    var(--maximal-color-bg-selected) 68%,
+    transparent 100%
+  );
+  background-size: 300% 100%;
+  animation: sb-tab-busy 3s linear infinite;
 }
 
 /* Namespaced, because a keyframe name is global and this file is imported into
@@ -646,11 +619,15 @@
 @keyframes sb-tab-busy {
   0%,
   100% {
-    transform: translateX(0);
+    background-position: 100% 0;
   }
 
-  50% {
-    transform: translateX(150%);
+  59% {
+    background-position: 0 0;
+  }
+
+  59.01% {
+    background-position: 100% 0;
   }
 }
 
