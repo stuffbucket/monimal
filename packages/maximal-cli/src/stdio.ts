@@ -73,80 +73,6 @@ export function encodeJsonLine(value: MachineRecord): Uint8Array {
 
 type SupportedEncoding = "utf8" | "utf-16le" | "utf-16be"
 
-function replaceQuoteOnlyKeys(text: string, replacement: string): string {
-  const parts: Array<string> = []
-  for (let index = 0; index < text.length;) {
-    if (text[index] !== '"') {
-      parts.push(text[index] ?? "")
-      index += 1
-      continue
-    }
-
-    const start = index
-    index += 1
-    while (index < text.length) {
-      if (text[index] === "\\") {
-        index += 2
-      } else if (text[index] === '"') {
-        index += 1
-        break
-      } else {
-        index += 1
-      }
-    }
-
-    const token = text.slice(start, index)
-    let next = index
-    while (/\s/u.test(text[next] ?? "")) next += 1
-    parts.push(
-      token === JSON.stringify('"') && text[next] === ":" ? replacement : token,
-    )
-  }
-  return parts.join("")
-}
-
-function isMutableRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value)
-}
-
-function restoreQuoteOnlyKeys(value: unknown, key: string): unknown {
-  if (Array.isArray(value)) {
-    for (let index = 0; index < value.length; index += 1) {
-      value[index] = restoreQuoteOnlyKeys(value[index], key)
-    }
-    return value
-  }
-  if (!isMutableRecord(value)) return value
-
-  const names = Object.keys(value)
-  if (names.includes(key)) {
-    const restored: Record<string, unknown> = {}
-    for (const name of names) {
-      Object.defineProperty(restored, name === key ? '"' : name, {
-        value: restoreQuoteOnlyKeys(value[name], key),
-        enumerable: true,
-        configurable: true,
-        writable: true,
-      })
-    }
-    return restored
-  }
-  for (const name of names) {
-    value[name] = restoreQuoteOnlyKeys(value[name], key)
-  }
-  return value
-}
-
-function parseJson(text: string): unknown {
-  let quoteKey = "\u0000maximal-json-quote-key"
-  while (text.includes(JSON.stringify(quoteKey))) quoteKey += "\u0000"
-  // Node 24.19 can turn a quote-only key into a backslash in a warmed JSON.parse.
-  const parsed: unknown = JSON.parse(
-    replaceQuoteOnlyKeys(text, JSON.stringify(quoteKey)),
-  )
-  return restoreQuoteOnlyKeys(parsed, quoteKey)
-}
-
 function hasPrefix(bytes: Uint8Array, prefix: ReadonlyArray<number>): boolean {
   return (
     bytes.byteLength >= prefix.length
@@ -179,7 +105,7 @@ export function decodeJsonObject(
   const text = new TextDecoder(detection, {
     fatal: true,
   }).decode(bytes)
-  const value = parseJson(text)
+  const value: unknown = JSON.parse(text)
   if (!isJsonObject(value)) {
     throw new TypeError("The JSON document must contain an object.")
   }
@@ -274,7 +200,7 @@ export class JsonLineDecoder {
     if (line.length === 0 || line === "\r") {
       throw new SyntaxError("JSON lines must not contain blank records.")
     }
-    const value = parseJson(line)
+    const value: unknown = JSON.parse(line)
     if (!isJsonObject(value)) {
       throw new TypeError("Each JSON line must contain an object.")
     }
