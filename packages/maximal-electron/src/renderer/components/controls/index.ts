@@ -34,6 +34,18 @@ export {
 
 export { NumberInput } from './NumberInput.js';
 export {
+  EditableLabel,
+  type EditableLabelProps,
+  type EditableLabelState,
+} from './EditableLabel.js';
+export {
+  EditableHeading,
+  EditableListItem,
+  EditableMenubarItem,
+  EditableTab,
+  type EditableMoleculeProps,
+} from './EditableLabelMolecules.js';
+export {
   UnitValueInput,
   type MeasurementUnit,
   type UnitValueInputProps,

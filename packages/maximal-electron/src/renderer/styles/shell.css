@@ -454,21 +454,13 @@ body {
 
 .tabbar {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   height: 100%;
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
-  /*
-   * Chrome, not content.
-   *
-   * The strip sat at body size and body weight, which made a row of filenames
-   * the loudest thing under the title bar. A notch down, with the tracking
-   * opened slightly to keep small text legible, and the weight reserved for
-   * the active tab: hierarchy from one difference rather than from size.
-   */
-  font-size: var(--text-sm);
-  letter-spacing: 0.005em;
+  font-size: var(--text-base);
+  letter-spacing: 0;
 }
 
 .tabbar::-webkit-scrollbar {
@@ -517,25 +509,17 @@ body {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
-  padding: 0 var(--space-2);
+  gap: var(--space-2);
+  height: var(--control-lg);
+  padding: 0 var(--space-3);
   min-width: var(--tab-min);
   max-width: var(--tab-max);
-  /*
-   * A tab is as wide as its title, between the two bounds.
-   *
-   * The basis is the content, not the maximum. Setting it to the maximum made
-   * every tab ask for 216px, so three of them overflowed a strip that had
-   * already sized itself to their content — and all three shrank to 123px and
-   * truncated with the window half empty.
-   *
-   * Shrink stays on, so a crowded strip narrows evenly toward the minimum
-   * before it scrolls.
-   */
+  /* Content sizes the tab until the strip crowds it toward the minimum. */
   flex: 0 1 auto;
   color: var(--text-muted);
   white-space: nowrap;
-  border-radius: var(--radius-input) var(--radius-input) 0 0;
+  border: var(--border-width-thin) solid transparent;
+  border-radius: var(--radius-input);
   transition:
     background var(--duration-fast) var(--ease-out),
     color var(--duration-fast) var(--ease-out);
@@ -589,42 +573,12 @@ body {
   color: var(--text-primary);
 }
 
-/*
- * The selected tab.
- *
- * It had no treatment worth the name: `--bg-canvas` behind it, which is 1.12
- * against the title bar in the dark scheme, and the same weight bump the hover
- * did not have. The idea was VS Code's — the active tab takes the colour of the
- * editor below it, so the two read as one surface — and it does not survive the
- * move into a title bar. Nothing is below this strip except a nav rail under
- * half of it and a border under all of it.
- *
- * So the fill steps off the strip instead of toward the canvas, and the accent
- * carries the state. That is VS Code's `tab.activeBorder`, whose whole reason
- * for existing is that Dark Modern separates active from inactive by 1.08 and
- * Zed's One Dark by 1.12: neither fill is legible on its own, and neither
- * theme needs it to be.
- *
- * Hover deliberately does not apply here. There is nowhere for the selected
- * tab to go that is not somewhere another state already means.
- */
+/* The selected tab is a complete compact control rather than a title-bar
+   segment: its fill and outline remain visible on every surface below it. */
 .tab[data-state='active'] {
   background: var(--tab-active);
+  border-color: var(--border-strong);
   color: var(--text-primary);
-  font-weight: var(--weight-md);
-}
-
-/* Along the bottom, not the top. The tab is rounded at the top and flush at
-   the bottom, so the bottom is the edge it shares with what it opens — and the
-   top edge of this strip is the top edge of the window. */
-.tab[data-state='active']::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 2px;
-  background: var(--accent);
 }
 
 .tab[data-color='blue'] {
@@ -651,35 +605,10 @@ body {
   box-shadow: inset 0 2px color-mix(in srgb, var(--warning) 65%, var(--danger));
 }
 
-.tab[data-color='blue'][data-state='active']::after {
-  background: var(--accent);
-}
-
-.tab[data-color='green'][data-state='active']::after {
-  background: var(--success);
-}
-
-.tab[data-color='yellow'][data-state='active']::after {
-  background: var(--warning);
-}
-
-.tab[data-color='red'][data-state='active']::after {
-  background: var(--danger);
-}
-
-.tab[data-color='purple'][data-state='active']::after {
-  background: color-mix(in srgb, var(--accent) 60%, var(--danger));
-}
-
-.tab[data-color='orange'][data-state='active']::after {
-  background: color-mix(in srgb, var(--warning) 65%, var(--danger));
-}
-
-/* Drawn inside the box. The title bar clips overflow and a tab is full height,
-   so the shared ring's outward offset loses its top and bottom edges. */
+/* Drawn inside the outlined tab so the ring does not change strip geometry. */
 .tab:focus-visible {
   outline-offset: calc(-1 * var(--focus-ring-width));
-  border-radius: var(--radius-input) var(--radius-input) 0 0;
+  border-radius: var(--radius-input);
 }
 
 /*
@@ -696,6 +625,7 @@ body {
   flex: 1;
   min-width: 0;
   overflow: hidden;
+  font-weight: var(--weight-base);
 }
 
 /*
@@ -706,7 +636,7 @@ body {
 .tab__label[data-truncated] {
   mask-image: linear-gradient(
     to right,
-    #000 calc(100% - var(--tab-fade)),
+    currentColor calc(100% - var(--tab-fade)),
     transparent 100%
   );
 }
@@ -715,8 +645,8 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: var(--size-icon);
+  height: var(--size-icon);
   flex: none;
   border-radius: var(--radius-chip);
   color: inherit;
@@ -725,7 +655,7 @@ body {
 
 .tab:hover .tab__close,
 .tab[data-state='active'] .tab__close {
-  opacity: 0.7;
+  opacity: 1;
 }
 
 .tab__close:hover {
@@ -782,7 +712,7 @@ body {
  * Emphasis, for what a 7px dot is the wrong size to say.
  *
  * Geometry carries it, not hue. `attention` is a rule down the leading edge and
- * `busy` a short bar travelling along the bottom; no other tab state draws
+ * `busy` a shimmer travelling along the full bottom edge; no other tab state draws
  * either shape, so WCAG 1.4.1 holds for a reader who sees no colour. The words
  * reach a screen reader from `adornmentLabel`.
  */
@@ -791,39 +721,43 @@ body {
   pointer-events: none;
 }
 
-/* Full height, because this has to carry across a room and across a strip the
-   user is not looking at. Mitred at the top so it does not square the corner. */
 .tab[data-emphasis='attention'] .tab__emphasis {
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 3px;
-  border-radius: var(--radius-input) 0 0 0;
+  right: var(--space-3);
+  bottom: 1px;
+  left: var(--space-3);
+  height: 2px;
   background: var(--warning);
 }
 
-/* Short, inset and lifted clear of the bottom edge, because the selected tab
-   draws the same colour at the same height there and swallowed this. */
 .tab[data-emphasis='busy'] .tab__emphasis {
-  bottom: 5px;
-  left: var(--space-3);
-  width: 34%;
-  height: 2px;
-  background: var(--accent);
-  animation: tab-busy 1.4s var(--ease-out) infinite;
+  right: var(--border-width-thin);
+  bottom: 1px;
+  left: var(--border-width-thin);
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--accent-soft) 32%,
+    color-mix(in srgb, var(--accent) 55%, transparent) 50%,
+    var(--accent-soft) 68%,
+    transparent 100%
+  );
+  background-size: 300% 100%;
+  animation: tab-busy 3s linear infinite;
 }
 
-/* Both ends of the cycle are the resting position. The reduced-motion override
-   collapses the duration rather than removing the animation, so the parked
-   frame is whichever one 100% names. */
 @keyframes tab-busy {
   0%,
   100% {
-    transform: translateX(0);
+    background-position: 100% 0;
   }
 
-  50% {
-    transform: translateX(150%);
+  59% {
+    background-position: 0 0;
+  }
+
+  59.01% {
+    background-position: 100% 0;
   }
 }
 
