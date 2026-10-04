@@ -97,6 +97,10 @@ export const allowedAdhocStyles = new Map([
     { inlineAttributes: 1 },
   ],
   [
+    'packages/maximal-electron/src/renderer/components/controls/EditableLabel.tsx',
+    { inlineAttributes: 1 },
+  ],
+  [
     'packages/maximal-electron/src/renderer/components/controls/Fields.tsx',
     { inlineAttributes: 2 },
   ],
