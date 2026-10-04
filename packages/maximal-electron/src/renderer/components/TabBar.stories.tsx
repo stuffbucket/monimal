@@ -145,7 +145,7 @@ function Strip({
         id={getTabPanelId(idBase, active)}
         aria-labelledby={getTabTriggerId(idBase, active)}
         tabIndex={0}
-        style={{ padding: 'var(--space-4)', color: 'var(--text-secondary)' }}
+        style={{ padding: 'var(--space-4)', color: 'var(--maximal-color-text-secondary)' }}
       >
         {open.find((tab) => tab.id === active)?.title ?? 'Nothing open'}
       </div>
@@ -330,7 +330,7 @@ function Caption({ children }: { children: string }) {
     <p
       style={{
         margin: `var(--space-2) 0 0`,
-        color: 'var(--text-muted)',
+        color: 'var(--maximal-color-text-tertiary)',
         font: 'var(--weight-base) var(--text-sm) / var(--leading-base) var(--font-body)',
       }}
     >

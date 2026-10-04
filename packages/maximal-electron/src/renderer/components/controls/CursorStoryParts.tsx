@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 
 import { useComponentStyles } from '../../lib/component-styles.js';
-import { SPATIAL_CANVAS_CURSORS } from '../SpatialCanvasStyles.js';
+import { SPATIAL_CANVAS_CURSORS } from '../spatialcanvas/SpatialCanvasStyles.js';
 
 const CURSOR_STORY_STYLES = `
 .sb-shell .cursor-story {
@@ -16,7 +16,7 @@ const CURSOR_STORY_STYLES = `
 }
 
 .sb-shell .cursor-story__eyebrow {
-  color: var(--shell-accent);
+  color: var(--maximal-color-text-brand);
   font-size: var(--shell-text-xs);
   font-weight: var(--shell-weight-lg);
   letter-spacing: var(--shell-tracking-caps);
@@ -29,7 +29,7 @@ const CURSOR_STORY_STYLES = `
 }
 
 .sb-shell .cursor-story__muted {
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
 }
 
 .sb-shell .cursor-story__state-grid,
@@ -62,8 +62,8 @@ const CURSOR_STORY_STYLES = `
   padding: var(--shell-space-4);
   align-content: space-between;
   gap: var(--shell-space-3);
-  background: var(--shell-raised);
-  border: var(--shell-icon-stroke) solid var(--shell-border);
+  background: var(--maximal-color-bg-tertiary);
+  border: var(--shell-icon-stroke) solid var(--maximal-color-border-default);
   border-radius: var(--shell-radius);
 }
 
@@ -93,11 +93,11 @@ const CURSOR_STORY_STYLES = `
   position: relative;
   min-height: calc(var(--shell-row-height) * 8);
   overflow: hidden;
-  background-color: var(--shell-canvas);
+  background-color: var(--maximal-color-bg-secondary);
   background-image:
-    radial-gradient(circle, var(--shell-border) var(--shell-icon-stroke), transparent var(--shell-icon-stroke));
+    radial-gradient(circle, var(--maximal-color-border-default) var(--shell-icon-stroke), transparent var(--shell-icon-stroke));
   background-size: var(--shell-space-4) var(--shell-space-4);
-  border: var(--shell-icon-stroke) solid var(--shell-border);
+  border: var(--shell-icon-stroke) solid var(--maximal-color-border-default);
   border-radius: var(--shell-radius);
 }
 
@@ -105,7 +105,7 @@ const CURSOR_STORY_STYLES = `
   position: absolute;
   top: calc(var(--shell-row-height) * 3);
   left: calc(var(--shell-row-height) * 4);
-  color: var(--shell-accent);
+  color: var(--maximal-color-text-brand);
 }
 
 .sb-shell .cursor-story__comment-badge {
@@ -116,9 +116,9 @@ const CURSOR_STORY_STYLES = `
   width: var(--shell-control-sm);
   height: var(--shell-control-sm);
   place-items: center;
-  color: var(--shell-accent-contrast);
-  background: var(--shell-accent);
-  border: var(--shell-icon-stroke) solid var(--shell-canvas);
+  color: var(--maximal-color-text-onbrand);
+  background: var(--maximal-color-bg-brand);
+  border: var(--shell-icon-stroke) solid var(--maximal-color-bg-secondary);
   border-radius: var(--shell-radius-pill);
   box-shadow: var(--shell-elevation, none);
 }
@@ -131,9 +131,9 @@ const CURSOR_STORY_STYLES = `
   min-height: var(--shell-control-md);
   align-items: center;
   padding-inline: var(--shell-space-3);
-  color: var(--shell-text);
-  background: var(--shell-raised);
-  border: var(--shell-icon-stroke) solid var(--shell-accent);
+  color: var(--maximal-color-text-default);
+  background: var(--maximal-color-bg-tertiary);
+  border: var(--shell-icon-stroke) solid var(--maximal-color-border-brand);
   border-radius: var(--shell-radius-pill);
   box-shadow: var(--shell-elevation, none);
   font-size: var(--shell-text-sm);
@@ -149,7 +149,7 @@ export const CURSOR_STORY_PAGE_STYLE: CSSProperties = {
 
 export const CURSOR_STORY_MUTED_STYLE: CSSProperties = {
   margin: 0,
-  color: 'var(--shell-text-muted)',
+  color: 'var(--maximal-color-text-secondary)',
 };
 
 export function CursorStoryIntroduction({

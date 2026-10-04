@@ -6,8 +6,8 @@
 .mo-rail,
 .mo-inspector,
 .mo-status {
-  color: var(--shell-text);
-  background: var(--shell-canvas);
+  color: var(--maximal-color-text-default);
+  background: var(--maximal-color-bg-secondary);
   font: var(--shell-font);
 }
 
@@ -50,7 +50,7 @@
 .mo-section-heading p,
 .mo-eyebrow {
   margin: var(--shell-space-1) 0 0;
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: var(--shell-text-sm);
 }
 
@@ -64,7 +64,7 @@
   height: 100%;
   overflow: auto;
   padding: var(--shell-space-4);
-  border-inline-end: 1px solid var(--shell-border);
+  border-inline-end: 1px solid var(--maximal-color-border-default);
 }
 
 .mo-filter-stack {
@@ -82,15 +82,15 @@
   min-height: var(--shell-statusbar-height);
   padding-inline: var(--shell-space-3);
   justify-content: flex-start;
-  border-block-start: 1px solid var(--shell-border);
+  border-block-start: 1px solid var(--maximal-color-border-default);
   font-size: var(--shell-text-xs);
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
 }
 
 .mo-metrics {
   display: grid;
   grid-template-columns: repeat(5, minmax(7rem, 1fr));
-  border-block: 1px solid var(--shell-border);
+  border-block: 1px solid var(--maximal-color-border-default);
   margin-block-end: var(--shell-space-5);
 }
 
@@ -98,7 +98,7 @@
   display: grid;
   gap: var(--shell-space-1);
   padding: var(--shell-space-4);
-  border-inline-end: 1px solid var(--shell-border);
+  border-inline-end: 1px solid var(--maximal-color-border-default);
 }
 
 .mo-metric:last-child {
@@ -106,7 +106,7 @@
 }
 
 .mo-metric span {
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: var(--shell-text-xs);
   text-transform: uppercase;
   letter-spacing: var(--shell-tracking-caps);
@@ -120,7 +120,7 @@
 .mo-section {
   min-width: 0;
   padding-block: var(--shell-space-5);
-  border-block-end: 1px solid var(--shell-border);
+  border-block-end: 1px solid var(--maximal-color-border-default);
 }
 
 .mo-section-heading {
@@ -129,8 +129,8 @@
 }
 
 .mo-request-link {
-  color: var(--shell-text);
-  background: var(--shell-background);
+  color: var(--maximal-color-text-default);
+  background: var(--maximal-color-bg-default);
   border: 0;
   font: inherit;
   cursor: pointer;
@@ -138,7 +138,7 @@
 
 .mo-request-link:focus-visible,
 .mo-flow-node:focus-visible {
-  outline: 2px solid var(--shell-focus);
+  outline: 2px solid var(--maximal-color-border-selected);
   outline-offset: 2px;
 }
 
@@ -161,12 +161,12 @@
 }
 
 .mo-flow-node rect {
-  fill: var(--shell-raised);
-  stroke: var(--shell-border-strong, var(--shell-border));
+  fill: var(--maximal-color-bg-tertiary);
+  stroke: var(--maximal-color-border-strong, var(--maximal-color-border-default));
 }
 
 .mo-flow-node text {
-  fill: var(--shell-text);
+  fill: var(--maximal-color-text-default);
   font: var(--shell-font);
 }
 
@@ -198,33 +198,33 @@
 
 .mo-table-scroll caption {
   padding: var(--shell-space-2) 0;
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   text-align: start;
 }
 
 .mo-table-scroll th,
 .mo-table-scroll td {
   padding: var(--shell-space-2) var(--shell-space-3);
-  border-block-end: 1px solid var(--shell-border);
+  border-block-end: 1px solid var(--maximal-color-border-default);
   white-space: nowrap;
   text-align: start;
 }
 
 .mo-table-scroll thead th {
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: var(--shell-text-xs);
   text-transform: uppercase;
   letter-spacing: var(--shell-tracking-caps);
 }
 
 .mo-table-scroll tbody tr[data-selected="true"] {
-  background: var(--shell-active);
+  background: var(--maximal-color-bg-pressed);
 }
 
 .mo-request-link {
   padding: var(--shell-space-1);
   background: none;
-  color: var(--shell-accent);
+  color: var(--maximal-color-text-brand);
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }
@@ -236,7 +236,7 @@
   gap: var(--shell-space-2);
   margin: 0;
   padding: var(--shell-space-5) 0;
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
 }
 
 .mo-load-more {
@@ -265,13 +265,13 @@
 }
 
 .mo-lifecycle time {
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: var(--shell-text-xs);
 }
 
 @media (max-width: 56rem) {
   .mo-metrics { grid-template-columns: repeat(2, minmax(7rem, 1fr)); }
-  .mo-metric { border-block-end: 1px solid var(--shell-border); }
+  .mo-metric { border-block-end: 1px solid var(--maximal-color-border-default); }
 }
 
 @media (prefers-reduced-motion: reduce) {

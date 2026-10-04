@@ -12,6 +12,7 @@ import {
   shellVariablesIn,
   type ShellVariableCheck,
   type ShellVariableEntry,
+  isColorToken,
 } from '../scripts/shell-variables.mjs';
 import { SHELL_TERMINAL_PROPERTIES } from '@maximal/maximal-terminal/renderer';
 
@@ -44,7 +45,62 @@ const whole = {
   ] as ShellVariableEntry[],
 };
 
+describe('isColorToken', () => {
+  it('accepts every slot of the grammar', () => {
+    for (const name of [
+      '--maximal-color-bg-default',
+      '--maximal-color-bg-menu-default',
+      '--maximal-color-bg-menu-hover',
+      '--maximal-color-text-tooltip-default',
+      '--maximal-color-border-toolbar-default',
+      '--maximal-color-bg-menu-danger-strong-pressed',
+      '--maximal-color-bg-secondary',
+      '--maximal-color-bg-brand-pressed',
+      '--maximal-color-bg-danger-secondary-hover',
+      '--maximal-color-text-onbrand',
+      '--maximal-color-icon-tertiary',
+      '--maximal-color-border-strong-hover',
+      '--maximal-color-border-danger-strong',
+    ]) {
+      expect(isColorToken(name), name).toBe(true);
+    }
+  });
+
+  it('rejects a part the grammar does not give, or one out of order', () => {
+    for (const name of [
+      '--maximal-color-surface',
+      '--maximal-color-bg-canvas',
+      '--maximal-color-text-muted',
+      '--maximal-color-bg-hover-secondary',
+      '--maximal-color-brand-bg',
+      '--maximal-color-bg-',
+      '--maximal-color-bg-hover-menu',
+      '--maximal-color-bg-sidebar-default',
+      '--shell-text',
+    ]) {
+      expect(isColorToken(name), name).toBe(false);
+    }
+  });
+
+  it('writes default once, and only where nothing else is named', () => {
+    for (const name of [
+      '--maximal-color-bg',
+      '--maximal-color-bg-menu',
+      '--maximal-color-bg-brand-default',
+      '--maximal-color-bg-default-hover',
+      '--maximal-color-bg-default-default',
+    ]) {
+      expect(isColorToken(name), name).toBe(false);
+    }
+  });
+});
+
 describe('shellVariablesIn', () => {
+  it('reads the colour namespace as the host\'s to define', () => {
+    const found = shellVariablesIn('a { color: var(--maximal-color-text-default); b: var(--maximal-color-bg-default, #000); }');
+    expect(found).toEqual({ required: ['--maximal-color-text-default'], fallback: ['--maximal-color-bg-default'] });
+  });
+
   it('splits a read with a fallback from one without', () => {
     const found = shellVariablesIn('a { color: var(--shell-text); gap: var(--shell-space-2, 8px); }');
     expect(found.required).toEqual(['--shell-text']);
@@ -52,34 +108,34 @@ describe('shellVariablesIn', () => {
   });
 
   it('reads a name with no whitespace around it', () => {
-    expect(shellVariablesIn('a { color: var(--shell-accent); }').required).toEqual([
-      '--shell-accent',
+    expect(shellVariablesIn('a { color: var(--shell-status); }').required).toEqual([
+      '--shell-status',
     ]);
   });
 
   it('reads a name padded with whitespace', () => {
-    const found = shellVariablesIn('a { color: var(  --shell-accent  ); b: var(  --shell-x  , 1px); }');
-    expect(found.required).toEqual(['--shell-accent']);
+    const found = shellVariablesIn('a { color: var(  --shell-status  ); b: var(  --shell-x  , 1px); }');
+    expect(found.required).toEqual(['--shell-status']);
     expect(found.fallback).toEqual(['--shell-x']);
   });
 
   it('reads the inner variable of a nested fallback', () => {
-    // `var(--shell-danger, var(--shell-hover))`. The inner read carries no
-    // fallback of its own, which is what makes `--shell-hover` required.
-    const found = shellVariablesIn('a { background: var(--shell-danger, var(--shell-hover)); }');
-    expect(found.required).toEqual(['--shell-hover']);
-    expect(found.fallback).toEqual(['--shell-danger']);
+    // `var(--shell-status-muted, var(--shell-scrim))`. The inner read carries no
+    // fallback of its own, which is what makes `--shell-scrim` required.
+    const found = shellVariablesIn('a { background: var(--shell-status-muted, var(--shell-scrim)); }');
+    expect(found.required).toEqual(['--shell-scrim']);
+    expect(found.fallback).toEqual(['--shell-status-muted']);
   });
 
   it('sorts and deduplicates', () => {
     const found = shellVariablesIn(
-      'a { color: var(--shell-text); } b { color: var(--shell-accent); } c { color: var(--shell-text); }',
+      'a { color: var(--shell-text); } b { color: var(--shell-status); } c { color: var(--shell-text); }',
     );
-    expect(found.required).toEqual(['--shell-accent', '--shell-text']);
+    expect(found.required).toEqual(['--shell-status', '--shell-text']);
   });
 
   it('ignores a namespace that is not ours', () => {
-    expect(shellVariablesIn('a { color: var(--text-primary); }')).toEqual({
+    expect(shellVariablesIn('a { color: var(--tab-active); }')).toEqual({
       required: [],
       fallback: [],
     });
@@ -325,7 +381,7 @@ function published(): ShellVariableEntry[] {
     if (kind === '') continue;
     // The first cell only. A fallback row names another variable in its second
     // column, and counting that would publish it twice under the wrong kind.
-    for (const row of section.matchAll(/^\| `(--shell-[a-z0-9-]+)` \|/gm)) {
+    for (const row of section.matchAll(/^\| `(--(?:shell|maximal-color)-[a-z0-9-]+)` \|/gm)) {
       entries.push({ name: row[1] ?? '', kind: kind as ShellVariableEntry['kind'] });
     }
   }
@@ -395,12 +451,12 @@ describe('the published contract', () => {
   });
 
   it('names the same required variables as the README table', () => {
-    // README.md carries the eleven with a description of what each draws, and
+    // README.md carries the required set with a description of what each draws, and
     // `tests/package-styles.test.ts` checks that table against the CSS. Two
     // tables for one list is a drift waiting to happen, so they are paired
     // here rather than left to agree by coincidence.
     const readme = readFileSync(new URL('README.md', ROOT), 'utf8');
-    const documented = [...readme.matchAll(/^\| `(--shell-[a-z0-9-]+)` \| /gm)]
+    const documented = [...readme.matchAll(/^\| `(--(?:shell|maximal-color)-[a-z0-9-]+)` \| /gm)]
       .map((match) => match[1] ?? '')
       .sort();
 

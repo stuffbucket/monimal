@@ -5,11 +5,11 @@ import { useComponentStyles } from '../../lib/component-styles.js';
 
 const SETTINGS_DISCLOSURE_STYLES = `
 .sb-shell .settings-disclosure-list {
-  border-top: 1px solid var(--shell-border-strong, var(--shell-border));
+  border-top: 1px solid var(--maximal-color-border-strong, var(--maximal-color-border-default));
 }
 .sb-shell .settings-disclosure {
   position: relative;
-  border-bottom: 1px solid var(--shell-border-strong, var(--shell-border));
+  border-bottom: 1px solid var(--maximal-color-border-strong, var(--maximal-color-border-default));
 }
 .sb-shell .settings-disclosure__summary {
   display: grid;
@@ -26,14 +26,14 @@ const SETTINGS_DISCLOSURE_STYLES = `
 }
 .sb-shell .settings-disclosure__summary:hover,
 .sb-shell .settings-disclosure[open] .settings-disclosure__summary {
-  background: var(--shell-hover);
+  background: var(--maximal-color-bg-hover);
 }
 .sb-shell .settings-disclosure__summary:focus-visible {
-  outline: var(--shell-focus-ring-width) solid var(--shell-focus, var(--shell-accent));
+  outline: var(--shell-focus-ring-width) solid var(--maximal-color-border-selected, var(--maximal-color-border-brand));
   outline-offset: var(--shell-focus-ring-offset);
 }
 .sb-shell .settings-disclosure__chevron {
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   transition: transform 120ms ease-out;
 }
 .sb-shell .settings-disclosure[open] .settings-disclosure__chevron {
@@ -47,13 +47,13 @@ const SETTINGS_DISCLOSURE_STYLES = `
 }
 .sb-shell .settings-disclosure__title {
   margin: 0;
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
   font-size: var(--shell-text-md);
   font-weight: var(--shell-weight-lg);
 }
 .sb-shell .settings-disclosure__description,
 .sb-shell .settings-disclosure__meta {
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: var(--shell-text-sm);
 }
 .sb-shell .settings-disclosure__description {

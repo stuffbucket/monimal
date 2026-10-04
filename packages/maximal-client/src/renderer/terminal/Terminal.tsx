@@ -147,7 +147,7 @@ export function Terminal({
     }
     const dark = palette.mode === 'auto' ? windowDark : palette.mode === 'dark'
     const styles = getComputedStyle(document.documentElement)
-    const windowBackground = styles.getPropertyValue('--shell-canvas').trim()
+    const windowBackground = styles.getPropertyValue('--maximal-color-bg-secondary').trim()
       || (dark ? '#1c1f26' : '#eef0f4')
     return resolveTerminalAppearance(palette, dark, windowBackground)
   }, [terminalTypography.palette, windowDark])

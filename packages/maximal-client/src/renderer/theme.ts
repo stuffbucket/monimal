@@ -1,5 +1,8 @@
+import { DEFAULT_APPEARANCE } from './appearance'
+import { PALETTE_STYLE_ID, applyPalette } from './color/palette'
+
 /*
- * The `--shell-*` palette.
+ * The `--maximal-color-*` palette and the `--shell-*` component tokens.
  *
  * The shell package ships no palette by design: a host defines the semantic
  * custom properties its stylesheet reads. This client is that host, and this
@@ -17,14 +20,9 @@
  * along with the terminal colours, which nothing here mounts. Adding a token
  * no surface reads is a second place to keep numbers in sync.
  *
- * Contrast (WCAG 2.1) for the pairs that carry meaning:
- *   --shell-text on --shell-background          16.29:1
- *   --shell-text on --shell-canvas              15.13:1
- *   --shell-text-muted on --shell-background     9.47:1
- *   --shell-text-subtle on --shell-background    7.92:1
- *   --shell-accent on --shell-background         5.41:1
- *   --shell-accent-contrast on --shell-accent    5.41:1  (primary actions)
- *   --shell-accent on --shell-accent-muted       4.61:1  (selected nav text)
+ * Colour values are not written here. `./color/palette.ts` calculates the
+ * atomic ramps and the semantic colours that alias them; this file holds the
+ * aliases that are the same in every theme and mode.
  */
 const THEME_CSS = `
 :root {
@@ -33,65 +31,45 @@ const THEME_CSS = `
   --shell-spatial-grid-dot-dark: rgb(96 96 96);
   --shell-spatial-grid-background-light: rgb(245 245 245);
 
-  /* Window chrome and side-panel surface. Matches the host window's own
-     default background colour, so the Electron paint and this value agree
-     before first paint. */
-  --shell-background: #16181d;
+  /* Colour tokens follow
+     --maximal-color-{type}-{element}-{role}-{prominence}-{interaction}:
+     type bg, text, icon or border; element toolbar, menu or tooltip, omitted
+     for a global colour; roles brand, selected, disabled, component,
+     assistive, danger, measure, warning, success, info, inverse and on{role};
+     prominence secondary, tertiary or strong; interaction hover or
+     pressed. A slot left at default is omitted, and a name with nothing after
+     its type and element ends in default.
 
-  /* Main document surface / active tab. One step lighter than
-     --shell-background so the canvas reads as its own layer. */
-  --shell-canvas: #1c1f26;
-  --shell-spatial-canvas-background: #1c1f26;
+     Atomic colours are --maximal-color-{ramp}-{step}, steps 100 to 1000 by
+     lightness in both modes; ./color/palette.ts defines them and the base
+     semantic colours. bg-default is the window chrome and side panels,
+     bg-secondary is the canvas (documents, terminals, the spatial canvas),
+     and bg-tertiary is floating surfaces. Role colours are calculated per
+     theme in ./color/palette.ts. */
 
-  /* Tooltips and other floating surfaces. Lighter again. */
-  --shell-raised: #262a33;
+  /* The strong step keeps inputs and scroll thumbs distinct from the canvas. */
+  --maximal-color-border-strong-hover: var(--maximal-color-bg-brand);
 
-  /* Foreground scale. */
-  --shell-text: #f5f5f5;
-   --shell-text-muted: #b6bec9;
-   --shell-text-subtle: #a5aeba;
+  /* Terminals and the spatial canvas sit on the canvas. */
+  --shell-spatial-canvas-background: var(--maximal-color-bg-secondary);
+  --shell-terminal-background: var(--maximal-color-bg-secondary);
 
-  /* Dividers and control outlines. The strong step is part of the renderer
-     contract and keeps inputs and scroll thumbs distinct from the canvas. */
-  --shell-border: #343943;
-  --shell-border-strong: #687386;
-  --shell-input-background: #171a20;
-  --shell-border-hover: var(--shell-accent);
-
-  /* Hover overlay, and the one step stronger the package uses for pressed
-     or nested hover. */
-  --shell-hover: rgb(255 255 255 / 0.06);
-  --shell-active: rgb(255 255 255 / 0.1);
-
-  /* Selection, focus and resize feedback. Primary actions reuse the window
-     background as their contrasting foreground instead of adding a palette. */
-  --shell-accent: #5198a6;
-  --shell-accent-contrast: #16181d;
-
-  /* Selected-control background. A translucent tint of --shell-accent rather
-     than a flat colour, so accent-coloured text on top of it still clears
-     4.5:1 — a rounder 0.18 alpha drops it to roughly 4.2:1. */
-  --shell-accent-muted: rgb(81 152 166 / 0.12);
-  --shell-provider-anthropic-card-border: color-mix(in srgb, #d97757 35%, var(--shell-border));
-  --shell-provider-anthropic-card-background: color-mix(in srgb, #d97757 12%, var(--shell-raised));
-  --shell-provider-openai-card-border: color-mix(in srgb, #10a37f 35%, var(--shell-border));
-  --shell-provider-openai-card-background: color-mix(in srgb, #10a37f 12%, var(--shell-raised));
-  --shell-provider-grok-card-border: color-mix(in srgb, #f5f5f5 35%, var(--shell-border));
-  --shell-provider-grok-card-background: color-mix(in srgb, #f5f5f5 12%, var(--shell-raised));
-  --shell-provider-google-card-border: color-mix(in srgb, #4285f4 35%, var(--shell-border));
-  --shell-provider-google-card-background: color-mix(in srgb, #4285f4 12%, var(--shell-raised));
-  --shell-provider-mistral-card-border: color-mix(in srgb, #f97316 35%, var(--shell-border));
-  --shell-provider-mistral-card-background: color-mix(in srgb, #f97316 12%, var(--shell-raised));
-  --shell-provider-deepseek-card-border: color-mix(in srgb, #4d6bfe 35%, var(--shell-border));
-  --shell-provider-deepseek-card-background: color-mix(in srgb, #4d6bfe 12%, var(--shell-raised));
-  --shell-provider-meta-card-border: color-mix(in srgb, #0866ff 35%, var(--shell-border));
-  --shell-provider-meta-card-background: color-mix(in srgb, #0866ff 12%, var(--shell-raised));
-  --shell-provider-github-card-border: color-mix(in srgb, #8a50d8 35%, var(--shell-border));
-  --shell-provider-github-card-background: color-mix(in srgb, #8a50d8 12%, var(--shell-raised));
-
-  /* Focus indicator. Equal to --shell-accent, defined explicitly so focus
-     outlines resolve on the first name rather than by falling through. */
-  --shell-focus: var(--shell-accent);
+  --shell-provider-anthropic-card-border: color-mix(in srgb, #d97757 35%, var(--maximal-color-border-default));
+  --shell-provider-anthropic-card-background: color-mix(in srgb, #d97757 12%, var(--maximal-color-bg-tertiary));
+  --shell-provider-openai-card-border: color-mix(in srgb, #10a37f 35%, var(--maximal-color-border-default));
+  --shell-provider-openai-card-background: color-mix(in srgb, #10a37f 12%, var(--maximal-color-bg-tertiary));
+  --shell-provider-grok-card-border: color-mix(in srgb, #f5f5f5 35%, var(--maximal-color-border-default));
+  --shell-provider-grok-card-background: color-mix(in srgb, #f5f5f5 12%, var(--maximal-color-bg-tertiary));
+  --shell-provider-google-card-border: color-mix(in srgb, #4285f4 35%, var(--maximal-color-border-default));
+  --shell-provider-google-card-background: color-mix(in srgb, #4285f4 12%, var(--maximal-color-bg-tertiary));
+  --shell-provider-mistral-card-border: color-mix(in srgb, #f97316 35%, var(--maximal-color-border-default));
+  --shell-provider-mistral-card-background: color-mix(in srgb, #f97316 12%, var(--maximal-color-bg-tertiary));
+  --shell-provider-deepseek-card-border: color-mix(in srgb, #4d6bfe 35%, var(--maximal-color-border-default));
+  --shell-provider-deepseek-card-background: color-mix(in srgb, #4d6bfe 12%, var(--maximal-color-bg-tertiary));
+  --shell-provider-meta-card-border: color-mix(in srgb, #0866ff 35%, var(--maximal-color-border-default));
+  --shell-provider-meta-card-background: color-mix(in srgb, #0866ff 12%, var(--maximal-color-bg-tertiary));
+  --shell-provider-github-card-border: color-mix(in srgb, #8a50d8 35%, var(--maximal-color-border-default));
+  --shell-provider-github-card-background: color-mix(in srgb, #8a50d8 12%, var(--maximal-color-bg-tertiary));
 
   /* Shared motion for controls and transient scrollbars. */
   --shell-duration-fast: 120ms;
@@ -111,29 +89,6 @@ const THEME_CSS = `
       -apple-system, BlinkMacSystemFont, 'Segoe UI Variable', 'Segoe UI',
       'Helvetica Neue', system-ui, sans-serif;
 
-  /* Status colours, centralized here so surfaces do not each hardcode them.
-     The first two are the package's names, supplied as any consumer supplies
-     them. The third is this application's own, under this application's
-     prefix, because the package has no success colour: a name invented inside
-     --shell-* is one the package may publish later meaning something else, and
-     until then it reads as part of a contract it is not part of.
-     eslint/shell-contract.mjs is what keeps that distinction. */
-  --shell-danger: #ef4444;
-  --shell-warning: #eab308;
-  --maximal-success: #22c55e;
-
-  /* Data visualizations need categorical distinctions beyond the semantic
-     status palette. Feature packages consume these ordered series tokens;
-     the host owns their light/dark values so charts remain coordinated with
-     the surrounding application rather than inventing local colors. */
-  --data-viz-series-1: #64b5c4;
-  --data-viz-series-2: #77b96f;
-  --data-viz-series-3: #d0a24c;
-  --data-viz-series-4: #d27a8b;
-  --data-viz-series-5: #789ee8;
-  --data-viz-series-6: #b58ad6;
-  --data-viz-series-7: #d8835f;
-  --data-viz-series-8: #84919f;
   --maximal-cloud-1: #5c9fad;
   --maximal-cloud-2: #9b6ba2;
   --maximal-cloud-3: #bb7952;
@@ -141,88 +96,18 @@ const THEME_CSS = `
   --maximal-overlay-highlight: rgb(255 255 255 / 0.08);
   --maximal-material-scrim: rgb(8 10 14 / 0.42);
 
-   --shell-terminal-background: #111317;
    --maximal-terminal-foreground: #f5f5f5;
    --maximal-terminal-cursor: #5198a6;
 }
 
 [data-theme='light'] {
   color-scheme: light;
-  --shell-background: #ffffff;
-  --shell-canvas: #eef0f4;
-  --shell-spatial-canvas-background: #eef0f4;
-  --shell-raised: #ffffff;
-  --shell-text: #12141a;
-  --shell-text-muted: #46505e;
-  --shell-text-subtle: #566171;
-  --shell-border: #e3e6eb;
-  --shell-border-strong: #808b9a;
-  --shell-input-background: #ffffff;
-  --shell-hover: #eceef2;
-  --shell-active: #e2e6ec;
-  --shell-accent: #2563eb;
-  --shell-accent-contrast: #ffffff;
-  --shell-accent-muted: rgb(37 99 235 / 0.1);
-  --shell-focus: var(--shell-accent);
-  --shell-danger: #c0272b;
-  --shell-warning: #a9691b;
-  --maximal-success: #257a3e;
-  --data-viz-series-1: #176b78;
-  --data-viz-series-2: #397a33;
-  --data-viz-series-3: #8a5d00;
-  --data-viz-series-4: #9e3653;
-  --data-viz-series-5: #345fba;
-  --data-viz-series-6: #74449a;
-  --data-viz-series-7: #a64d28;
-  --data-viz-series-8: #53606e;
   --maximal-cloud-1: #4e95a3;
   --maximal-cloud-2: #a66eac;
   --maximal-cloud-3: #c9804e;
   --maximal-overlay-material: rgb(250 251 253 / 0.97);
   --maximal-overlay-highlight: rgb(255 255 255 / 0.72);
   --maximal-material-scrim: rgb(30 38 50 / 0.22);
-}
-
-:root[data-vibrancy='true'],
-:root[data-background-effects='true'] {
-  --bg-app: rgb(22 24 29 / 0.72);
-  --bg-panel: rgb(27 30 36 / 0.82);
-  --bg-canvas: rgb(16 18 22 / 0.78);
-  --bg-raised: rgb(35 39 47 / 0.88);
-  --shell-background: rgb(22 24 29 / 0.72);
-  --shell-canvas: rgb(16 18 22 / 0.78);
-  --shell-raised: rgb(35 39 47 / 0.88);
-}
-
-:root[data-theme='light'][data-vibrancy='true'],
-:root[data-theme='light'][data-background-effects='true'] {
-  --bg-app: rgb(255 255 255 / 0.7);
-  --bg-panel: rgb(247 248 250 / 0.82);
-  --bg-canvas: rgb(238 240 244 / 0.78);
-  --bg-raised: rgb(255 255 255 / 0.88);
-  --shell-background: rgb(255 255 255 / 0.7);
-  --shell-canvas: rgb(238 240 244 / 0.78);
-  --shell-raised: rgb(255 255 255 / 0.88);
-}
-
-:root[data-background-effects='true'] {
-  --bg-app: rgb(22 24 29 / 0.58);
-  --bg-panel: rgb(27 30 36 / 0.72);
-  --bg-canvas: rgb(16 18 22 / 0.62);
-  --bg-raised: rgb(35 39 47 / 0.92);
-  --shell-background: rgb(22 24 29 / 0.58);
-  --shell-canvas: rgb(16 18 22 / 0.62);
-  --shell-raised: rgb(35 39 47 / 0.92);
-}
-
-:root[data-theme='light'][data-background-effects='true'] {
-  --bg-app: rgb(255 255 255 / 0.52);
-  --bg-panel: rgb(247 248 250 / 0.66);
-  --bg-canvas: rgb(238 240 244 / 0.58);
-  --bg-raised: rgb(255 255 255 / 0.92);
-  --shell-background: rgb(255 255 255 / 0.52);
-  --shell-canvas: rgb(238 240 244 / 0.58);
-  --shell-raised: rgb(255 255 255 / 0.92);
 }
 
 /*
@@ -239,24 +124,24 @@ const THEME_CSS = `
  * every new surface.
  */
 .sb-shell [data-status='running'] {
-  --shell-status: var(--shell-accent);
-  --shell-status-muted: var(--shell-accent-muted);
+  --shell-status: var(--maximal-color-text-brand);
+  --shell-status-muted: var(--maximal-color-bg-selected);
 }
 
 .sb-shell [data-status='needs-approval'] {
-  --shell-status: var(--shell-warning);
-  --shell-status-muted: rgb(234 179 8 / 0.12);
+  --shell-status: var(--maximal-color-text-warning);
+  --shell-status-muted: var(--maximal-color-bg-warning-secondary);
 }
 
 .sb-shell [data-status='done'] {
-  --shell-status: var(--maximal-success);
-  --shell-status-muted: rgb(34 197 94 / 0.12);
+  --shell-status: var(--maximal-color-text-success);
+  --shell-status-muted: var(--maximal-color-bg-success-secondary);
 }
 
 .sb-shell [data-status='failed'],
 .sb-shell [data-status='blocked'] {
-  --shell-status: var(--shell-danger);
-  --shell-status-muted: rgb(239 68 68 / 0.12);
+  --shell-status: var(--maximal-color-text-danger);
+  --shell-status-muted: var(--maximal-color-bg-danger-secondary);
 }
 
 .terminal-host {
@@ -300,4 +185,5 @@ if (typeof document !== 'undefined' && !document.getElementById(THEME_STYLE_ID))
   style.textContent = THEME_CSS
   document.head.appendChild(style)
   applyCandyPalette(document.documentElement.style)
+  if (document.getElementById(PALETTE_STYLE_ID) === null) applyPalette(DEFAULT_APPEARANCE.colors)
 }

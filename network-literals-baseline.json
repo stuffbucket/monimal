@@ -5,6 +5,21 @@
     "count": 1
   },
   {
+    "path": "apps/desktop/sidecar/provider-profile-integration.test.ts",
+    "literal": "127.0.0.1",
+    "count": 3
+  },
+  {
+    "path": "apps/desktop/sidecar/provider-profile-integration.test.ts",
+    "literal": "http://127.0.0.1",
+    "count": 2
+  },
+  {
+    "path": "apps/desktop/sidecar/provider-profile-integration.test.ts",
+    "literal": "http://localhost",
+    "count": 2
+  },
+  {
     "path": "apps/desktop/src/main/adapters/core-control-connection.test.ts",
     "literal": "http://127.0.0.1:4141",
     "count": 1
@@ -683,31 +698,6 @@
     "path": "packages/maximal-ollama/tests/runtime.test.ts",
     "literal": "http://192.168.1.20:11500",
     "count": 2
-  },
-  {
-    "path": "packages/maximal/scripts/dev/verify-build.ts",
-    "literal": "http://127.0.0.1:4141",
-    "count": 1
-  },
-  {
-    "path": "packages/maximal/tests/provider-profile-integration.test.ts",
-    "literal": "127.0.0.1",
-    "count": 3
-  },
-  {
-    "path": "packages/maximal/tests/provider-profile-integration.test.ts",
-    "literal": "http://127.0.0.1",
-    "count": 2
-  },
-  {
-    "path": "packages/maximal/tests/provider-profile-integration.test.ts",
-    "literal": "http://localhost",
-    "count": 2
-  },
-  {
-    "path": "packages/maximal/tests/verify-build.test.ts",
-    "literal": "http://127.0.0.1:4141",
-    "count": 1
   },
   {
     "path": "packages/model-runtimes/anthropic/tests/helpers.ts",

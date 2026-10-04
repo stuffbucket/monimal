@@ -41,7 +41,7 @@ export const SETTINGS_STYLES = `
   min-width: 0;
   padding: var(--shell-space-4);
   flex: none;
-  border-bottom: 1px solid var(--shell-border);
+  border-bottom: 1px solid var(--maximal-color-border-default);
 }
 
 .sb-shell .settings__heading {
@@ -65,7 +65,7 @@ export const SETTINGS_STYLES = `
   font-size: var(--shell-text-xl);
   font-weight: var(--shell-weight-lg);
   line-height: var(--shell-control-md);
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
   margin: 0;
 }
 
@@ -73,13 +73,13 @@ export const SETTINGS_STYLES = `
   margin: 0;
   font-size: var(--shell-text-base);
   line-height: var(--shell-leading-base);
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   max-width: var(--shell-settings-measure);
 }
 
 .sb-shell .settings__note {
   font-size: var(--shell-text-xs);
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   white-space: nowrap;
   align-self: center;
 }
@@ -113,7 +113,7 @@ export const SETTINGS_STYLES = `
 .sb-shell .settings__group {
   overflow: hidden;
   border-radius: var(--shell-radius);
-  background: var(--shell-raised);
+  background: var(--maximal-color-bg-tertiary);
 }
 
 .sb-shell .settings__group[data-layout='grid'] {
@@ -126,7 +126,7 @@ export const SETTINGS_STYLES = `
 
 .sb-shell .settings__group[data-layout='grid'] .settings__item {
   border-radius: var(--shell-radius);
-  background: var(--shell-raised);
+  background: var(--maximal-color-bg-tertiary);
 }
 
 .sb-shell .settings__group[data-layout='grid'] .settings__item + .settings__item {
@@ -138,7 +138,7 @@ export const SETTINGS_STYLES = `
 }
 
 .sb-shell .settings__item + .settings__item {
-  border-top: 1px solid var(--shell-border-strong, var(--shell-border));
+  border-top: 1px solid var(--maximal-color-border-strong, var(--maximal-color-border-default));
 }
 
 .sb-shell .settings__group[data-dividers='false'] .settings__item + .settings__item {
@@ -197,7 +197,7 @@ export const SETTINGS_STYLES = `
 }
 
 .sb-shell .settings__item-title {
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
   font-size: var(--shell-text-base);
   font-weight: var(--shell-weight-lg);
   line-height: var(--shell-leading-base);
@@ -205,7 +205,7 @@ export const SETTINGS_STYLES = `
 
 .sb-shell .settings__item-description {
   margin: 0;
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   font-size: var(--shell-text-sm);
   line-height: var(--shell-leading-base);
 }
@@ -224,14 +224,14 @@ export const SETTINGS_STYLES = `
   margin: 0;
   font-size: var(--shell-text-lg);
   font-weight: var(--shell-weight-lg);
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
 }
 
 .sb-shell .settings__summary {
   margin: 0;
   font-size: var(--shell-text-base);
   line-height: var(--shell-leading-base);
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
 }
 
 .sb-shell .settings__row {

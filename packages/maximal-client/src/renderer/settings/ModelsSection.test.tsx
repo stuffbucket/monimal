@@ -271,10 +271,16 @@ describe('ModelsSection', () => {
     expect(surface.querySelectorAll('[data-testid="service-icon-ollama"]')).toHaveLength(2)
     const githubModel = surface.querySelector<HTMLElement>('[data-testid="model-gpt-5"]')
     expect(githubModel?.dataset.provider).toBe('github')
-    expect(
-      githubModel?.querySelector('[data-testid="model-provider-github-copilot"]')
-        ?.getAttribute('title'),
-    ).toBe('GitHub Copilot')
+    const providerAvatar = githubModel?.querySelector(
+      '[data-testid="model-provider-github-copilot"]',
+    )
+    expect(providerAvatar?.hasAttribute('title')).toBe(false)
+    await act(async () => {
+      providerAvatar?.dispatchEvent(new FocusEvent('focusin', { bubbles: true }))
+    })
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toBe(
+      'GitHub Copilot',
+    )
   })
 
   it('shows loading, empty, and error states', async () => {

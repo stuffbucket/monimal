@@ -26,8 +26,8 @@ body,
 
 html,
 body {
-  color: var(--shell-text);
-  background: var(--shell-background);
+  color: var(--maximal-color-text-default);
+  background: var(--maximal-color-bg-default);
   font: var(--shell-font);
   font-optical-sizing: auto;
   font-synthesis: none;
@@ -53,14 +53,14 @@ body {
 
 .renderer-failure__panel p {
   margin: 0 0 20px;
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   line-height: 1.5;
 }
 
 .renderer-failure__panel button {
   padding: 8px 14px;
-  color: var(--shell-accent-contrast);
-  background: var(--shell-accent);
+  color: var(--maximal-color-text-onbrand);
+  background: var(--maximal-color-bg-brand);
   border: 0;
   border-radius: var(--shell-radius);
   font: inherit;
@@ -68,7 +68,7 @@ body {
 }
 
 .renderer-failure__panel button:focus-visible {
-  outline: 2px solid var(--shell-focus);
+  outline: 2px solid var(--maximal-color-border-selected);
   outline-offset: 2px;
 }
 
@@ -82,15 +82,15 @@ body {
   max-height: min(32rem, calc(100vh - 15rem));
   overflow: auto;
   padding: var(--shell-space-3, 12px);
-  border: 1px solid var(--shell-border);
+  border: 1px solid var(--maximal-color-border-default);
   border-radius: var(--shell-radius, 6px);
-  background: var(--shell-canvas);
+  background: var(--maximal-color-bg-secondary);
 }
 
 .license-dialog__text {
   margin: 0;
   overflow-wrap: anywhere;
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
   font: var(--shell-text-sm, 0.875rem)/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   white-space: pre-wrap;
 }
@@ -128,9 +128,9 @@ body {
   grid-template-rows: 42px minmax(0, 1fr);
   overflow: hidden;
   padding: 0;
-  border: 1px solid var(--shell-border);
+  border: 1px solid var(--maximal-color-border-default);
   border-radius: 10px;
-  background: var(--shell-canvas);
+  background: var(--maximal-color-bg-secondary);
   box-shadow: 0 20px 70px rgb(0 0 0 / 45%);
 }
 
@@ -139,14 +139,14 @@ body {
   align-items: center;
   gap: 8px;
   padding: 0 10px;
-  border-bottom: 1px solid var(--shell-border);
-  background: var(--shell-raised);
+  border-bottom: 1px solid var(--maximal-color-border-default);
+  background: var(--maximal-color-bg-tertiary);
 }
 
 .workspace-map__header > span:not(.workspace-map__hint) {
   min-width: 38px;
   text-align: center;
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: 11px;
 }
 
@@ -158,23 +158,23 @@ body {
   padding: 0;
   border: 0;
   border-radius: var(--shell-radius);
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
   background: transparent;
   cursor: pointer;
 }
 
 .workspace-map__action:hover {
-  background: var(--shell-hover);
+  background: var(--maximal-color-bg-hover);
 }
 
 .workspace-map__action:focus-visible {
-  outline: 2px solid var(--shell-focus);
+  outline: 2px solid var(--maximal-color-border-selected);
   outline-offset: -2px;
 }
 
 .workspace-map__hint {
   flex: 1;
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: 11px;
 }
 
@@ -182,8 +182,8 @@ body {
   position: relative;
   overflow: hidden;
   cursor: grab;
-  background-color: var(--shell-background);
-  background-image: radial-gradient(var(--shell-border) 1px, transparent 1px);
+  background-color: var(--maximal-color-bg-default);
+  background-image: radial-gradient(var(--maximal-color-border-default) 1px, transparent 1px);
   background-size: 24px 24px;
   touch-action: none;
 }
@@ -207,7 +207,7 @@ body {
 }
 
 .workspace-map__edges line {
-  stroke: var(--shell-border);
+  stroke: var(--maximal-color-border-default);
   stroke-width: 2;
   stroke-dasharray: 5 5;
 }
@@ -220,10 +220,10 @@ body {
   width: 220px;
   min-height: 108px;
   padding: 14px;
-  border: 1px solid var(--shell-border);
+  border: 1px solid var(--maximal-color-border-default);
   border-radius: 9px;
-  color: var(--shell-text);
-  background: var(--shell-raised);
+  color: var(--maximal-color-text-default);
+  background: var(--maximal-color-bg-tertiary);
   box-shadow: 0 8px 24px rgb(0 0 0 / 25%);
   text-align: left;
   cursor: move;
@@ -231,7 +231,7 @@ body {
 }
 
 .workspace-map__node[data-kind='terminal'] {
-  border-color: var(--shell-accent);
+  border-color: var(--maximal-color-border-brand);
 }
 
 .workspace-map__node strong,
@@ -248,7 +248,7 @@ body {
 
 .workspace-map__node small {
   margin-top: 6px;
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
 }
 
 :root:is([data-vibrancy='true'], [data-background-effects='true'])

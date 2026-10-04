@@ -161,7 +161,6 @@ export function SearchSettingControl({
               max={displayedIntegerBound(field, field.max)}
               step={1}
               disabled={disabled}
-              title={error}
               data-testid={testId}
               onChange={(event) => {
                 const next = event.target.value

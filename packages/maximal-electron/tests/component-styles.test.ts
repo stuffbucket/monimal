@@ -113,7 +113,7 @@ describe('the rules a component carries', () => {
     // And the floor under the contract. An empty one reports every name
     // unknown; one read from the wrong file reports every name fine.
     expect(contract.published.size).toBeGreaterThan(30);
-    expect(contract.published.has('--shell-text')).toBe(true);
+    expect(contract.published.has('--maximal-color-text-default')).toBe(true);
   });
 
   it('hold to the published design contract, string by string', () => {
@@ -240,7 +240,7 @@ describe('the rule that reports those findings in the editor', () => {
         '  --shell-space-2: 9px;',
         '  --thing-width: 4px;',
         '}',
-        '.loose { color: var(--shell-text) }',
+        '.loose { color: var(--maximal-color-text-default) }',
         '`;',
       ].join('\n'),
     );
@@ -265,8 +265,8 @@ describe('the rule that reports those findings in the editor', () => {
           '  --shell-thing-height: 10px;',
           '  height: var(--shell-thing-height);',
           '  padding: var(--shell-space-2);',
-          '  border: 1px solid var(--shell-border);',
-          '  color: var(--shell-text);',
+          '  border: 1px solid var(--maximal-color-border-default);',
+          '  color: var(--maximal-color-text-default);',
           '}',
           '`;',
         ].join('\n'),
@@ -328,7 +328,7 @@ describe('a carried stylesheet reaching a document', () => {
   it('arrives once, in the components layer', () => {
     const { document, children } = stubDocument();
 
-    injectComponentStyles(document, 'card', '.sb-shell .card { color: var(--shell-text) }');
+    injectComponentStyles(document, 'card', '.sb-shell .card { color: var(--maximal-color-text-default) }');
 
     // Two: the statement that fixes layer order, and the rules.
     expect(children).toHaveLength(2);
@@ -345,7 +345,7 @@ describe('a carried stylesheet reaching a document', () => {
      */
     const { document, children } = stubDocument();
 
-    injectComponentStyles(document, 'card', '.sb-shell .card { color: var(--shell-text) }');
+    injectComponentStyles(document, 'card', '.sb-shell .card { color: var(--maximal-color-text-default) }');
 
     expect(children[0]?.attributes.get('data-shell-styles')).toBe('layer-order');
     expect(children[0]?.textContent).toBe('@layer sb-shell.base, sb-shell.components;');
@@ -355,7 +355,7 @@ describe('a carried stylesheet reaching a document', () => {
     const { document, children } = stubDocument();
 
     for (let index = 0; index < 10; index += 1) {
-      injectComponentStyles(document, 'card', '.sb-shell .card { color: var(--shell-text) }');
+      injectComponentStyles(document, 'card', '.sb-shell .card { color: var(--maximal-color-text-default) }');
     }
 
     expect(children).toHaveLength(2);
@@ -367,11 +367,11 @@ describe('a carried stylesheet reaching a document', () => {
     // edit to a `*_STYLES` constant appeared to do nothing until a reload.
     const { document, children } = stubDocument();
 
-    injectComponentStyles(document, 'card', '.sb-shell .card { color: var(--shell-text) }');
-    injectComponentStyles(document, 'card', '.sb-shell .card { color: var(--shell-accent) }');
+    injectComponentStyles(document, 'card', '.sb-shell .card { color: var(--maximal-color-text-default) }');
+    injectComponentStyles(document, 'card', '.sb-shell .card { color: var(--maximal-color-text-brand) }');
 
     expect(children).toHaveLength(2);
-    expect(children[1]?.textContent).toContain('--shell-accent');
+    expect(children[1]?.textContent).toContain('--maximal-color-text-brand');
     expect(children[1]?.textContent).not.toContain('--shell-text)');
   });
 
@@ -387,8 +387,8 @@ describe('a carried stylesheet reaching a document', () => {
     const first = stubDocument();
     const second = stubDocument();
 
-    injectComponentStyles(first.document, 'card', '.sb-shell .card { color: var(--shell-text) }');
-    injectComponentStyles(second.document, 'card', '.sb-shell .card { color: var(--shell-text) }');
+    injectComponentStyles(first.document, 'card', '.sb-shell .card { color: var(--maximal-color-text-default) }');
+    injectComponentStyles(second.document, 'card', '.sb-shell .card { color: var(--maximal-color-text-default) }');
 
     expect(first.children).toHaveLength(2);
     expect(second.children).toHaveLength(2);

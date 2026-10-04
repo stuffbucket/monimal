@@ -60,7 +60,7 @@ export const CanvasSurface: Story = {
     const thumb = getComputedStyle(area, '::-webkit-scrollbar-thumb');
     const track = getComputedStyle(area, '::-webkit-scrollbar-track');
     const reference = canvasElement.ownerDocument.createElement('div');
-    reference.style.background = 'var(--shell-canvas)';
+    reference.style.background = 'var(--maximal-color-bg-secondary)';
     canvasElement.append(reference);
     const canvasBackground = getComputedStyle(reference).backgroundColor;
     reference.remove();

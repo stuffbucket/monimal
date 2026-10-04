@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
-import { assertGenericProviderBundle } from '../../../packages/maximal/scripts/build'
+import { assertGenericProviderBundle } from './sidecar-bundle-boundary'
 
 interface CorePackage {
   version: string
@@ -33,7 +33,7 @@ if (!/^bun(?:-(?:darwin|linux)-(?:arm64|x64))?$/.test(compileTarget)) {
   throw new Error(`Unsupported MAXIMAL_CORE_TARGET: ${compileTarget}`)
 }
 const metafile = resolve('build/maximal-core.metafile.json')
-const compositionEntry = resolve(import.meta.dirname, '../../../packages/maximal/src/main.ts')
+const compositionEntry = resolve(import.meta.dirname, '../sidecar/main.ts')
 
 mkdirSync(dirname(output), { recursive: true })
 mkdirSync(dirname(metafile), { recursive: true })

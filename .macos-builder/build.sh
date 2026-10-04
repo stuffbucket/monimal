@@ -24,10 +24,6 @@ set -euo pipefail
 #
 # Env this script EXPORTS: MAXIMAL_BUILD_VERSION, which forge.config.ts passes to
 # @electron/packager as buildVersion (CFBundleVersion). See section 1.
-#
-# NOT to be confused with packages/maximal/.macos-builder/build.sh, which is a
-# vendored fixture for the standalone maximal repo (npm, client/ at the root).
-# The two target different layouts and must diverge. See SOURCES.md.
 
 # Self-hosted runners use non-login shells that do not read ~/.zshrc.
 #

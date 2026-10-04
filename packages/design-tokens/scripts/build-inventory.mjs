@@ -46,6 +46,7 @@ export async function buildInventory() {
     },
     platforms: {
       inventory: {
+        transforms: ['name/kebab'],
         buildPath: `${path.join(PACKAGE_ROOT, 'dist')}${path.sep}`,
         files: [{ destination: 'inventory.json', format: FORMAT }],
       },

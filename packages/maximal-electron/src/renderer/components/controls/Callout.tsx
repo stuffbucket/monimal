@@ -8,15 +8,15 @@ const CALLOUT_STYLES = `
   flex-direction: column;
   gap: var(--shell-space-2);
   padding: var(--shell-space-3);
-  color: var(--shell-text);
-  background: var(--shell-status-muted, var(--shell-active));
-  border: 1px solid var(--shell-status, var(--shell-text-muted));
+  color: var(--maximal-color-text-default);
+  background: var(--shell-status-muted, var(--maximal-color-bg-pressed));
+  border: 1px solid var(--shell-status, var(--maximal-color-icon-secondary));
   border-radius: var(--shell-radius-large);
 }
 
 .sb-shell .callout__title {
   margin: 0;
-  color: var(--shell-status, var(--shell-text));
+  color: var(--shell-status, var(--maximal-color-text-default));
   font-size: var(--shell-text-xs);
   font-weight: var(--shell-weight-lg);
   letter-spacing: var(--shell-tracking-caps);
@@ -57,9 +57,9 @@ const CALLOUT_STYLES = `
  *
  * `status` reaches the markup as `data-status`, and the shipped stylesheet maps
  * no value of it to a colour: a status vocabulary is the host's. Unmapped, the
- * outline and the heading draw in `--shell-text-subtle` and the fill in
- * `--shell-active`, which is a plain outlined box rather than an amber one
- * nobody chose. `--shell-status` colours the outline and the heading,
+ * outline draws in `--maximal-color-icon-secondary`, the heading in
+ * `--maximal-color-text-default` and the fill in `--maximal-color-bg-pressed`, which
+ * is a plain outlined box rather than an amber one nobody chose. `--shell-status` colours the outline and the heading,
  * `--shell-status-muted` the fill.
  */
 export function Callout({

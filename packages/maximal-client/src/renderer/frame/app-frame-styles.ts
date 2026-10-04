@@ -26,13 +26,13 @@ const APP_FRAME_CSS = `
 }
 
 .sb-shell .workspace-workbar__settings[data-active='true'] {
-  color: var(--shell-accent);
+  color: var(--maximal-color-text-brand);
   background: transparent;
 }
 
 .sb-shell .workspace-workbar__destinations .nav__item[aria-current='true'] {
-  color: var(--shell-accent);
-  background: var(--shell-accent-muted);
+  color: var(--maximal-color-text-onselected);
+  background: var(--maximal-color-bg-selected);
 }
 
 .sb-shell .workspace-workbar__status-spacer {
@@ -104,7 +104,7 @@ const APP_FRAME_CSS = `
   justify-content: space-between;
   gap: var(--shell-space-3, 12px);
   padding: var(--shell-space-3, 12px);
-  border: 1px solid var(--shell-border);
+  border: 1px solid var(--maximal-color-border-default);
   border-radius: var(--shell-radius, 4px);
 }
 
@@ -116,7 +116,7 @@ const APP_FRAME_CSS = `
 }
 
 .sb-shell .workspace-surface__detail {
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: var(--shell-text-sm);
   overflow-wrap: anywhere;
 }
@@ -128,7 +128,7 @@ const APP_FRAME_CSS = `
 
 .sb-shell .workspace-surface__header p {
   margin-top: var(--shell-space-1, 4px);
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: var(--shell-text-sm);
 }
 

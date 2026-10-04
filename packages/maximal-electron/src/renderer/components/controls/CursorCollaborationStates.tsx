@@ -10,7 +10,7 @@ function Pointer() {
       aria-hidden="true"
       fill="currentColor"
       size={16}
-      stroke="var(--shell-canvas)"
+      stroke="var(--maximal-color-bg-secondary)"
       strokeWidth="var(--shell-icon-stroke)"
     />
   );

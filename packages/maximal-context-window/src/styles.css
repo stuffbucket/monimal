@@ -4,7 +4,7 @@
 .mcw-panel {
   display: grid;
   gap: var(--shell-space-3, 0.75rem);
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
   font: var(--shell-font);
 }
 
@@ -27,7 +27,7 @@
 
 .mcw-capacity-model {
   overflow: hidden;
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
   font-weight: var(--shell-weight-lg);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -35,7 +35,7 @@
 
 .mcw-capacity-windows {
   min-width: 0;
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   overflow-wrap: anywhere;
 }
 
@@ -43,7 +43,7 @@
   display: flex;
   justify-content: space-between;
   gap: var(--shell-space-2, 0.5rem);
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: var(--shell-text-xs);
 }
 
@@ -56,10 +56,10 @@
 }
 
 .mcw-turn-picker-button {
-  border: 1px solid var(--shell-border);
+  border: 1px solid var(--maximal-color-border-default);
   border-radius: var(--shell-radius-small, 0.25rem);
-  background: var(--shell-canvas);
-  color: var(--shell-text-muted);
+  background: var(--maximal-color-bg-secondary);
+  color: var(--maximal-color-text-secondary);
   font-size: var(--shell-text-xs);
   cursor: pointer;
   padding-block: var(--shell-space-1, 0.25rem);
@@ -67,14 +67,14 @@
 }
 
 .mcw-turn-picker-button:hover {
-  background: var(--shell-hover);
-  color: var(--shell-text);
+  background: var(--maximal-color-bg-hover);
+  color: var(--maximal-color-text-default);
 }
 
 .mcw-turn-picker-button[aria-pressed="true"] {
-  border-color: var(--shell-accent);
-  background: var(--shell-accent-muted, var(--shell-active));
-  color: var(--shell-text);
+  border-color: var(--maximal-color-border-brand);
+  background: var(--maximal-color-bg-selected, var(--maximal-color-bg-pressed));
+  color: var(--maximal-color-text-onselected);
 }
 
 /* This-turn composition: a single proportional bar, always full width,
@@ -88,7 +88,7 @@
 
 .mcw-turn-bar h3 {
   margin: 0;
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: var(--shell-text-xs);
   font-weight: var(--shell-weight-md);
   text-transform: uppercase;
@@ -99,7 +99,7 @@
   display: flex;
   overflow: hidden;
   height: 0.85rem;
-  border: 1px solid var(--shell-border-strong, var(--shell-border));
+  border: 1px solid var(--maximal-color-border-strong, var(--maximal-color-border-default));
   border-radius: var(--shell-radius-small, 0.25rem);
 }
 
@@ -110,7 +110,7 @@
 }
 
 .mcw-turn-bar-total {
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: var(--shell-text-xs);
 }
 
@@ -119,12 +119,12 @@
 
 .mcw-map {
   padding-block-start: var(--shell-space-3, 0.75rem);
-  border-block-start: 1px solid var(--shell-border);
+  border-block-start: 1px solid var(--maximal-color-border-default);
 }
 
 .mcw-map h3 {
   margin: 0 0 var(--shell-space-2, 0.5rem);
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: var(--shell-text-xs);
   font-weight: var(--shell-weight-md);
   text-transform: uppercase;
@@ -136,9 +136,9 @@
   grid-auto-rows: 0.85rem;
   gap: 2px;
   overflow: hidden;
-  border: 1px solid var(--shell-border-strong, var(--shell-border));
+  border: 1px solid var(--maximal-color-border-strong, var(--maximal-color-border-default));
   border-radius: var(--shell-radius-small, 0.25rem);
-  background: var(--shell-border);
+  background: var(--maximal-color-border-default);
   padding: 2px;
 }
 
@@ -163,7 +163,7 @@
 .mcw-turn-bar-segment + .mcw-turn-bar-segment,
 .mcw-legend-swatch-part + .mcw-legend-swatch-part {
   border-inline-start: 1px solid
-    color-mix(in srgb, var(--shell-canvas) 80%, transparent);
+    color-mix(in srgb, var(--maximal-color-bg-secondary) 80%, transparent);
 }
 
 .mcw-cell--system {
@@ -202,7 +202,7 @@
 .mcw-cell--reserved {
   background-color: var(--data-viz-series-7);
   background-image: radial-gradient(
-    color-mix(in srgb, var(--shell-canvas) 75%, transparent) 32%,
+    color-mix(in srgb, var(--maximal-color-bg-secondary) 75%, transparent) 32%,
     transparent 32%
   );
   background-size: 4px 4px;
@@ -210,7 +210,7 @@
 
 
 .mcw-cell--free {
-  background-color: var(--shell-canvas);
+  background-color: var(--maximal-color-bg-secondary);
 }
 
 /* Cached content is an attribute of a category, not a category of its own:
@@ -232,9 +232,9 @@
 .mcw-turn-bar-segment[data-cached="true"],
 .mcw-legend-swatch-part[data-cached="true"] {
   background-image: conic-gradient(
-    var(--shell-canvas) 0deg 90deg,
+    var(--maximal-color-bg-secondary) 0deg 90deg,
     transparent 90deg 180deg,
-    var(--shell-canvas) 180deg 270deg,
+    var(--maximal-color-bg-secondary) 180deg 270deg,
     transparent 270deg 360deg
   );
   background-size: 2px 2px;
@@ -250,7 +250,7 @@
 .mcw-legend .data-viz-legend-swatch {
   width: 0.625rem;
   height: 0.625rem;
-  border: 1px solid var(--shell-border);
+  border: 1px solid var(--maximal-color-border-default);
   border-radius: 2px;
 }
 
@@ -269,12 +269,12 @@
 
 .mcw-legend .data-viz-legend-value {
   flex-shrink: 0;
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
 }
 
 .mcw-unavailable {
   margin: var(--shell-space-1, 0.25rem) 0;
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: var(--shell-text-xs);
 }
 

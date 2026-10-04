@@ -1,13 +1,12 @@
 # Sources
 
-Copied packages are edited here; synchronization with their source repositories
-has ended.
+Every package is edited here. Imported packages no longer synchronize with
+their source repositories.
 
-## Copied packages
+## Imported packages
 
 | Package | Source | Commit |
 | --- | --- | --- |
-| `packages/maximal` | `stuffbucket/maximal` | `b831d87` |
 | `packages/maximal-core` | `stuffbucket/maximal-core` | `3e2b10c` |
 | `packages/maximal-electron` | `stuffbucket/maximal-electron` | `c31f238` |
 
@@ -86,13 +85,12 @@ controls. Main-process bindings to package-owned hosts and Core's control
 transport live under `apps/desktop/src/main/adapters`; desktop preferences,
 native integration, sidecar lifecycle, windows, and worker entry points live
 in their matching `src/main` subdirectories. Each owns tests for its source.
-Both are monorepo-native;
-`packages/maximal` remains the copied CLI composition.
+`apps/desktop/sidecar` owns the Core provider composition compiled into the
+packaged sidecar.
 
 | Requirement | Owner or enforcement |
 | --- | --- |
 | Preserve `packages/*/.github`. | Package workflow tests. |
-| Preserve `packages/maximal/.macos-builder/` as a vendored fixture; the root `.macos-builder/` is the producer. | `RELEASING.md`. |
 | Use the root lockfile only; package scripts MUST use pnpm. | Workspace manifests and pnpm. |
 | Root rules override package instructions; package files MUST NOT link to root-only documentation. | `AGENTS.md`. |
 | Preserve package `AGENTS.md` files read by documentation checks. | `docs-reference-parity.test.ts`, `verify-docs.mjs`. |
@@ -125,9 +123,9 @@ Both are monorepo-native;
 
 ## Deviations
 
-| Scope | Deviation from copied repositories |
+| Scope | Deviation from source repositories |
 | --- | --- |
-| Copied packages | `CLAUDE.md` includes `AGENTS.md`; root instructions take precedence. |
+| Imported packages | `CLAUDE.md` includes `AGENTS.md`; root instructions take precedence. |
 | `maximal-electron` | Uses the workspace mutation runner for changed-line and explicit local scopes, cached edit loops, and fresh complete or sharded audits. |
 | `maximal-electron` | `TextInput` owns the token-based active-service treatment, the Radix-backed `Slider` owns its track, detents, labels, and thumb geometry, `Menu` owns described and selected dropdown rows, settings action rows and divider behavior live with the shared settings components, and `ModelCardGrid` owns provider adornments, disabled-provider activation, and model-action placement so consumers do not recreate those controls. |
 | `maximal-electron` | `Workbar` owns the persistent activity navigation geometry and the shared shell-icon vocabulary so consumers do not specialize collapsed side navigation or remap tab icons locally. |
@@ -149,7 +147,7 @@ Both are monorepo-native;
 | `maximal-core` / `maximal-settings` | Core preserves its synchronous `config.json` storage and locking while validating installed connector payloads through the shared settings API; unknown plugins remain opaque. |
 | `maximal-settings` | Dependency changes MUST update the reviewed closure and deterministic SBOM; `.pnpmfile.cjs` MUST enforce the reviewed resolution graph and integrity. |
 | `maximal-configurators` | Owns first-party Cordis registration and terminal-profile launch configuration through Core's capability-scoped configurator host. |
-| `maximal` / `maximal-core` | Connector payloads remain opaque in Core and are validated by host-installed Standard Schema plugins. |
+| `apps/desktop` / `maximal-core` | Connector payloads remain opaque in Core and are validated by host-installed Standard Schema plugins. |
 | `maximal-core/downstream` | Declares itself as an independently installed compatibility fixture. |
 | Model packages | Core consumes the side-effect-free model contract; orchestration and concrete runtime adapters remain separate packages. |
 | Model packages | `maximal-model-contract` owns live model-operation names and normalized provider evidence for lifecycle, selection, access, endpoints, limits, capabilities, pricing units, and typed provider details; API wire contracts and released catalog schemas project that vocabulary without becoming runtime authorities. |
@@ -158,8 +156,8 @@ Both are monorepo-native;
 | Observability packages | The contract is runtime-neutral; renderer surfaces depend on it, not the reverse. |
 | `model-runtimes/gliner25` | Ships as a profile-installed Cordis adapter and delegates tensor execution and model lifecycle to an explicitly configured standalone `gliner-runner` endpoint. |
 | `model-runtimes/omlx` | Ships as a profile-installed Cordis adapter, not as compiled Core code. |
-| `maximal` / `apps/desktop` | Core dependencies are workspace links; the desktop sidecar builds the Maximal composition. |
-| `maximal-core` / `maximal` | Desktop-spawned Core (`start --desktop-ipc`) uses inherited Node child-process IPC for control RPC and events instead of binding its private HTTP listener; standalone Core keeps its loopback control listener and public proxy unchanged. |
+| `apps/desktop` | Core dependencies are workspace links; the desktop sidecar build compiles `apps/desktop/sidecar`. |
+| `maximal-core` / `apps/desktop` | Desktop-spawned Core (`start --desktop-ipc`) uses inherited Node child-process IPC for control RPC and events instead of binding its private HTTP listener; standalone Core keeps its loopback control listener and public proxy unchanged. |
 | `maximal-core` | Production traffic and token-usage persistence and aggregation run in a Core-owned child process over validated inherited IPC; direct SQLite construction is retained only as an injected library and test seam. |
 | `maximal-core` | Ollama API keys are saved without using a malformed inference request as an authentication probe; Ollama has no dedicated key-validation endpoint. |
 | `maximal-core` / `maximal-core-contract` | Ollama account probes expose a sanitized error code with unavailable results so Settings can distinguish a saved working key from a saved key whose validation failed. |
@@ -187,14 +185,14 @@ Both are monorepo-native;
 | `maximal-electron` | The package MUST NOT contain demo-shell or terminal-lab application composition. |
 | `maximal-recording` / `apps/desktop` | Recording owns capture and encoding; desktop owns explicit initiation, destination, and window selection. |
 | `apps/desktop` | The desktop application MUST own terminal integration behavior and end-to-end coverage. |
-| `maximal-electron` / `maximal` | Consumers and design docs name the package `@maximal/maximal-electron`; the `stuffbucket-electron` workspace alias is removed. |
+| `maximal-electron` | Consumers and design docs name the package `@maximal/maximal-electron`; the `stuffbucket-electron` workspace alias is removed. |
 | `maximal-core` | Private workspace package, not published; the registry publish, release-tag, release-gates, and release-notes tooling are removed. |
 | `maximal-core` | The settings wire types and control contract live in `maximal-core-contract`; Core's `./settings-types` and `./control-contract` exports republish them. |
 | `maximal-core` / `maximal-model-contract` | Core exposes Ollama's local `/v1/systemone` decision API through model-routed and provider-qualified endpoints; the provider gateway identifies this capability as `systemone`. Model weights remain Ollama-managed and are not distributed by the workspace. |
 | `maximal-core` / `cli/cli` | GitHub.com device authentication uses the GitHub CLI OAuth application's public client credentials from its MIT-licensed `internal/authflow/flow.go`; Maximal owns polling and persistence and does not require the `gh` executable. |
 | Test workflow | Native tests enter through the root isolation wrapper; Docker stages Git-visible source with container-owned dependencies. |
 
-## Excluded from copied packages
+## Excluded from imported packages
 
 `node_modules`, build output, reports, worktrees, package lockfiles, and recorded
 demo media are excluded. Demo JSON remains because documentation tests read it.

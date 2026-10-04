@@ -333,7 +333,7 @@ const config: ForgeConfig = {
       execFileSync(process.execPath, [
         path.join(__dirname, 'scripts', 'generate-package-sbom.mjs'),
         buildPath,
-        path.resolve(__dirname, '../../packages/maximal'),
+        __dirname,
         path.join(__dirname, 'build', 'maximal-core.metafile.json'),
         CDXGEN_CLI,
       ], { stdio: 'inherit' })

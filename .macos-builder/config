@@ -4,11 +4,6 @@
 # ./.macos-builder/build.sh to produce the .app, then owns the whole tail it is
 # never safe to hand a public repo: top-level sign, dmg, notarize, staple,
 # sha256, and upload onto this repo's release at that tag.
-#
-# The vendored packages/maximal/.macos-builder/ is NOT this file. It is a test
-# fixture copied from the standalone maximal repo and targets a different
-# layout (npm, client/ at the root). The builder reads the CHECKOUT ROOT only.
-# See RELEASING.md.
 
 # Where build.sh leaves the bundle, relative to the checkout root.
 # @electron/packager writes out/<productName>-darwin-<arch>/, productName is

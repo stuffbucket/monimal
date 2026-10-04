@@ -7,6 +7,9 @@ import { describe, expect, it } from 'vitest'
 import { SHELL_TERMINAL_PROPERTIES } from '@maximal/maximal-terminal/renderer'
 import { shellVariableContract } from '@maximal/maximal-electron/verify/shell-variables'
 
+import { DEFAULT_APPEARANCE } from './appearance'
+import { paletteTokens } from './color/palette'
+
 const require = createRequire(import.meta.url)
 const SHELL_STYLES_PATH = require.resolve('@maximal/maximal-electron/renderer/styles.css')
 const SHELL_STYLES = readFileSync(SHELL_STYLES_PATH, 'utf8')
@@ -20,12 +23,15 @@ function installedContract() {
 
 function definedThemeVariables(): Set<string> {
   const source = readFileSync(resolve(import.meta.dirname, 'theme.ts'), 'utf8')
-  return new Set(
-    [
-      ...source.matchAll(/^\s*(--shell-[a-z0-9-]+)\s*:/gm),
+  const palette = paletteTokens(DEFAULT_APPEARANCE.colors)
+  return new Set([
+    ...[
+      ...source.matchAll(/^\s*(--(?:shell|maximal-color)-[a-z0-9-]+)\s*:/gm),
       ...source.matchAll(/\bstyle\.setProperty\(\s*['"](--shell-[a-z0-9-]+)['"]/g),
     ].map((match) => match[1] ?? ''),
-  )
+    ...Object.keys(palette.light),
+    ...Object.keys(palette.dark),
+  ])
 }
 
 interface Rgb {
@@ -34,16 +40,29 @@ interface Rgb {
   blue: number
 }
 
-function themeValues(): Map<string, string> {
+/* The default theme's values in one mode: theme.ts aliases over the generated palette. */
+function themeValues(mode: 'light' | 'dark'): Map<string, string> {
   const source = readFileSync(resolve(import.meta.dirname, 'theme.ts'), 'utf8')
-  const values = new Map<string, string>()
+  const values = new Map<string, string>(Object.entries(paletteTokens(DEFAULT_APPEARANCE.colors)[mode]))
   for (const match of source.matchAll(
-    /^\s*(--shell-[a-z0-9-]+)\s*:\s*([^;]+);/gm,
+    /^\s*(--(?:shell|maximal-color)-[a-z0-9-]+)\s*:\s*([^;]+);/gm,
   )) {
     const name = match[1] ?? ''
     if (!values.has(name)) values.set(name, (match[2] ?? '').trim())
   }
-  return values
+  // Follow `var(--x)` aliases, which is how the palette derives its roles.
+  const resolved = new Map<string, string>()
+  for (const [name, value] of values) {
+    let current = value
+    for (let depth = 0; depth < 8; depth += 1) {
+      const alias = /^var\((--[a-z0-9-]+)\)$/.exec(current)?.[1]
+      const next = alias === undefined ? undefined : values.get(alias)
+      if (next === undefined) break
+      current = next
+    }
+    resolved.set(name, current)
+  }
+  return resolved
 }
 
 function hex(value: string): Rgb {
@@ -101,23 +120,23 @@ describe('the @maximal/maximal-electron shell variable contract', () => {
   })
 })
 
-describe('switch non-text contrast', () => {
+describe.each(['light', 'dark'] as const)('switch non-text contrast in %s mode', (mode) => {
   it('keeps both states and their boundaries above 3:1 on the canvas', () => {
-    const values = themeValues()
+    const values = themeValues(mode)
     const value = (name: string) => {
       const found = values.get(name)
       if (found === undefined) throw new Error(`${name} is not defined by the theme`)
       return found
     }
-    const canvas = hex(value('--shell-canvas'))
-    const offTrack = blend(hex(value('--shell-text-muted')), canvas, 0.2)
-    const accent = hex(value('--shell-accent'))
+    const canvas = hex(value('--maximal-color-bg-secondary'))
+    const offTrack = blend(hex(value('--maximal-color-text-secondary')), canvas, 0.2)
+    const accent = hex(value('--maximal-color-bg-brand'))
 
     const relationships = [
-      ['off track boundary', hex(value('--shell-text-muted')), canvas],
-      ['off thumb', hex(value('--shell-text')), offTrack],
+      ['off track boundary', hex(value('--maximal-color-text-secondary')), canvas],
+      ['off thumb', hex(value('--maximal-color-text-default')), offTrack],
       ['on track', accent, canvas],
-      ['on thumb', hex(value('--shell-accent-contrast')), accent],
+      ['on thumb', hex(value('--maximal-color-text-onbrand')), accent],
       ['on and off states', accent, offTrack],
     ] as const
 
@@ -127,9 +146,9 @@ describe('switch non-text contrast', () => {
   })
 })
 
-describe('default theme contrast', () => {
+describe.each(['light', 'dark'] as const)('default theme contrast in %s mode', (mode) => {
   it('keeps secondary text and strong boundaries comfortably distinguishable', () => {
-    const values = themeValues()
+    const values = themeValues(mode)
     const value = (name: string) => {
       const found = values.get(name)
       if (found === undefined) throw new Error(`${name} is not defined by the theme`)
@@ -137,15 +156,15 @@ describe('default theme contrast', () => {
     }
 
     expect(
-      contrast(hex(value('--shell-text-muted')), hex(value('--shell-background'))),
+      contrast(hex(value('--maximal-color-text-secondary')), hex(value('--maximal-color-bg-default'))),
       'muted text',
     ).toBeGreaterThanOrEqual(7)
     expect(
-      contrast(hex(value('--shell-text-subtle')), hex(value('--shell-background'))),
+      contrast(hex(value('--maximal-color-text-tertiary')), hex(value('--maximal-color-bg-default'))),
       'subtle text',
     ).toBeGreaterThanOrEqual(7)
     expect(
-      contrast(hex(value('--shell-border-strong')), hex(value('--shell-canvas'))),
+      contrast(hex(value('--maximal-color-border-strong')), hex(value('--maximal-color-bg-secondary'))),
       'strong control boundary',
     ).toBeGreaterThanOrEqual(3)
   })

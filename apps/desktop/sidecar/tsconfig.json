@@ -1,0 +1,22 @@
+{
+  // The sidecar is a Bun program compiled by scripts/build-core.ts, not part of
+  // the Electron build, so it carries Bun's globals instead of DOM and Vite's.
+  "compilerOptions": {
+    "target": "ESNext",
+    "lib": ["ESNext"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "types": ["bun"],
+    "moduleResolution": "Bundler",
+    "moduleDetection": "force",
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["**/*.ts"]
+}

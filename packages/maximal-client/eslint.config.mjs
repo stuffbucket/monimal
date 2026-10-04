@@ -4,7 +4,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 
 import shellContract from "./eslint/shell-contract.mjs";
 
-// The desktop app has its own TypeScript project (see ../maximal/docs/code-style.md).
+// The desktop app has its own TypeScript project.
 // It shares the workspace's ignores and typescript-eslint setup, but NOT the
 // `/service` profile the two service packages run: that carries a large
 // stylistic layer (unicorn, perfectionist, prettier-as-a-rule with `semi:

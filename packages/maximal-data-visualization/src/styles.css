@@ -1,7 +1,7 @@
 .data-viz-viewport {
   max-width: 100%;
   overflow-x: auto;
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
   font: var(--shell-font);
 }
 
@@ -9,36 +9,36 @@
   display: block;
   width: 100%;
   color: var(--data-viz-series-1);
-  background: var(--shell-background);
+  background: var(--maximal-color-bg-default);
   border-radius: var(--shell-radius-large);
   font: var(--shell-font);
 }
 
 .data-viz-chart text {
-  fill: var(--shell-text);
+  fill: var(--maximal-color-text-default);
   font: var(--shell-font);
 }
 
 .data-viz-axis-label {
-  fill: var(--shell-text-muted);
+  fill: var(--maximal-color-text-secondary);
   font-size: var(--shell-text-xs);
 }
 
 .data-viz-grid-line {
-  stroke: var(--shell-border);
+  stroke: var(--maximal-color-border-default);
   stroke-width: 1;
 }
 
 .data-viz-focusable:focus-visible,
 .data-viz-segmented button:focus-visible {
-  outline: 2px solid var(--shell-focus);
+  outline: 2px solid var(--maximal-color-border-selected);
   outline-offset: 2px;
 }
 
 .data-viz-segmented {
   display: inline-flex;
   overflow: hidden;
-  border: 1px solid var(--shell-border);
+  border: 1px solid var(--maximal-color-border-default);
   border-radius: var(--shell-radius-small);
   font: var(--shell-font);
 }
@@ -47,18 +47,18 @@
   min-height: var(--shell-control-height);
   padding-inline: var(--shell-space-3);
   border: 0;
-  background: var(--shell-background);
-  color: var(--shell-text);
+  background: var(--maximal-color-bg-default);
+  color: var(--maximal-color-text-default);
   font: inherit;
   cursor: pointer;
 }
 
 .data-viz-segmented button + button {
-  border-inline-start: 1px solid var(--shell-border);
+  border-inline-start: 1px solid var(--maximal-color-border-default);
 }
 
 .data-viz-segmented button[aria-pressed="true"] {
-  background: var(--shell-active);
+  background: var(--maximal-color-bg-pressed);
   font-weight: var(--shell-weight-md);
 }
 
@@ -69,7 +69,7 @@
   padding: 0;
   margin: 0 0 var(--shell-space-3);
   list-style: none;
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font: var(--shell-font);
   font-size: var(--shell-text-xs);
 }
@@ -87,7 +87,7 @@
   width: 1rem;
   height: 0.5rem;
   overflow: hidden;
-  border: 1px solid var(--shell-text-muted);
+  border: 1px solid var(--maximal-color-icon-secondary);
 }
 
 .data-viz-legend-label {
@@ -96,31 +96,31 @@
 
 .data-viz-legend-value {
   margin-inline-start: auto;
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   font-variant-numeric: tabular-nums;
 }
 
 .data-viz-meter {
   overflow: hidden;
   height: 0.5rem;
-  border: 1px solid var(--shell-border-strong, var(--shell-border));
+  border: 1px solid var(--maximal-color-border-strong, var(--maximal-color-border-default));
   border-radius: var(--shell-radius-small);
-  background: var(--shell-background);
+  background: var(--maximal-color-bg-default);
 }
 
 .data-viz-meter-fill {
   display: block;
   height: 100%;
-  background: var(--shell-accent);
+  background: var(--maximal-color-bg-brand);
   transition: width 0.2s ease-out;
 }
 
 .data-viz-meter-fill[data-tone="warning"] {
-  background: var(--shell-warning);
+  background: var(--maximal-color-bg-warning);
 }
 
 .data-viz-meter-fill[data-tone="danger"] {
-  background: var(--shell-danger);
+  background: var(--maximal-color-bg-danger);
 }
 
 .data-viz-tooltip {
@@ -128,11 +128,11 @@
   z-index: 100;
   max-width: min(20rem, calc(100vw - 0.5rem));
   padding: var(--shell-space-1) var(--shell-space-2);
-  border: 1px solid var(--shell-border-strong, var(--shell-border));
+  border: 1px solid var(--maximal-color-border-strong, var(--maximal-color-border-default));
   border-radius: var(--shell-radius-small);
-  background: var(--shell-raised);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--shell-text) 35%, transparent);
-  color: var(--shell-text);
+  background: var(--maximal-color-bg-tertiary);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--maximal-color-icon-default) 35%, transparent);
+  color: var(--maximal-color-text-default);
   font: var(--shell-font);
   font-size: var(--shell-text-xs);
   line-height: 1.3;

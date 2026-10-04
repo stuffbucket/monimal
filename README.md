@@ -9,11 +9,6 @@ model providers, and a native macOS experience into one product.
 Signed, notarized macOS releases are published on
 [GitHub Releases](../../releases).
 
-## Documentation
-
-The Maximal guide and product documentation are available in the
-[`packages/maximal/docs/guide`](packages/maximal/docs/guide) directory.
-
 ## Development
 
 Run workspace workflows from the repository root:
@@ -27,6 +22,9 @@ Run workspace workflows from the repository root:
 | Run native build, type, and lint checks | `pnpm check:static` |
 | Run checks affected by the current branch | `pnpm check:affected` |
 | Run the complete affected gate | `pnpm check` |
+| Show only warnings, errors, and failures from a check | `pnpm check:summary [script]` |
+| Record a check's tasks, diagnostics, tests, and logs into `reports/check-runs/runs.sqlite` | `pnpm check:record [script] [--no-eslint]` |
+| Compare the last two recorded checks | `pnpm check:record --diff [base] [head]` |
 | Run isolated affected native tests | `pnpm test` |
 | Run the complete native test graph | `pnpm run test:all` |
 | Run the pinned Docker test graph | `pnpm run test:docker` |

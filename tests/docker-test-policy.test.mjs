@@ -496,9 +496,6 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   );
   assert.deepEqual(turbo.tasks["@maximal/maximal-client#build"].outputs, []);
   assert.equal(turbo.tasks["maximal-desktop#build"].cache, false);
-  assert.ok(
-    turbo.tasks["maximal-desktop#build"].dependsOn.includes("@maximal/maximal#build"),
-  );
   assert.deepEqual(turbo.tasks["maximal-desktop#build"].env, [
     "MAXIMAL_CORE_OUT",
     "MAXIMAL_CORE_REF",
@@ -581,7 +578,7 @@ test("root workflows select the intended package and task graphs", () => {
     {
       dev: "turbo run dev --filter=maximal-desktop",
       "dev:server":
-        "turbo run dev --filter=@maximal/maximal -- start",
+        "turbo run dev:server --filter=maximal-desktop -- start",
       package: "turbo run package --filter=maximal-desktop",
       "package:all": "turbo run package",
     },
@@ -707,20 +704,18 @@ test("electron leaves package builds outside the install lifecycle", () => {
 });
 
 test("the client renderer and sidecar build after their workspace dependencies", () => {
-  const maximal = JSON.parse(read("packages/maximal/package.json"));
   const buildCore = read("apps/desktop/scripts/build-core.ts");
   const turbo = JSON.parse(read("turbo.json"));
 
   assert.match(
     buildCore,
-    /compositionEntry = resolve\(import\.meta\.dirname, '\.\.\/\.\.\/\.\.\/packages\/maximal\/src\/main\.ts'\)/,
+    /compositionEntry = resolve\(import\.meta\.dirname, '\.\.\/sidecar\/main\.ts'\)/,
   );
   assert.deepEqual(turbo.tasks["@maximal/maximal-client#build"].dependsOn, [
     "^build",
   ]);
   assert.deepEqual(turbo.tasks["maximal-desktop#build"].dependsOn, [
     "^build",
-    `${maximal.name}#build`,
   ]);
 });
 

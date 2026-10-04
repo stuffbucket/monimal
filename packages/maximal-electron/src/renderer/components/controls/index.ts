@@ -59,7 +59,7 @@ export {
 
 export { ScrollArea } from './ScrollArea.js';
 
-export { Dialog, Menu, TooltipProvider, type MenuItem } from './Overlays.js';
+export { Dialog, Menu, Tooltip, TooltipProvider, type MenuItem } from './Overlays.js';
 
 export { UnsavedChangesDialog } from './UnsavedChangesDialog.js';
 

@@ -66,7 +66,7 @@ describe('WorkspaceRail', () => {
 
     const items = [...container.querySelectorAll<HTMLElement>('.workbar__item')]
     expect(container.querySelector('.workbar__main')?.children).toHaveLength(6)
-    expect(items.map((item) => item.title)).toEqual([
+    expect(items.map((item) => item.getAttribute('aria-label'))).toEqual([
       'Home',
       'Projects',
       'Overview',

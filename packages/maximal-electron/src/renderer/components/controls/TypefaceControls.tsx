@@ -25,7 +25,7 @@ const TYPEFACE_CONTROLS_STYLES = `
   display: grid;
   gap: var(--shell-space-1);
   min-width: 0;
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: var(--shell-text-xs);
   font-weight: var(--shell-weight-md);
 }
@@ -43,7 +43,7 @@ const TYPEFACE_CONTROLS_STYLES = `
 }
 
 .sb-shell .typeface-controls__field .number-input:hover:not(:disabled) {
-  border-color: var(--shell-border-hover);
+  border-color: var(--maximal-color-border-strong-hover);
 }
 
 .sb-shell .typeface-controls__metrics {

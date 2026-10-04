@@ -1,8 +1,8 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import * as Tooltip from '@radix-ui/react-tooltip';
+import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
-import { useContext, useRef, type ComponentType, type ReactNode } from 'react';
+import { createContext, useContext, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
 
 import { useComponentStyles } from '../../lib/component-styles.js';
 import { SHELL_ROOT_CLASS, ShellRoot } from '../../lib/shell-root.js';
@@ -38,6 +38,9 @@ export function ShellPortalRoot({
   return <ShellRoot.Provider value={element}>{children}</ShellRoot.Provider>;
 }
 
+/** Set by `TooltipProvider`, so `Tooltip` knows whether it must supply its own. */
+const TooltipScope = createContext(false);
+
 /** Provides the shared Radix tooltip timing and hover behavior. */
 export function TooltipProvider({
   children,
@@ -47,10 +50,49 @@ export function TooltipProvider({
   delayDuration?: number;
 }) {
   return (
-    <Tooltip.Provider delayDuration={delayDuration} disableHoverableContent>
-      {children}
-    </Tooltip.Provider>
+    <TooltipPrimitive.Provider delayDuration={delayDuration} disableHoverableContent>
+      <TooltipScope.Provider value>{children}</TooltipScope.Provider>
+    </TooltipPrimitive.Provider>
   );
+}
+
+/**
+ * A hover and focus hint for one element; the replacement for a native `title`.
+ *
+ * `children` must be a single element that accepts a ref, as Radix triggers
+ * use `asChild`. An empty `content` keeps the tooltip closed rather than
+ * unwrapping `children`, so a conditional hint never remounts the trigger and
+ * steals focus from an input mid-edit. The hint is description, not a name: an
+ * icon-only control still needs its own `aria-label`. Outside a
+ * `TooltipProvider` it supplies one, losing only the shared skip-delay.
+ */
+export function Tooltip({
+  content,
+  children,
+  side,
+}: {
+  content: ReactNode;
+  children: ReactElement;
+  side?: 'top' | 'right' | 'bottom' | 'left';
+}) {
+  const scoped = useContext(TooltipScope);
+  const container = useShellPortalContainer();
+  const [open, setOpen] = useState(false);
+  const empty =
+    content === undefined || content === null || content === '' || content === false;
+  const tooltip = (
+    <TooltipPrimitive.Root open={open && !empty} onOpenChange={setOpen}>
+      <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
+      {empty ? null : (
+        <TooltipPrimitive.Portal container={container}>
+          <TooltipPrimitive.Content className="tooltip" side={side} sideOffset={6}>
+            {content}
+          </TooltipPrimitive.Content>
+        </TooltipPrimitive.Portal>
+      )}
+    </TooltipPrimitive.Root>
+  );
+  return scoped ? tooltip : <TooltipProvider>{tooltip}</TooltipProvider>;
 }
 
 /**
@@ -206,7 +248,7 @@ export interface MenuItem {
 
 const MENU_STYLES = `
 .sb-shell .menu__item-label {
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
 }
 
 .sb-shell .menu__item[data-described] {
@@ -224,7 +266,7 @@ const MENU_STYLES = `
 
 .sb-shell .menu__item-description {
   overflow: hidden;
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: var(--shell-text-xs);
   line-height: var(--shell-leading-base);
   text-overflow: ellipsis;
@@ -233,12 +275,17 @@ const MENU_STYLES = `
 
 .sb-shell .menu__item-indicator {
   flex: none;
-  color: var(--shell-accent);
+  color: var(--maximal-color-text-brand);
   font-size: var(--shell-text-xs);
 }
 
 .sb-shell .menu__item[data-selected] {
-  background: var(--shell-accent-muted);
+  background: var(--maximal-color-bg-selected);
+  color: var(--maximal-color-text-onselected);
+}
+
+.sb-shell .menu__item[data-selected] .menu__item-indicator {
+  color: var(--maximal-color-text-onselected);
 }
 `;
 

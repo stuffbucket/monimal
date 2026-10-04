@@ -111,10 +111,10 @@ const API_KEYS_STYLES = `
   align-items: center;
   border-radius: var(--shell-radius);
   border: 1px solid var(--shell-input-border);
-  background: var(--shell-input-background);
+  background: var(--maximal-color-bg-default);
   font-family: var(--shell-font-mono);
   font-size: var(--shell-text-xs);
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -134,7 +134,7 @@ const API_KEYS_STYLES = `
   align-items: center;
   gap: var(--shell-space-2);
   padding: var(--shell-space-2);
-  border: 1px solid var(--shell-border);
+  border: 1px solid var(--maximal-color-border-default);
   border-radius: var(--shell-radius);
 }
 
@@ -142,7 +142,7 @@ const API_KEYS_STYLES = `
   flex: 1;
   min-width: 0;
   font-size: var(--shell-text-sm);
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

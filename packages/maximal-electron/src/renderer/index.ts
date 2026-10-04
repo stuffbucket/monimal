@@ -1,4 +1,3 @@
-export { Canvas, type CanvasViewMode } from './components/Canvas.js';
 export {
   NavRail,
   type NavRailEntry,
@@ -107,19 +106,19 @@ export {
   SpatialCanvasViewport,
   type SpatialCanvasCursorState,
   type SpatialCanvasLine,
-} from './components/SpatialCanvas.js';
+} from './components/spatialcanvas/SpatialCanvas.js';
 export {
   SpatialCanvasCommentComposer,
   SpatialCanvasCommentThreadCard,
   SpatialCanvasCommentThread,
   SpatialCanvasPanelHeader,
   type SpatialCanvasCommentEntry,
-} from './components/SpatialCanvasDiscussion.js';
-export { SpatialCanvasSurface } from './components/SpatialCanvasSurface.js';
+} from './components/spatialcanvas/SpatialCanvasDiscussion.js';
+export { SpatialCanvasSurface } from './components/spatialcanvas/SpatialCanvasSurface.js';
 export {
   SpatialCanvasSearchResult,
   SpatialCanvasSearchResults,
-} from './components/SpatialCanvasSearch.js';
+} from './components/spatialcanvas/SpatialCanvasSearch.js';
 export {
   SpatialCanvasAvatar,
   SpatialCanvasControlGroup,
@@ -135,7 +134,7 @@ export {
   type SpatialCanvasHeaderActionKind,
   type SpatialCanvasPage,
   type SpatialCanvasToolKind,
-} from './components/SpatialCanvasChrome.js';
+} from './components/spatialcanvas/SpatialCanvasChrome.js';
 export {
   fill,
   SHELL_CONTENT,
@@ -174,6 +173,7 @@ export {
   Tag,
   TextInput,
   Textarea,
+  Tooltip,
   TooltipProvider,
   TypefaceControls,
   Toolbar,

@@ -14,9 +14,8 @@ MAY. Documentation MUST NOT include nonbinding background.
 2. Agents MUST read the closest `AGENTS.md` that contains those files.
 3. Agents MUST NOT open supporting documentation without a concrete,
    task-specific question.
-4. For changes under `./packages/**`, agents MUST consult the package's
-   provenance row and only the applicable Rules or Deviations in
-   [SOURCES.md](SOURCES.md).
+4. For changes under `./packages/**` or `./apps/**`, agents MUST consult
+   only the applicable Rules or Deviations in [SOURCES.md](SOURCES.md).
 5. Orientation MUST stop when the behavior owner and applicable constraints are
    known.
 

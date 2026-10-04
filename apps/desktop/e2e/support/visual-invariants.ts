@@ -111,10 +111,10 @@ async function resolvedColors(locator: Locator): Promise<{ color: Rgba; backgrou
  * The "not near-invisible" floor used by `assertContrastAtLeast` below.
  *
  * 2.0:1 is chosen deliberately, not the WCAG AA figure (4.5:1) or AA-large
- * (3:1): `.design-context.md` principle 3 is "colour is the user's, contrast
+ * (3:1): `packages/maximal-client/docs/design-context.md` principle 3 is "colour is the user's, contrast
  * is ours — warn at sub-AA, never block," and `theme.ts`'s own shipped
- * palette INTENTIONALLY includes a sub-AA pair (`--shell-text-subtle` on
- * `--shell-background`, documented there at 3.28:1) — a 4.5:1 gate would fail
+ * palette INTENTIONALLY includes a sub-AA pair (`--maximal-color-text-tertiary` on
+ * `--maximal-color-bg-default`, documented there at 3.28:1) — a 4.5:1 gate would fail
  * that legitimate, deliberate choice. The historical defect this guards
  * against measured roughly 1.1:1 (near-black text on a near-black window —
  * effectively invisible). 2.0:1 sits strictly between the lowest ratio this
@@ -144,7 +144,7 @@ export async function assertContrastAtLeast(locator: Locator, label: string, min
  * Focuses `locator` and asserts the computed outline actually resolves to
  * something rendered — `outline-style` not `none`, and `outline-width` a
  * positive number of pixels. This is exactly the invariant the original bug
- * violated: `outline: 2px solid var(--shell-focus, var(--shell-accent))`
+ * violated: `outline: 2px solid var(--maximal-color-border-selected, var(--maximal-color-border-brand))`
  * with neither custom property defined computes to `outline: none` at
  * computed-value time (CSS Custom Properties §3.2 — an invalid `var()` with
  * no usable fallback invalidates the whole declaration), so `outline-style`

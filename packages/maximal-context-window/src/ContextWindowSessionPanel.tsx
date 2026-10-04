@@ -4,7 +4,7 @@ import {
   DataVizTooltip,
   useDataVizTooltip,
 } from "@maximal/maximal-data-visualization"
-import { FormField, Select } from "@maximal/maximal-electron/renderer"
+import { FormField, Select, Tooltip } from "@maximal/maximal-electron/renderer"
 import { useState } from "react"
 
 import {
@@ -312,18 +312,21 @@ function TurnPicker({
       aria-label="Select a turn to inspect"
     >
       {turns.map((turn, index) => (
-        <button
+        <Tooltip
           key={turn.identity.requestId}
-          type="button"
-          className="mcw-turn-picker-button"
-          aria-pressed={index === selectedIndex}
-          title={formatTimestamp(turn.timing.acceptedAt)}
-          onClick={() => {
-            onSelect(index)
-          }}
+          content={formatTimestamp(turn.timing.acceptedAt)}
         >
-          Turn {index + 1}
-        </button>
+          <button
+            type="button"
+            className="mcw-turn-picker-button"
+            aria-pressed={index === selectedIndex}
+            onClick={() => {
+              onSelect(index)
+            }}
+          >
+            Turn {index + 1}
+          </button>
+        </Tooltip>
       ))}
     </div>
   )

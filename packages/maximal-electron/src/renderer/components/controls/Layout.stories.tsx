@@ -18,10 +18,10 @@ import {
 
 /** The host's half of the status contract. */
 const HOST_CSS = `
-  [data-status='running'] { --shell-status: var(--accent); --shell-status-muted: var(--accent-soft); }
-  [data-status='blocked'] { --shell-status: var(--warning); --shell-status-muted: var(--warning-soft); }
-  [data-status='done'] { --shell-status: var(--success); --shell-status-muted: var(--success-soft); }
-  [data-status='failed'] { --shell-status: var(--danger); --shell-status-muted: var(--danger-soft); }
+  [data-status='running'] { --shell-status: var(--maximal-color-text-brand); --shell-status-muted: var(--maximal-color-bg-selected); }
+  [data-status='blocked'] { --shell-status: var(--maximal-color-text-warning); --shell-status-muted: var(--maximal-color-bg-warning-secondary); }
+  [data-status='done'] { --shell-status: var(--maximal-color-text-success); --shell-status-muted: var(--maximal-color-bg-success-secondary); }
+  [data-status='failed'] { --shell-status: var(--maximal-color-text-danger); --shell-status-muted: var(--maximal-color-bg-danger-secondary); }
 `;
 
 function HostStyles() {
@@ -134,8 +134,8 @@ export const HostMapping: StoryObj = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const danger = resolveToken(canvasElement, '--danger');
-    const success = resolveToken(canvasElement, '--success');
+    const danger = resolveToken(canvasElement, '--maximal-color-text-danger');
+    const success = resolveToken(canvasElement, '--maximal-color-text-success');
 
     await expect(danger).not.toBe('');
     await expect(danger).not.toBe(success);
@@ -161,7 +161,7 @@ export const Empty: StoryObj = {
         width: 420,
         height: 160,
         display: 'grid',
-        border: '1px solid var(--border-subtle)',
+        border: '1px solid var(--maximal-color-border-default)',
       }}
     >
       <EmptyState icon={FolderOpen} message="Nothing here yet." />
@@ -174,7 +174,7 @@ export const ToolbarStory: StoryObj = {
   render: function ToolbarRender() {
     const [mode, setMode] = useState<ViewMode>('grid');
     return (
-      <div style={{ width: 520, border: '1px solid var(--border-subtle)' }}>
+      <div style={{ width: 520, border: '1px solid var(--maximal-color-border-default)' }}>
         {/* h2 rather than h1: a page has one, and this is not the page. */}
         <Toolbar title="Library" mode={mode} onModeChange={setMode} as="h2" />
       </div>
@@ -198,7 +198,7 @@ export const Inspector: StoryObj = {
         width: 320,
         height: 220,
         display: 'flex',
-        border: '1px solid var(--border-subtle)',
+        border: '1px solid var(--maximal-color-border-default)',
       }}
     >
       <InspectorPanel title="Properties">

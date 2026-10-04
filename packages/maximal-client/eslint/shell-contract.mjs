@@ -30,6 +30,8 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
+import { COLOR_NAMESPACE, isColorToken } from '@maximal/maximal-electron/verify/shell-variables';
+
 const require = createRequire(import.meta.url);
 
 /** The prefix the package owns. */
@@ -92,6 +94,8 @@ const shellNamespace = {
     docs: { description: 'Use only the `--shell-*` names the installed package publishes.' },
     schema: [],
     messages: {
+      grammar:
+        '`{{name}}` is not a colour token. Colour names follow `--maximal-color-{type}-{element}-{role}-{prominence}-{interaction}`, omit a slot left at `default`, and end in `default` when nothing follows the type and element.',
       unknown:
         '`{{name}}` is not in the contract `@maximal/maximal-electron` publishes, so it resolves to nothing — a hardcoded fallback that ignores the theme, or an invalid declaration if there is no fallback. Use a published name, or `{{suggestion}}` if this colour is this application\'s own.',
     },
@@ -110,9 +114,22 @@ const shellNamespace = {
         for (const pattern of [READ, DECLARATION]) {
           for (const match of bare.matchAll(pattern)) {
             const name = match[1] ?? '';
+            const offset = match[0].indexOf(name);
+            if (name.startsWith(COLOR_NAMESPACE) && !isColorToken(name)) {
+              context.report({
+                loc: {
+                  start: context.sourceCode.getLocFromIndex(origin + match.index + offset),
+                  end: context.sourceCode.getLocFromIndex(
+                    origin + match.index + offset + name.length,
+                  ),
+                },
+                messageId: 'grammar',
+                data: { name },
+              });
+              continue;
+            }
             if (!name.startsWith(SHELL_NAMESPACE) || published.has(name)) continue;
 
-            const offset = match[0].indexOf(name);
             context.report({
               loc: {
                 start: context.sourceCode.getLocFromIndex(origin + match.index + offset),

@@ -5,7 +5,7 @@ import {
   useState,
 } from 'react';
 
-import { Button, Dialog, Menu } from '@maximal/maximal-electron/renderer';
+import { Button, Dialog, Menu, Tooltip } from '@maximal/maximal-electron/renderer';
 import { TERMINAL_ICON_URLS } from '@maximal/maximal-assets/terminal-icons';
 
 import type {
@@ -878,19 +878,20 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
               {answer && (
                 <article className="mh-message mh-message--assistant" data-role="assistant">
                   <span className="mh-message__role">Maximal</span>
-                  <button
-                    type="button"
-                    className="mh-answer-copy"
-                    onClick={() => {
-                      void navigator.clipboard.writeText(answer).catch(() => {
-                        setError('The response could not be copied.');
-                      });
-                    }}
-                    aria-label="Copy response"
-                    title="Copy response"
-                  >
-                    <span aria-hidden="true" />
-                  </button>
+                  <Tooltip content="Copy response">
+                    <button
+                      type="button"
+                      className="mh-answer-copy"
+                      onClick={() => {
+                        void navigator.clipboard.writeText(answer).catch(() => {
+                          setError('The response could not be copied.');
+                        });
+                      }}
+                      aria-label="Copy response"
+                    >
+                      <span aria-hidden="true" />
+                    </button>
+                  </Tooltip>
                   <ResponseContent text={answer} />
                 </article>
               )}
@@ -1179,21 +1180,21 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
             {attachments.length > 0 && (
               <div className="mh-attachments" data-testid="overlay-attachments">
                 {attachments.map((attachment, index) => (
-                  <button
-                    type="button"
-                    className="mh-attachment"
-                    key={`${attachment.name}-${String(index)}`}
-                    onClick={() => {
-                      setAttachments((current) =>
-                        current.filter((_, currentIndex) => currentIndex !== index));
-                    }}
-                    aria-label={`Remove ${attachment.name}`}
-                    title={`Remove ${attachment.name}`}
-                  >
-                    <span aria-hidden="true">{attachment.kind === 'image' ? '▧' : '▤'}</span>
-                    <span>{attachment.name}</span>
-                    <span aria-hidden="true">×</span>
-                  </button>
+                  <Tooltip key={`${attachment.name}-${String(index)}`} content={`Remove ${attachment.name}`}>
+                    <button
+                      type="button"
+                      className="mh-attachment"
+                      onClick={() => {
+                        setAttachments((current) =>
+                          current.filter((_, currentIndex) => currentIndex !== index));
+                      }}
+                      aria-label={`Remove ${attachment.name}`}
+                    >
+                      <span aria-hidden="true">{attachment.kind === 'image' ? '▧' : '▤'}</span>
+                      <span>{attachment.name}</span>
+                      <span aria-hidden="true">×</span>
+                    </button>
+                  </Tooltip>
                 ))}
               </div>
             )}
@@ -1262,60 +1263,63 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
           />
           </div>
           <div className="mh-composer__actions">
-            <button
-              type="button"
-              className="mh-composer__button"
-              aria-label="Attach files"
-              title="Attach files"
-              onClick={() => {
-                fileInput.current?.click();
-              }}
-              data-testid="overlay-attach"
-            >
-              <span aria-hidden="true">+</span>
-            </button>
-            <button
-              type="button"
-              className="mh-composer__button"
-              aria-label="Open conversation in terminal"
-              title="Open conversation in terminal"
-              disabled={activeChatId === undefined || !hasAssistantResponse}
-              onClick={() => {
-                setTerminalConfirmation(true);
-                setOutputExpanded(true);
-              }}
-              data-testid="overlay-open-terminal"
-            >
-              <svg
-                className="mh-terminal-icon"
-                viewBox="0 0 20 20"
-                fill="none"
-                aria-hidden="true"
+            <Tooltip content="Attach files">
+              <button
+                type="button"
+                className="mh-composer__button"
+                aria-label="Attach files"
+                onClick={() => {
+                  fileInput.current?.click();
+                }}
+                data-testid="overlay-attach"
               >
-                <rect x="2.5" y="3.5" width="15" height="13" rx="2" />
-                <path d="m6 7 2 2-2 2M10.5 12h3.5" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              className="mh-composer__button mh-composer__button-send"
-              aria-label={busy ? 'Stop response' : 'Send message'}
-              title={busy ? 'Stop response' : 'Send message'}
-              disabled={!busy && (!ready || (prompt.trim().length === 0 && attachments.length === 0))}
-              onClick={() => {
-                if (busy) {
-                  void transport.abort();
-                  setBusy(false);
-                } else {
-                  submit();
-                }
-              }}
-              data-testid={busy ? 'overlay-stop' : 'overlay-send'}
-            >
-              <span aria-hidden="true" className={busy ? 'mh-stop-icon' : 'mh-send-icon'}>
-                {busy ? '■' : '↑'}
-              </span>
-            </button>
+                <span aria-hidden="true">+</span>
+              </button>
+            </Tooltip>
+            <Tooltip content="Open conversation in terminal">
+              <button
+                type="button"
+                className="mh-composer__button"
+                aria-label="Open conversation in terminal"
+                disabled={activeChatId === undefined || !hasAssistantResponse}
+                onClick={() => {
+                  setTerminalConfirmation(true);
+                  setOutputExpanded(true);
+                }}
+                data-testid="overlay-open-terminal"
+              >
+                <svg
+                  className="mh-terminal-icon"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <rect x="2.5" y="3.5" width="15" height="13" rx="2" />
+                  <path d="m6 7 2 2-2 2M10.5 12h3.5" />
+                </svg>
+              </button>
+            </Tooltip>
+            <Tooltip content={busy ? 'Stop response' : 'Send message'}>
+              <button
+                type="button"
+                className="mh-composer__button mh-composer__button-send"
+                aria-label={busy ? 'Stop response' : 'Send message'}
+                disabled={!busy && (!ready || (prompt.trim().length === 0 && attachments.length === 0))}
+                onClick={() => {
+                  if (busy) {
+                    void transport.abort();
+                    setBusy(false);
+                  } else {
+                    submit();
+                  }
+                }}
+                data-testid={busy ? 'overlay-stop' : 'overlay-send'}
+              >
+                <span aria-hidden="true" className={busy ? 'mh-stop-icon' : 'mh-send-icon'}>
+                  {busy ? '■' : '↑'}
+                </span>
+              </button>
+            </Tooltip>
           </div>
         </div>
 

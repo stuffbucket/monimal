@@ -46,6 +46,9 @@ importers:
       '@maximal/maximal-client':
         specifier: workspace:*
         version: link:../../packages/maximal-client
+      '@maximal/maximal-configurators':
+        specifier: workspace:*
+        version: link:../../packages/maximal-configurators
       '@maximal/maximal-core':
         specifier: workspace:*
         version: link:../../packages/maximal-core
@@ -61,6 +64,12 @@ importers:
       '@maximal/maximal-logging':
         specifier: workspace:*
         version: link:../../packages/maximal-logging
+      '@maximal/maximal-model-contract':
+        specifier: workspace:*
+        version: link:../../packages/maximal-model-contract
+      '@maximal/maximal-models':
+        specifier: workspace:*
+        version: link:../../packages/maximal-models
       '@maximal/maximal-observability':
         specifier: workspace:*
         version: link:../../packages/maximal-observability
@@ -134,6 +143,9 @@ importers:
       '@stryker-mutator/vitest-runner':
         specifier: ^10.0.0
         version: 10.0.0(@stryker-mutator/core@10.0.0(@types/node@26.4.0))(vitest@5.0.1(@opentelemetry/api@1.9.0)(@types/node@26.4.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(yaml@2.9.0)))
+      '@types/bun':
+        specifier: ^1.4.0
+        version: 1.4.0
       '@types/node':
         specifier: ^26.4.0
         version: 26.4.0
@@ -268,46 +280,6 @@ importers:
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(@typescript/typescript6@6.0.2)(jiti@2.7.0)(postcss@8.5.26)(supports-color@8.1.1)(yaml@2.9.0)
-      typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-
-  packages/maximal:
-    dependencies:
-      '@maximal/maximal-configurators':
-        specifier: workspace:*
-        version: link:../maximal-configurators
-      '@maximal/maximal-core':
-        specifier: workspace:*
-        version: link:../maximal-core
-      '@maximal/maximal-model-contract':
-        specifier: workspace:*
-        version: link:../maximal-model-contract
-      '@maximal/maximal-models':
-        specifier: workspace:*
-        version: link:../maximal-models
-    devDependencies:
-      '@maximal/eslint-config':
-        specifier: workspace:*
-        version: link:../eslint-config
-      '@types/bun':
-        specifier: ^1.4.0
-        version: 1.4.0
-      '@typescript/native':
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
-      bumpp:
-        specifier: ^12.2.2
-        version: 12.2.2
-      eslint:
-        specifier: ^10.9.1
-        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
-      lint-staged:
-        specifier: ^17.3.0
-        version: 17.4.1
-      oxlint:
-        specifier: ^1.80.0
-        version: 1.80.0
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
         version: '@typescript/typescript6@6.0.2'
@@ -2300,7 +2272,7 @@ packages:
     libc: glibc
 
   '@cdxgen/cdxgen-plugins-bin-linux-arm64@2.5.1':
-    resolution: {integrity: sha1-+a8wy+mZOvtWRxWqKDK8eE+NJp4=}
+    resolution: {integrity: sha512-NjxXYNzqMAv0M5lBDNZZniYvJRgzJlHVsucR2R2DNK7lHzALBWeYdY6FhBSztX6SmK3Ictq8T7g+w1k0vMnxoA==}
     cpu: [arm64]
     os: [linux]
     libc: glibc
@@ -2357,7 +2329,7 @@ packages:
     os: [linux]
 
   '@cdxgen/safer-exec-linux-arm64@0.15.0':
-    resolution: {integrity: sha1-dj44jzACUewyKuFwOAFbM2Sx1qM=}
+    resolution: {integrity: sha512-NRfsNnFcl3qUbxWTNNJltrFAagJcYumTGhK9Ad9BxzFu6l2FS2wozr4pr9KRzSrEXFCiEqm2unAtDgyAGx/nbw==}
     cpu: [arm64]
     os: [linux]
 
