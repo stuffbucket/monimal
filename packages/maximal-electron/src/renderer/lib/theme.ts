@@ -12,9 +12,9 @@ import type { TerminalTheme } from '@maximal/maximal-terminal/renderer';
  * are not this application's to restyle.
  */
 export const TERMINAL_TOKENS = {
-  background: '--bg-canvas',
-  foreground: '--text-primary',
-  cursor: '--accent',
+  background: '--maximal-color-bg-secondary',
+  foreground: '--maximal-color-text-default',
+  cursor: '--maximal-color-icon-brand',
 } as const;
 
 /**

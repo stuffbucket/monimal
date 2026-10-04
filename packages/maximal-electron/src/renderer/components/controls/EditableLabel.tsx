@@ -39,7 +39,7 @@ const EDITABLE_LABEL_STYLES = `
 }
 
 .sb-shell .editable-label:focus-visible {
-  outline: var(--shell-border-width-thin) solid var(--shell-focus, var(--shell-accent));
+  outline: var(--shell-border-width-thin) solid var(--maximal-color-border-selected);
   outline-offset: 0;
 }
 
@@ -60,8 +60,8 @@ const EDITABLE_LABEL_STYLES = `
 }
 
 .sb-shell .editable-label__input::selection {
-  color: inherit;
-  background: var(--shell-accent-muted);
+  color: var(--maximal-color-text-onselected);
+  background: var(--maximal-color-bg-selected);
 }
 
 .sb-shell .editable-label__input--anchored {

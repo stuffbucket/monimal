@@ -132,6 +132,16 @@
       "dependsOn": ["^build"],
       "outputs": []
     },
+    "@maximal/maximal-assets#build": {
+      "dependsOn": ["^build"],
+      "outputs": [],
+      "description": "Typecheck the assets package; it ships sources and emits no build output."
+    },
+    "@maximal/maximal-storybook#build": {
+      "dependsOn": ["^build"],
+      "outputs": [],
+      "description": "Typecheck the Storybook integration; storybook:build owns storybook-static."
+    },
     "@maximal/design-tokens#build": {
       "outputs": ["dist/**"],
       "inputs": [
@@ -146,10 +156,10 @@
       "description": "Enforce the workspace-wide design token and icon metric ratchet."
     },
     "maximal-desktop#build": {
-      "dependsOn": ["^build", "@maximal/maximal#build"],
+      "dependsOn": ["^build"],
       "cache": false,
       "env": ["MAXIMAL_CORE_OUT", "MAXIMAL_CORE_REF", "MAXIMAL_CORE_TARGET", "MAXIMAL_GIT_SHA"],
-      "description": "Build the Maximal composition and UI dependencies before compiling the desktop sidecar."
+      "description": "Build the sidecar composition and UI dependencies before compiling the desktop sidecar."
     },
     "typecheck": {
       "dependsOn": ["^build"],
@@ -259,6 +269,13 @@
       "persistent": true,
       "passThroughEnv": ["MAXIMAL_*", "XDG_CONFIG_HOME"],
       "description": "Build workspace dependencies, then run a package's interactive development process."
+    },
+    "dev:server": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": ["MAXIMAL_*", "XDG_CONFIG_HOME"],
+      "description": "Build workspace dependencies, then run the desktop sidecar from source in watch mode."
     },
     "dev:context": {
       "dependsOn": ["^build"],

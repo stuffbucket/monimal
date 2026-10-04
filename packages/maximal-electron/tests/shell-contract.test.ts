@@ -5,8 +5,8 @@ import { describe, expect, it } from 'vitest';
 /**
  * The shim that lets the local consumer fixture render published rules.
  *
- * `shell-contract.css` declares each published name against the short name
- * `tokens.css` authors, so a component carrying its own rules renders here as
+ * `shell-contract.css` declares each published component name against the
+ * token `tokens.css` authors, so a component carrying its own rules renders here as
  * it does for a consumer. A name missing from it resolves to nothing, which is
  * not a wrong colour but an invalid declaration — no border rather than a grey
  * one.
@@ -27,7 +27,7 @@ const consumer = readFileSync(
   'utf8',
 );
 
-/** `--shell-bg-panel: var(--bg-panel);` */
+/** `--shell-tab-active: var(--tab-active);` */
 const ALIAS = /^\s*(--shell-[a-z0-9-]+)\s*:\s*var\(\s*(--[a-z0-9-]+)\s*\)\s*;/gm;
 
 const read = (css: string): [string, string][] =>
@@ -39,7 +39,7 @@ describe('the contract shim', () => {
   it('aliases something at all', () => {
     // The floor. A syntax change that stopped matching would report a shim in
     // step with the worked example by comparing two empty lists.
-    expect(aliases.length).toBeGreaterThan(20);
+    expect(aliases.length).toBeGreaterThan(4);
   });
 
   it('carries exactly the rows the worked consumer defines', () => {

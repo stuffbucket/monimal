@@ -62,7 +62,7 @@ describe('the renderer entry point', () => {
     /*
      * The general form of the assertion above. That one names two symbols, so
      * it catches the mistake that was made and not the next one: any module
-     * the entry point reaches can write `--bg-canvas` into a string and hand a
+     * the entry point reaches can write `--maximal-color-bg-secondary` into a string and hand a
      * consumer a property their adapter never defines.
      *
      * The stylesheet half of this is `tests/package-styles.test.ts`, which

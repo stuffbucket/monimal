@@ -72,7 +72,7 @@ describe('WorkbarSection', () => {
     })
     await settleQueries()
     expect([...container.querySelectorAll<HTMLElement>('.workbar__item')]
-      .map((item) => item.title)).toEqual([
+      .map((item) => item.getAttribute('aria-label'))).toEqual([
         'Projects',
         'Home',
         'Overview',

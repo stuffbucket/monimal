@@ -1,5 +1,6 @@
 /*
- * The host half of the `--shell-*` contract, as a consumer writes it.
+ * The host half of the `--shell-*` contract, as a consumer writes it. The
+ * `--maximal-color-*` palette is the other half and comes from `tokens.css`.
  *
  * `shell-package-rules.css` ships no palette, so under the package mode something has
  * to define the contract or every surface draws nothing. This file is that
@@ -12,8 +13,7 @@
  * in both modes. Transcribing hex here would reproduce, inside the tool built
  * to find drift, the drift issue #93 measured in `stuffbucket/maximal`.
  *
- * **Set what a host sets once.** The eleven `required` names have no value
- * anywhere else. A `fallback` name is set only where this design system
+ * **Set what a host sets once.** A `fallback` name is set only where this design system
  * differs from the value the shipped rule already carries, which is what
  * `docs/shell-variables.md` says to do; the ones left out are listed at the
  * bottom with the reason.
@@ -30,60 +30,34 @@
  */
 
 .sb-shell {
-  /* ---- required: eleven, with no value anywhere else ---- */
-  --shell-accent: var(--accent);
-  --shell-accent-muted: var(--accent-soft);
-  --shell-active: var(--bg-active);
-  --shell-background: var(--bg-app);
-  --shell-border: var(--border-subtle);
-  --shell-canvas: var(--bg-canvas);
-  --shell-spatial-canvas-background: var(--bg-canvas);
-  --shell-hover: var(--bg-hover);
-  --shell-raised: var(--bg-raised);
-  --shell-text: var(--text-primary);
-  --shell-text-muted: var(--text-secondary);
-  --shell-text-subtle: var(--text-muted);
+  /*
+   * Colour needs no row. The shipped rules read `--maximal-color-*` directly,
+   * and `tokens.css` defines that palette; a host defines the same names.
+   */
+
+  /* The spatial canvas sits on the canvas, as terminals do. */
+  --shell-spatial-canvas-background: var(--maximal-color-bg-secondary);
 
   /* ---- fallback: set where this design system differs from the default ---- */
 
-  /* Defaults to `--shell-text`, which is a light label on a light accent. */
-  --shell-accent-contrast: var(--accent-contrast);
-  /* Defaults to the accent, so every hovered outline turned blue. */
-  --shell-border-hover: var(--border-input-hover);
-  --shell-border-strong: var(--border-strong);
-  /* Defaults to `--shell-hover`: a destructive control drawn as a hovered one. */
-  --shell-danger: var(--danger-fill);
-  --shell-danger-contrast: var(--text-on-solid);
-  /*
-   * The package has one danger name where this design system has two, and
-   * every rule that reads `--shell-danger` in the shipped stylesheet sets a
-   * background or a border with it. So it takes the solid fill, and the one
-   * place danger is a foreground — the message under an invalid field — takes
-   * the text colour rather than the fallback chain, which would have painted
-   * a 5.9:1 surface colour on the panel behind it.
-   */
-  --shell-invalid: var(--text-invalid);
   /* Defaults to `none`. One value covers tooltip, menu and dialog. */
   --shell-elevation: var(--elevation-popover);
   --shell-font:
     var(--weight-base) var(--text-base) / var(--leading-base) var(--font-body);
   --shell-font-mono: var(--font-mono);
-  --shell-input-background: var(--bg-input);
   /*
    * Storybook is a page, not a window. The default is `fixed`, which pins the
    * shell to the viewport and is right for an application that owns it; a
    * story is content inside a container, which is the case this exists for.
    */
   --shell-position: static;
-  /* Defaults to `--shell-canvas`, which is the colour behind the strip. */
+  /* Defaults to the canvas, which is the colour behind the strip. */
   --shell-tab-active: var(--tab-active);
-  /* Defaults to the accent, so the attention marker matched the busy one. */
-  --shell-warning: var(--warning);
 
   /* ---- runtime: read by `readTerminalTheme`, in no rule ---- */
-  --shell-terminal-background: var(--bg-canvas);
-  --shell-terminal-cursor: var(--accent);
-  --shell-terminal-foreground: var(--text-primary);
+  --shell-terminal-background: var(--maximal-color-bg-secondary);
+  --shell-terminal-cursor: var(--maximal-color-icon-brand);
+  --shell-terminal-foreground: var(--maximal-color-text-default);
 }
 
 /*
@@ -93,7 +67,7 @@
  *
  * And every name whose shipped value already equals this design system's
  * token, where setting it would add a line that says nothing:
- * `--shell-control-height`, `--shell-disabled-opacity`, `--shell-focus`,
+ * `--shell-control-height`, `--shell-disabled-opacity`,
  * `--shell-input-border`,
  * `--shell-nav-heading-height`, `--shell-radius`, `--shell-radius-dialog`,
  * `--shell-radius-large`, `--shell-radius-small`, `--shell-scrim`,

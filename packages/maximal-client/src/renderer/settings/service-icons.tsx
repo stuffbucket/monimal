@@ -1,4 +1,5 @@
 import { useState, type ReactElement } from 'react'
+import { Tooltip } from '@maximal/maximal-electron/renderer'
 
 export interface AccountLike {
   key?: string
@@ -305,9 +306,9 @@ export function AccountAvatar({
   const showImage = Boolean(avatarUrl) && !imgFailed
 
   return (
+    <Tooltip content={title ?? `Avatar for ${account.login || account.provider || 'account'}`}>
     <span
       className={`account-avatar account-avatar--${size === 30 ? 'small' : 'large'}${active ? ' account-avatar--active' : ''}`}
-      title={title ?? `Avatar for ${account.login || account.provider || 'account'}`}
       data-testid={testId ?? 'account-avatar'}
       data-active={active ? 'true' : undefined}
     >
@@ -326,5 +327,6 @@ export function AccountAvatar({
         <ServiceIcon account={account} size={Math.round(size * 0.8)} />
       )}
     </span>
+    </Tooltip>
   )
 }

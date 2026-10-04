@@ -48,6 +48,48 @@
 export const SHELL_NAMESPACE = '--shell-';
 
 /**
+ * The prefix of the colour tokens, which the host also defines.
+ *
+ * A colour name is
+ * `--maximal-color-{type}-{element}-{role}-{prominence}-{interaction}`, the
+ * Figma plugin grammar with an element slot. `type` is always written.
+ * `element` is omitted for a colour that applies everywhere. `role`,
+ * `prominence`, and `interaction` are `default` when omitted, and a name
+ * whose three are all `default` ends in the single word `default`, so each
+ * colour has exactly one name: `bg-default`, `bg-menu-default`,
+ * `bg-menu-hover`, `bg-brand`. Roles that this package does not read yet stay
+ * in the pattern, so a host may define the full set.
+ */
+export const COLOR_NAMESPACE = '--maximal-color-';
+
+/** The `type` slot. */
+export const COLOR_TYPES = ['bg', 'text', 'icon', 'border'];
+
+/** The `element` slot: a surface whose colours differ from the global ones. */
+export const COLOR_ELEMENTS = ['toolbar', 'menu', 'tooltip'];
+
+const COLOR_ROLES = 'brand|selected|disabled|component|slot|assistive|danger|measure|warning|success|info|inverse';
+
+const COLOR_TOKEN = new RegExp(
+  `^--maximal-color-(?:${COLOR_TYPES.join('|')})` +
+    `(?:-(?:${COLOR_ELEMENTS.join('|')}))?` +
+    `(?:-default|` +
+    `(?=-)(?:-(?:${COLOR_ROLES}|on(?:${COLOR_ROLES}|lightcanvas|darkcanvas)))?` +
+    `(?:-(?:secondary|tertiary|strong))?` +
+    `(?:-(?:hover|pressed))?)$`,
+);
+
+/** Whether a name is a colour token the grammar allows. */
+export function isColorToken(name) {
+  return COLOR_TOKEN.test(name);
+}
+
+/** Whether a name is in a namespace the host defines. */
+export function isPublishedName(name) {
+  return name.startsWith(SHELL_NAMESPACE) || name.startsWith(COLOR_NAMESPACE);
+}
+
+/**
  * The stylesheets this package ships, source path to published path.
  *
  * `copy-renderer-css.mjs` performs the copy from this list and
@@ -76,12 +118,12 @@ export function packageStylesheets() {
  * Case-sensitive, because a custom property is. `var(--Shell-Text)` names a
  * different property, and matching it here would publish a name no rule reads.
  */
-const READ = /var\(\s*(--shell-[a-z0-9-]+)\s*([,)])/g;
+const READ = /var\(\s*(--(?:shell|maximal-color)-[a-z0-9-]+)\s*([,)])/g;
 
 const sorted = (names) => [...names].sort();
 
 /**
- * Every `--shell-*` a stylesheet reads, split by whether the read carries a
+ * Every `--shell-*` and `--maximal-color-*` a stylesheet reads, split by whether the read carries a
  * fallback. `var(--shell-x)` is the host's to define; `var(--shell-x, 8px)`
  * already has a value.
  */
@@ -157,7 +199,7 @@ export function shellVariableContract(input) {
  * @returns {string[]}
  */
 function declaredIn(css) {
-  return [...css.matchAll(/^\s*(--shell-[a-z0-9-]+)\s*:/gm)].map((match) => match[1]);
+  return [...css.matchAll(/^\s*(--(?:shell|maximal-color)-[a-z0-9-]+)\s*:/gm)].map((match) => match[1]);
 }
 
 /** The whole contract as one list of name and kind, in name order. */
@@ -216,6 +258,9 @@ export function shellVariableChecks(input) {
 
   for (const [name, kind] of derived) {
     checks.push({ name: `${name} is published as ${kind}`, ok: published.get(name) === kind });
+    if (name.startsWith(COLOR_NAMESPACE)) {
+      checks.push({ name: `${name} follows the colour grammar`, ok: isColorToken(name) });
+    }
   }
 
   for (const name of published.keys()) {

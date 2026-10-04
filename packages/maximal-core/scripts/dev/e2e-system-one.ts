@@ -195,7 +195,7 @@ writeFileSync(
 );
 
 const sidecar = await startSidecar({
-  entrypoint: resolve(import.meta.dirname, "../../../maximal/src/main.ts"),
+  entrypoint: resolve(import.meta.dirname, "../../../../apps/desktop/sidecar/main.ts"),
   environment: { TYPESAFE_API_KEY: API_KEY },
   home: directory,
 });

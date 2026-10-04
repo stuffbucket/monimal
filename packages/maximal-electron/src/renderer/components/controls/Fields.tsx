@@ -15,7 +15,7 @@ import {
 
 import { useComponentStyles } from '../../lib/component-styles.js';
 import { IconButton } from './Button.js';
-import { useShellPortalContainer } from './Overlays.js';
+import { Tooltip as ShellTooltip, useShellPortalContainer } from './Overlays.js';
 
 const FIELD_STYLES = `
 .sb-shell {
@@ -38,7 +38,7 @@ const FIELD_STYLES = `
   width: 100%;
   height: var(--shell-control-height, var(--shell-control-md));
   padding: 0 var(--shell-space-2);
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
   font: inherit;
   font-size: var(--shell-text-base);
   background: var(--shell-field-background);
@@ -47,20 +47,20 @@ const FIELD_STYLES = `
 }
 
 .sb-shell .input::placeholder {
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
 }
 
 .sb-shell .input[data-active='true'] {
-  border-color: var(--shell-accent);
+  border-color: var(--maximal-color-border-brand);
   box-shadow:
-    0 0 0 var(--shell-focus-ring-width) var(--shell-accent-muted),
-    0 0 var(--shell-space-2) var(--shell-accent);
+    0 0 0 var(--shell-focus-ring-width) var(--maximal-color-bg-selected),
+    0 0 var(--shell-space-2) var(--maximal-color-border-brand);
 }
 
 .sb-shell .input:focus {
-  border-color: var(--shell-focus, var(--shell-accent));
+  border-color: var(--maximal-color-border-selected, var(--maximal-color-border-brand));
   outline: none;
-  box-shadow: 0 0 0 var(--shell-focus-ring-width) var(--shell-focus, var(--shell-accent));
+  box-shadow: 0 0 0 var(--shell-focus-ring-width) var(--maximal-color-border-selected, var(--maximal-color-border-brand));
 }
 
 .sb-shell .input-shell {
@@ -80,11 +80,11 @@ const FIELD_STYLES = `
 }
 
 .sb-shell .input:hover:not(:disabled) {
-  border-color: var(--shell-border-hover, var(--shell-accent));
+  border-color: var(--maximal-color-border-strong-hover, var(--maximal-color-border-brand));
 }
 
 .sb-shell .input[aria-invalid='true'] {
-  border-color: var(--shell-invalid, var(--shell-danger, var(--shell-hover)));
+  border-color: var(--maximal-color-border-danger, var(--maximal-color-bg-hover));
 }
 
 .sb-shell .input--multiline {
@@ -112,14 +112,14 @@ const FIELD_STYLES = `
 }
 
 .sb-shell .form-field__label {
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: var(--shell-text-base);
 }
 
 .sb-shell .form-field__hint {
   margin: 0;
   min-width: 0;
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   font-size: var(--shell-text-sm);
   overflow-wrap: anywhere;
 }
@@ -127,7 +127,7 @@ const FIELD_STYLES = `
 .sb-shell .form-field__error {
   margin: 0;
   min-width: 0;
-  color: var(--shell-invalid, var(--shell-danger, var(--shell-hover)));
+  color: var(--maximal-color-text-danger, var(--maximal-color-text-danger, var(--maximal-color-bg-hover)));
   font-size: var(--shell-text-sm);
   overflow-wrap: anywhere;
 }
@@ -145,7 +145,7 @@ const FIELD_STYLES = `
   width: var(--shell-field-control-size);
   height: var(--shell-field-control-size);
   flex: none;
-  accent-color: var(--shell-accent);
+  accent-color: var(--maximal-color-bg-brand);
   cursor: inherit;
 }
 
@@ -167,14 +167,14 @@ const FIELD_STYLES = `
 }
 
 .sb-shell .radio__box[data-state='checked'] {
-  border-color: var(--shell-accent);
+  border-color: var(--maximal-color-border-brand);
 }
 
 .sb-shell .radio__dot {
   width: var(--shell-field-radio-dot-size);
   height: var(--shell-field-radio-dot-size);
   border-radius: var(--shell-radius-pill);
-  background: var(--shell-accent);
+  background: var(--maximal-color-bg-brand);
 }
 
 .sb-shell .slider {
@@ -199,14 +199,14 @@ const FIELD_STYLES = `
   height: var(--shell-space-1);
   overflow: visible;
   border-radius: var(--shell-radius-pill);
-  background: var(--shell-active);
+  background: var(--maximal-color-bg-pressed);
 }
 
 .sb-shell .slider__range {
   position: absolute;
   height: 100%;
   border-radius: inherit;
-  background: var(--shell-accent);
+  background: var(--maximal-color-bg-brand);
 }
 
 .sb-shell .slider__detents {
@@ -224,7 +224,7 @@ const FIELD_STYLES = `
   height: var(--shell-space-1);
   border: 1px solid var(--shell-field-background);
   border-radius: var(--shell-radius-pill);
-  background: var(--shell-text-muted);
+  background: var(--maximal-color-icon-secondary);
   transform: translate(
     calc(-1 * var(--shell-field-half)),
     calc(-1 * var(--shell-field-half))
@@ -243,7 +243,7 @@ const FIELD_STYLES = `
 
 .sb-shell .slider__thumb:focus {
   outline: none;
-  box-shadow: 0 0 0 var(--shell-focus-ring-width) var(--shell-focus, var(--shell-accent));
+  box-shadow: 0 0 0 var(--shell-focus-ring-width) var(--maximal-color-border-selected, var(--maximal-color-border-brand));
 }
 
 .sb-shell .slider__thumb:active {
@@ -261,7 +261,7 @@ const FIELD_STYLES = `
     0
     calc(var(--shell-control-sm) / 2);
   padding: 0;
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   font-size: var(--shell-text-sm);
   list-style: none;
 }
@@ -287,7 +287,7 @@ const FIELD_STYLES = `
   gap: var(--shell-space-3);
   width: fit-content;
   padding: 0;
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font: inherit;
   text-align: left;
   border: 0;
@@ -301,7 +301,7 @@ const FIELD_STYLES = `
 }
 
 .sb-shell .switch > span:not(.switch__track) {
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: var(--shell-text-base);
   font-weight: var(--shell-weight-md);
   line-height: var(--shell-leading-base);
@@ -313,17 +313,17 @@ const FIELD_STYLES = `
   width: var(--shell-control-lg);
   height: calc(var(--shell-control-sm) - var(--shell-space-1));
   flex: none;
-  border: 1px solid var(--shell-text-muted);
+  border: 1px solid var(--maximal-color-icon-secondary);
   border-radius: var(--shell-radius-pill);
-  background: var(--shell-active);
+  background: var(--maximal-color-bg-pressed);
   transition:
     background var(--shell-switch-duration) ease-out,
     border-color var(--shell-switch-duration) ease-out;
 }
 
 .sb-shell .switch__track[data-on='true'] {
-  border-color: var(--shell-accent);
-  background: var(--shell-accent);
+  border-color: var(--maximal-color-border-brand);
+  background: var(--maximal-color-bg-brand);
 }
 
 .sb-shell .switch__thumb {
@@ -333,17 +333,17 @@ const FIELD_STYLES = `
   width: calc(var(--shell-control-sm) - var(--shell-space-2));
   height: calc(var(--shell-control-sm) - var(--shell-space-2));
   box-sizing: border-box;
-  border: 1px solid var(--shell-border-strong);
+  border: 1px solid var(--maximal-color-border-strong);
   border-radius: var(--shell-field-half);
-  background: var(--shell-text);
+  background: var(--maximal-color-icon-secondary);
   transition:
     border-color var(--shell-switch-duration) ease-out,
     transform var(--shell-switch-duration) ease-out;
 }
 
 .sb-shell .switch__track[data-on='true'] .switch__thumb {
-  border-color: var(--shell-border-strong);
-  background: var(--shell-accent-contrast, var(--shell-background));
+  border-color: var(--maximal-color-border-strong);
+  background: var(--maximal-color-bg-default);
   transform: translateX(var(--shell-space-3));
 }
 `;
@@ -458,19 +458,20 @@ export function TextInput({
   const [revealed, setRevealed] = useState(false);
   const secret = type === 'password';
   const input = (
-    <input
-      className="input"
-      type={secret && revealed ? 'text' : type}
-      value={value}
-      placeholder={placeholder}
-      disabled={disabled}
-      title={title}
-      onChange={(event) => onChange(event.target.value)}
-      onBlur={onBlur}
-      data-active={active ? 'true' : undefined}
-      data-testid={testId}
-      {...field}
-    />
+    <ShellTooltip content={title}>
+      <input
+        className="input"
+        type={secret && revealed ? 'text' : type}
+        value={value}
+        placeholder={placeholder}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+        onBlur={onBlur}
+        data-active={active ? 'true' : undefined}
+        data-testid={testId}
+        {...field}
+      />
+    </ShellTooltip>
   );
 
   if (!secret) return input;

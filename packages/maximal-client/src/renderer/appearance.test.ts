@@ -13,6 +13,8 @@ import {
   terminalPaletteForTheme,
   themeGradient,
 } from './appearance'
+import { PALETTE_STYLE_ID, paletteCss, paletteTokens, resolvePaletteToken } from './color/palette'
+import { BRAND_CREAM_HEX } from './color/ramps'
 import { BUILT_IN_THEMES } from './themes/catalog'
 
 const TERMINAL_PALETTE = {
@@ -133,6 +135,19 @@ describe('appearance themes', () => {
     }
   })
 
+  it('keeps an optional accent icon colour and rejects a malformed one', () => {
+    const parsed = parseAppearanceTheme(JSON.stringify(DEFAULT_APPEARANCE))
+    expect(parsed.colors.light.accentIcon).toBe(BRAND_CREAM_HEX.toUpperCase())
+    expect(parsed.colors.dark.accentIcon).toBe(BRAND_CREAM_HEX.toUpperCase())
+    expect(BUILT_IN_THEMES.find((theme) => theme.id === 'maximal')?.colors.dark.accentIcon).toBe(BRAND_CREAM_HEX.toUpperCase())
+    expect(() =>
+      parseAppearanceTheme(JSON.stringify({
+        ...DEFAULT_APPEARANCE,
+        colors: { ...DEFAULT_APPEARANCE.colors, dark: { ...DEFAULT_APPEARANCE.colors.dark, accentIcon: 'cream' } },
+      })),
+    ).toThrow('Dark accent icon must be a six-digit hex')
+  })
+
   it('rejects unknown schemas, malformed palettes, and inaccessible accents', () => {
     expect(() => parseAppearanceTheme('{"schema":"unknown"}')).toThrow(
       'unsupported schema',
@@ -250,10 +265,11 @@ describe('appearance themes', () => {
     expect(readAppearance().theme.name).toBe('Celadon Studio')
     expect(document.documentElement.dataset.theme).toBe('light')
     expect(document.documentElement.dataset.appearancePreset).toBe('celadon-studio')
-    expect(document.documentElement.style.getPropertyValue('--shell-background'))
-      .toBe('#F8FCF7')
-    expect(document.documentElement.style.getPropertyValue('--shell-accent'))
-      .toBe('#376A58')
+    expect(document.getElementById(PALETTE_STYLE_ID)?.textContent).toBe(paletteCss(theme.colors))
+    const light = paletteTokens(theme.colors).light
+    expect(resolvePaletteToken(light, '--maximal-color-bg-default')).toBe('#f8fcf7')
+    expect(resolvePaletteToken(light, '--maximal-color-bg-brand')).toBe('#376a58')
+    expect(document.documentElement.style.getPropertyValue('--maximal-color-bg-default')).toBe('')
   })
 
   it('uses the operating-system scheme for system mode', () => {
@@ -271,7 +287,7 @@ describe('appearance themes', () => {
   it('uses the shipped dark palette when matchMedia is unavailable', () => {
     vi.stubGlobal('matchMedia', undefined)
 
-    expect(appearanceAccent(DEFAULT_APPEARANCE)).toBe('#62A9B7')
+    expect(appearanceAccent(DEFAULT_APPEARANCE)).toBe('#F65467')
     expect(() => applyAppearance(DEFAULT_APPEARANCE)).not.toThrow()
     expect(document.documentElement.dataset.theme).toBe('dark')
   })
@@ -285,7 +301,7 @@ describe('appearance themes', () => {
 
     expect(palette.mode).toBe('dark')
     expect(palette.dark).toMatchObject({
-      background: '#160D18',
+      background: theme.colors.dark.surface,
       foreground: '#FFF3FA',
       cursor: '#FF6FB5',
     })
@@ -318,6 +334,18 @@ describe('appearance themes', () => {
         '--shell-spatial-canvas-background',
       ),
     ).toBe('#123456')
+  })
+
+  it('leaves the spatial canvas on the canvas alias unless a theme overrides it', () => {
+    saveAppearance(DEFAULT_APPEARANCE)
+
+    const style = document.documentElement.style
+    expect(style.getPropertyValue('--shell-spatial-canvas-background')).toBe('')
+    const mode = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'
+    expect(resolvePaletteToken(
+      paletteTokens(DEFAULT_APPEARANCE.colors)[mode],
+      '--maximal-color-bg-secondary',
+    )).toBe(appearanceSpatialCanvasBackground(DEFAULT_APPEARANCE).toLowerCase())
   })
 
   it('resolves spatial canvas backgrounds from active theme palettes', () => {

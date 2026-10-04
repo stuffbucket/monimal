@@ -127,7 +127,6 @@
    */
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;
-  --focus-ring-color: var(--accent);
 
   /* ---- Disabled ---- */
   --opacity-disabled: 0.5;
@@ -142,116 +141,126 @@
   --elevation-popover: 0 8px 24px rgb(0 0 0 / 0.28);
   --elevation-dialog: 0 24px 64px rgb(0 0 0 / 0.5);
 
-  /* ---- Dark palette (default) ---- */
-  --bg-app: #16181d;
-  --bg-panel: #1b1e24;
-  --bg-canvas: #101216;
-  --bg-raised: #23272f;
-  --bg-hover: #272c35;
-  --bg-active: #2f3540;
   /*
-   * The selected tab's fill.
+   * ---- Dark palette (default) ----
    *
-   * Not `--bg-active`. That is a selected row inside a panel; a tab sits on the
+   * Colour names follow
+   * `--maximal-color-{type}-{element}-{role}-{prominence}-{interaction}`. Every value is
+   * a literal rather than an alias, because `check:contrast` reads values and
+   * does not resolve `var()`.
+   *
+   * `bg-default` is the window chrome, panels and fields; `bg-secondary` the canvas,
+   * terminals and the spatial canvas; `bg-tertiary` cards, dialogs and menus.
+   */
+  --maximal-color-bg-default: #16181d;
+  --maximal-color-bg-secondary: #101216;
+  --maximal-color-bg-tertiary: #23272f;
+  --maximal-color-bg-hover: #272c35;
+  --maximal-color-bg-pressed: #2f3540;
+  --maximal-color-bg-selected: rgb(110 168 254 / 0.16);
+  --maximal-color-bg-brand: #6ea8fe;
+  --maximal-color-bg-onbrand: #0d1117;
+  --maximal-color-text-onselected: var(--maximal-color-text-brand);
+  /*
+   * A solid danger surface is darker than danger text. Text has to read on a
+   * dark panel, and a white label on that light red is 2.81:1 against 4.5.
+   */
+  --maximal-color-bg-danger: #b83143;
+  --maximal-color-bg-warning: #e0a33e;
+  --maximal-color-bg-success: #5fd08a;
+  /* Tinted fills a chip's text still reads against. */
+  --maximal-color-bg-danger-secondary: rgb(244 113 116 / 0.16);
+  --maximal-color-bg-warning-secondary: rgb(224 163 62 / 0.16);
+  --maximal-color-bg-success-secondary: rgb(95 208 138 / 0.16);
+
+  --maximal-color-text-default: #e6e8ec;
+  --maximal-color-text-secondary: #a0a8b4;
+  --maximal-color-text-tertiary: #8f97a2;
+  --maximal-color-text-brand: #6ea8fe;
+  --maximal-color-text-onbrand: #0d1117;
+  --maximal-color-text-danger: #f47174;
+  /* White in both schemes, because a solid danger fill is dark in both. */
+  --maximal-color-text-ondanger: #ffffff;
+  --maximal-color-text-warning: #e0a33e;
+  --maximal-color-text-success: #5fd08a;
+
+  --maximal-color-icon-default: #e6e8ec;
+  --maximal-color-icon-secondary: #a0a8b4;
+  --maximal-color-icon-tertiary: #8f97a2;
+  --maximal-color-icon-brand: #6ea8fe;
+
+  --maximal-color-border-default: #262b33;
+  --maximal-color-border-strong: #363d48;
+  --maximal-color-border-strong-hover: #454e5c;
+  --maximal-color-border-brand: #6ea8fe;
+  --maximal-color-border-selected: var(--maximal-color-bg-brand);
+  --maximal-color-border-danger: #f47174;
+  --maximal-color-border-danger-strong: #f47174;
+  --maximal-color-border-warning: #e0a33e;
+  --maximal-color-border-success: #5fd08a;
+
+  /*
+   * The selected tab's fill, a short name for the published component token
+   * `--shell-tab-active` rather than a colour role.
+   *
+   * Not `bg-pressed`. That is a selected row inside a panel; a tab sits on the
    * title bar, which is a darker surface in one scheme and the lightest one in
-   * the other, so a row's step lands in the wrong place at both ends. It also
-   * has to clear `--bg-hover` by enough that a hovered tab beside the selected
-   * one is not mistaken for it.
-   *
-   * The direction is not the same in both schemes, and cannot be: the light
-   * title bar is already white, so the tab steps down rather than up.
+   * the other. It also has to clear `bg-hover` by enough that a hovered tab
+   * beside the selected one is not mistaken for it. The light title bar is
+   * already white, so there the tab steps down rather than up.
    */
   --tab-active: #373d49;
-  --border-subtle: #262b33;
-  --border-strong: #363d48;
-  --text-primary: #e6e8ec;
-  --text-secondary: #a0a8b4;
-  --text-muted: #8f97a2;
-  --accent: #6ea8fe;
-  --accent-contrast: #0d1117;
-  --accent-soft: rgb(110 168 254 / 0.16);
-  --danger: #f47174;
-  /*
-   * A solid danger surface, distinct from the colour danger *text* uses.
-   *
-   * One token could not do both. `--danger` has to be light enough to read as
-   * error text on a dark panel, and a white label on that same light red is
-   * 2.81 against a requirement of 4.5. The two roles pull opposite ways, so
-   * they are two tokens.
-   */
-  --danger-fill: #b83143;
-  --success: #5fd08a;
-  /* Blocking, but not an error. The overlay's approval prompt is the only
-     current user, and it is deliberately not the same red as a failure. */
-  --warning: #e0a33e;
-  /* Tinted fills for status chips, matching `--accent-soft`. A chip needs a
-     background the text still reads against, and the solid semantic colour is
-     too loud for a filled pill. */
-  --success-soft: rgb(95 208 138 / 0.16);
-  --warning-soft: rgb(224 163 62 / 0.16);
-  --danger-soft: rgb(244 113 116 / 0.16);
-
-  /*
-   * A field surface is its own token, not an alias.
-   *
-   * The two controls that existed before this disagreed: the overlay's
-   * textarea sat on `--bg-canvas`, the inspector's select on `--bg-raised`.
-   * Neither alias survives both schemes. An input should read as recessed in
-   * the dark palette and as paper in the light one, and those are different
-   * members of the ramp.
-   */
-  --bg-input: #101216;
-  --border-input-hover: #454e5c;
-
-  /*
-   * A field that failed validation. Equal to `--danger` today and named apart
-   * from it because they answer different questions: one is "this operation
-   * failed", the other is "fix this before you continue".
-   */
-  --text-invalid: #f47174;
-
-  /* A foreground on a solid semantic fill. White in both schemes, because a
-     filled accent or danger surface is dark in both. */
-  --text-on-solid: #ffffff;
 
   color-scheme: dark;
 }
 
 :root[data-theme='light'] {
-  --bg-app: #ffffff;
-  --bg-panel: #f7f8fa;
-  --bg-canvas: #eef0f4;
-  --bg-raised: #ffffff;
-  --bg-hover: #eceef2;
-  --bg-active: #e2e6ec;
-  --tab-active: #d5dae3;
-  --border-subtle: #e3e6eb;
-  --border-strong: #ccd2da;
-  --text-primary: #12141a;
-  --text-secondary: #545c68;
-  --text-muted: #656d78;
-  --accent: #2563eb;
-  --accent-contrast: #ffffff;
-  --accent-soft: rgb(37 99 235 / 0.1);
-  --danger: #d3373b;
-  --danger-fill: #c0272b;
-  --success: #17864a;
-  --warning: #a9691b;
-  --success-soft: rgb(23 134 74 / 0.12);
-  --warning-soft: rgb(169 105 27 / 0.12);
-  --danger-soft: rgb(211 55 59 / 0.12);
+  --maximal-color-bg-default: #ffffff;
+  --maximal-color-bg-secondary: #eef0f4;
+  --maximal-color-bg-tertiary: #ffffff;
+  --maximal-color-bg-hover: #eceef2;
+  --maximal-color-bg-pressed: #e2e6ec;
+  --maximal-color-bg-selected: rgb(37 99 235 / 0.1);
+  --maximal-color-bg-brand: #2563eb;
+  --maximal-color-bg-onbrand: #ffffff;
+  --maximal-color-text-onselected: var(--maximal-color-text-brand);
+  --maximal-color-bg-danger: #c0272b;
+  --maximal-color-bg-warning: #a9691b;
+  --maximal-color-bg-success: #17864a;
+  --maximal-color-bg-danger-secondary: rgb(211 55 59 / 0.12);
+  --maximal-color-bg-warning-secondary: rgb(169 105 27 / 0.12);
+  --maximal-color-bg-success-secondary: rgb(23 134 74 / 0.12);
 
-  --bg-input: #ffffff;
-  --border-input-hover: #aab3be;
+  --maximal-color-text-default: #12141a;
+  --maximal-color-text-secondary: #545c68;
+  --maximal-color-text-tertiary: #656d78;
+  --maximal-color-text-brand: #2563eb;
+  --maximal-color-text-onbrand: #ffffff;
+  --maximal-color-text-danger: #d3373b;
+  --maximal-color-text-ondanger: #ffffff;
+  --maximal-color-text-warning: #a9691b;
+  --maximal-color-text-success: #17864a;
+
+  --maximal-color-icon-default: #12141a;
+  --maximal-color-icon-secondary: #545c68;
+  --maximal-color-icon-tertiary: #656d78;
+  --maximal-color-icon-brand: #2563eb;
+
+  --maximal-color-border-default: #e3e6eb;
+  --maximal-color-border-strong: #ccd2da;
+  --maximal-color-border-strong-hover: #aab3be;
+  --maximal-color-border-brand: #2563eb;
+  --maximal-color-border-danger: #d3373b;
+  --maximal-color-border-danger-strong: #d3373b;
+  --maximal-color-border-warning: #a9691b;
+  --maximal-color-border-success: #17864a;
+
+  --tab-active: #d5dae3;
 
   /* A half-black shadow is a grey smudge on a white page. The dark palette's
      value reads as depth; this one has to be much softer to read as the same
      thing. Storybook's light story is where that became obvious. */
   --elevation-dialog: 0 24px 64px rgb(0 0 0 / 0.18);
-
-  --text-invalid: #d3373b;
-
-  --text-on-solid: #ffffff;
 
   color-scheme: light;
 }

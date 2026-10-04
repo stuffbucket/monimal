@@ -8,7 +8,7 @@ const NUMBER_INPUT_STYLES = `
   width: 100%;
   height: var(--shell-control-height, var(--shell-control-md));
   padding: 0 var(--shell-space-2);
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
   font: inherit;
   font-size: var(--shell-text-base);
   background: var(--shell-field-background);
@@ -17,9 +17,9 @@ const NUMBER_INPUT_STYLES = `
 }
 
 .sb-shell .number-input:focus {
-  border-color: var(--shell-focus, var(--shell-accent));
+  border-color: var(--maximal-color-border-selected, var(--maximal-color-border-brand));
   outline: none;
-  box-shadow: 0 0 0 var(--shell-focus-ring-width) var(--shell-focus, var(--shell-accent));
+  box-shadow: 0 0 0 var(--shell-focus-ring-width) var(--maximal-color-border-selected, var(--maximal-color-border-brand));
 }
 
 .sb-shell .number-input:disabled {

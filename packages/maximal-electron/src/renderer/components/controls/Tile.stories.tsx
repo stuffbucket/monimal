@@ -34,15 +34,15 @@ function Listbox({ children }: { children: ReactNode }) {
  * under the shipped stylesheet; `demo.css` carries the same note.
  */
 const HOST_CSS = `
-  [data-status='running'] { --shell-status: var(--accent); --shell-status-muted: var(--accent-soft); }
-  [data-status='blocked'] { --shell-status: var(--warning); --shell-status-muted: var(--warning-soft); }
-  [data-status='done'] { --shell-status: var(--success); --shell-status-muted: var(--success-soft); }
-  [data-status='failed'] { --shell-status: var(--danger); --shell-status-muted: var(--danger-soft); }
+  [data-status='running'] { --shell-status: var(--maximal-color-text-brand); --shell-status-muted: var(--maximal-color-bg-selected); }
+  [data-status='blocked'] { --shell-status: var(--maximal-color-text-warning); --shell-status-muted: var(--maximal-color-bg-warning-secondary); }
+  [data-status='done'] { --shell-status: var(--maximal-color-text-success); --shell-status-muted: var(--maximal-color-bg-success-secondary); }
+  [data-status='failed'] { --shell-status: var(--maximal-color-text-danger); --shell-status-muted: var(--maximal-color-bg-danger-secondary); }
 
   .story-card,
   .sb-shell .story-card {
-    border-color: var(--shell-status, var(--border-subtle));
-    background: var(--shell-status-muted, var(--bg-raised));
+    border-color: var(--shell-status, var(--maximal-color-border-default));
+    background: var(--shell-status-muted, var(--maximal-color-bg-tertiary));
   }
 `;
 
@@ -146,7 +146,7 @@ export const Modifier: Story = {
 
     // The mapped colour, resolved rather than asserted from the token name.
     const probe = document.createElement('span');
-    probe.style.color = 'var(--warning)';
+    probe.style.color = 'var(--maximal-color-text-warning)';
     canvasElement.append(probe);
     const warning = getComputedStyle(probe).color;
     probe.remove();

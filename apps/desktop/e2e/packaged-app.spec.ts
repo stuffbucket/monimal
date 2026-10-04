@@ -481,7 +481,7 @@ test('packaged harness opens focused, resolves its theme, and streams an answer'
     return {
       background: computed.backgroundColor,
       paddingTop: computed.paddingTop,
-      raised: computed.getPropertyValue('--shell-raised').trim(),
+      raised: computed.getPropertyValue('--maximal-color-bg-tertiary').trim(),
     }
   })
   expect(style.raised).not.toBe('')
@@ -1528,7 +1528,7 @@ test('chrome text is not near-invisible against its background', async () => {
 })
 
 test("a focused chrome control's outline actually resolves", async () => {
-  // `outline: 2px solid var(--shell-focus, var(--shell-accent))` is invalid at
+  // `outline: 2px solid var(--maximal-color-border-selected, var(--maximal-color-border-brand))` is invalid at
   // computed-value time when neither property is defined (CSS Custom Properties
   // §3.2), and an invalid declaration computes to `outline: none` — silently,
   // on every focusable shell control at once.

@@ -55,6 +55,11 @@ export interface PackageStylesheet {
 }
 
 export declare const SHELL_NAMESPACE: string;
+export declare const COLOR_NAMESPACE: string;
+export declare const COLOR_TYPES: string[];
+export declare const COLOR_ELEMENTS: string[];
+export declare function isColorToken(name: string): boolean;
+export declare function isPublishedName(name: string): boolean;
 export declare function packageStylesheets(): PackageStylesheet[];
 
 export declare function shellVariablesIn(css: string): {

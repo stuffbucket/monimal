@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
-import { renderPlainTextLicenses } from '../../../packages/maximal/scripts/render-license-bundle.mjs'
+import { renderPlainTextLicenses } from './render-license-bundle.mjs'
 
 const [buildPath, sidecarRoot, sidecarMetafilePath, cdxgenCli] = process.argv.slice(2)
 if (
@@ -125,7 +125,8 @@ function indexSidecarInputs(packageRoot, metafilePath) {
     let current = path.dirname(path.resolve(inputRoot, input))
     while (current.startsWith(`${boundary}${path.sep}`)) {
       if (existsSync(path.join(current, 'package.json'))) {
-        readPackageRoot(current, packages)
+        // The sidecar's own composition belongs to the application the BOM describes.
+        if (current !== path.resolve(packageRoot)) readPackageRoot(current, packages)
         break
       }
       const parent = path.dirname(current)

@@ -9,7 +9,7 @@
     "analyze": "turbo run analyze",
     "dev": "turbo run dev --filter=maximal-desktop",
     "dev:context": "turbo run dev:context --filter=@maximal/maximal-context-window",
-    "dev:server": "turbo run dev --filter=@maximal/maximal -- start",
+    "dev:server": "turbo run dev:server --filter=maximal-desktop -- start",
     "storybook": "turbo run storybook --filter=@maximal/maximal-storybook",
     "storybook:list": "pnpm --filter @maximal/maximal-storybook run storybook:list",
     "storybook:stop": "pnpm --filter @maximal/maximal-storybook run storybook:stop",
@@ -49,6 +49,8 @@
     "check:core": "pnpm --filter @maximal/maximal-core run check:deep:host && pnpm run test:core",
     "check:affected": "turbo run build typecheck lint --affected && turbo run @maximal/design-tokens#token:check @maximal/maximal-settings#migration:check @maximal/maximal-settings#security:check //#check:network-literals //#check:cross-package-duplicates && turbo run @maximal/maximal-core#check:deep:host:after-workspace --affected && pnpm test",
     "check": "pnpm run check:static && turbo run //#check:cross-package-duplicates @maximal/maximal-core#check:deep:host:after-workspace && pnpm test",
+    "check:summary": "node scripts/check-summary.mjs",
+    "check:record": "node scripts/check-record.mjs",
     "package": "turbo run package --filter=maximal-desktop",
     "package:all": "turbo run package"
   },

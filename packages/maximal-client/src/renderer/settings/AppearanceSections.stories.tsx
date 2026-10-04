@@ -52,8 +52,8 @@ function StorySurface({
         style={{
           minHeight: '100vh',
           padding: '24px',
-          color: 'var(--shell-text)',
-          background: 'var(--shell-background)',
+          color: 'var(--maximal-color-text-default)',
+          background: 'var(--maximal-color-bg-default)',
         }}
       >
         {children}

@@ -215,9 +215,9 @@ const MODEL_CARD_STYLES = `
   gap: var(--shell-space-3);
   align-content: start;
   padding: var(--shell-space-4);
-  border: 1px solid var(--shell-border);
+  border: 1px solid var(--maximal-color-border-default);
   border-radius: var(--shell-radius-large);
-  background: var(--shell-raised);
+  background: var(--maximal-color-bg-tertiary);
 }
 
 .sb-shell .model-card:hover {
@@ -271,13 +271,13 @@ const MODEL_CARD_STYLES = `
 
 .sb-shell .model-card[data-disabled='true'],
 .sb-shell .model-table tr[data-disabled='true'] {
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
 }
 
 .sb-shell .model-card[data-disabled='true'] {
-  border-color: var(--shell-danger, var(--shell-hover));
-  background: var(--shell-hover);
-  box-shadow: inset var(--shell-space-1) 0 0 var(--shell-danger, var(--shell-hover));
+  border-color: var(--maximal-color-border-danger, var(--maximal-color-bg-hover));
+  background: var(--maximal-color-bg-hover);
+  box-shadow: inset var(--shell-space-1) 0 0 var(--maximal-color-border-danger, var(--maximal-color-bg-hover));
 }
 
 .sb-shell .model-card[data-disabled='true']:hover {
@@ -286,7 +286,7 @@ const MODEL_CARD_STYLES = `
 
 .sb-shell .model-card[data-disabled='true'] .model-card__name,
 .sb-shell .model-card[data-disabled='true'] .model-card__stats dd {
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
 }
 
 .sb-shell .model-card__disabled,
@@ -296,8 +296,8 @@ const MODEL_CARD_STYLES = `
   width: fit-content;
   padding: 1px var(--shell-space-2);
   border-radius: var(--shell-radius-pill);
-  color: var(--shell-danger-contrast, var(--shell-text));
-  background: var(--shell-danger, var(--shell-hover));
+  color: var(--maximal-color-text-ondanger, var(--maximal-color-text-default));
+  background: var(--maximal-color-bg-danger, var(--maximal-color-bg-hover));
   font-size: var(--shell-text-xs);
   font-weight: var(--shell-weight-md);
 }
@@ -313,19 +313,19 @@ const MODEL_CARD_STYLES = `
 .sb-shell .model-table {
   width: 100%;
   border-collapse: collapse;
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
 }
 
 .sb-shell .model-table th,
 .sb-shell .model-table td {
   padding: var(--shell-space-3);
-  border-bottom: 1px solid var(--shell-border);
+  border-bottom: 1px solid var(--maximal-color-border-default);
   text-align: left;
   vertical-align: top;
 }
 
 .sb-shell .model-table th {
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   font-size: var(--shell-text-xs);
   font-weight: var(--shell-weight-md);
   text-transform: uppercase;
@@ -336,7 +336,7 @@ const MODEL_CARD_STYLES = `
 }
 
 .sb-shell .model-table__id {
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   font-family: var(--shell-font-mono);
   font-size: var(--shell-text-xs);
   overflow-wrap: anywhere;
@@ -370,7 +370,7 @@ const MODEL_CARD_STYLES = `
   min-width: 0;
   font-size: var(--shell-text-base);
   font-weight: var(--shell-weight-md);
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -383,10 +383,10 @@ const MODEL_CARD_STYLES = `
 
 .sb-shell .model-card__disabled {
   display: inline-flex;
-  border: 1px solid var(--shell-border-strong);
+  border: 1px solid var(--maximal-color-border-strong);
   border-radius: var(--shell-radius-pill);
   padding: 1px var(--shell-space-2);
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
   font-size: var(--shell-text-xs);
   font-weight: var(--shell-weight-lg);
   text-transform: uppercase;
@@ -404,7 +404,7 @@ const MODEL_CARD_STYLES = `
   margin: 0;
   font-family: var(--shell-font-mono);
   font-size: var(--shell-text-xs);
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   overflow-wrap: anywhere;
 }
 
@@ -416,13 +416,13 @@ const MODEL_CARD_STYLES = `
 
 .sb-shell .model-card__stats dt {
   font-size: var(--shell-text-xs);
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
 }
 
 .sb-shell .model-card__stats dd {
   margin: 0;
   font-size: var(--shell-text-sm);
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
   font-variant-numeric: tabular-nums;
 }
 
@@ -432,7 +432,7 @@ const MODEL_CARD_STYLES = `
   gap: var(--shell-space-1);
   margin: 0;
   font-size: var(--shell-text-xs);
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
 }
 `;
 

@@ -31,7 +31,7 @@ const TERMINAL_LAUNCHER_STYLES = `
 
 .sb-shell .terminal-launcher__group + .terminal-launcher__group {
   padding-top: var(--shell-space-2);
-  border-top: 1px solid var(--shell-border);
+  border-top: 1px solid var(--maximal-color-border-default);
 }
 
 .sb-shell .terminal-launcher__group h3 {
@@ -73,7 +73,7 @@ const TERMINAL_LAUNCHER_STYLES = `
 }
 
 .sb-shell .terminal-launcher__choice-description {
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: var(--shell-text-xs);
   font-weight: 400;
 }
@@ -88,14 +88,14 @@ const TERMINAL_LAUNCHER_STYLES = `
 .sb-shell .terminal-launcher__kind,
 .sb-shell .terminal-launcher__pending {
   margin-left: auto;
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: var(--shell-text-xs);
 }
 
 .sb-shell .terminal-launcher__unavailable {
   padding-top: var(--shell-space-2);
-  color: var(--shell-text-muted);
-  border-top: 1px solid var(--shell-border);
+  color: var(--maximal-color-text-secondary);
+  border-top: 1px solid var(--maximal-color-border-default);
 }
 
 .sb-shell .terminal-launcher__unavailable summary {

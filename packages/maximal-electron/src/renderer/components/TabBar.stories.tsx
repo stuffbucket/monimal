@@ -153,7 +153,7 @@ function Strip({
         id={getTabPanelId(idBase, active)}
         aria-labelledby={getTabTriggerId(idBase, active)}
         tabIndex={0}
-        style={{ padding: 'var(--space-4)', color: 'var(--text-secondary)' }}
+        style={{ padding: 'var(--space-4)', color: 'var(--maximal-color-text-secondary)' }}
       >
         {open.find((tab) => tab.id === active)?.title ?? 'Nothing open'}
       </div>
@@ -190,7 +190,7 @@ export const Default: Story = {};
 export const EditableLabels: Story = {
   render: () => (
     <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
-      <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+      <p style={{ margin: 0, color: 'var(--maximal-color-text-secondary)' }}>
         Single-click focuses a tab. Double-click either label to focus its tab and
         edit with all text selected. Enter commits; Escape cancels; F2 edits the
         focused tab.
@@ -385,7 +385,7 @@ function Caption({ children }: { children: string }) {
     <p
       style={{
         margin: `var(--space-2) 0 0`,
-        color: 'var(--text-muted)',
+        color: 'var(--maximal-color-text-tertiary)',
         font: 'var(--weight-base) var(--text-sm) / var(--leading-base) var(--font-body)',
       }}
     >

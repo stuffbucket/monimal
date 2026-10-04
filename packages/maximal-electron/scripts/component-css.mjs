@@ -23,8 +23,14 @@
  * same width so every offset still means what it meant.
  */
 
+import { COLOR_NAMESPACE, isColorToken } from './shell-variables.mjs';
+
 /** The prefix a custom property this package writes must carry. */
 export const SHELL_NAMESPACE = '--shell-';
+
+/** Whether a name is in a published namespace and, for colour, its grammar. */
+const isPublished = (name) =>
+  name.startsWith(SHELL_NAMESPACE) || (name.startsWith(COLOR_NAMESPACE) && isColorToken(name));
 
 /**
  * Lengths that are not design decisions.
@@ -163,7 +169,7 @@ export function componentCssFindings(css, contract) {
     const name = match[1];
     declared.add(name);
 
-    if (!name.startsWith(SHELL_NAMESPACE)) {
+    if (!isPublished(name)) {
       add('foreign', match.index, name.length, name, { name });
       continue;
     }
@@ -182,7 +188,7 @@ export function componentCssFindings(css, contract) {
   for (const match of bare.matchAll(READ)) {
     const name = match[1];
     const offset = match[0].length - name.length;
-    if (!name.startsWith(SHELL_NAMESPACE)) {
+    if (!isPublished(name)) {
       add('foreign-read', match.index + offset, name.length, name, { name });
       continue;
     }
@@ -209,17 +215,17 @@ export function componentCssFindings(css, contract) {
 /** What each finding means, in the words the reporter uses. */
 export const COMPONENT_CSS_MESSAGES = {
   colour:
-    'A carried rule names no colour. This package ships no palette — read a `--shell-*` token and let the consumer supply the value.',
+    'A carried rule names no colour. This package ships no palette — read a `--maximal-color-*` token and let the consumer supply the value.',
   length:
     '`{{literal}}` is a design decision in a place no theme can reach. Read a token from `shell-structural-tokens.css`, or declare one for geometry this component owns.',
   foreign:
-    '`{{name}}` is outside the published namespace. A custom property this package writes is `--shell-*`, or a consumer cannot find it to override.',
+    '`{{name}}` is outside the published namespace. A custom property this package writes is `--shell-*`, or `--maximal-color-*` in the colour grammar, or a consumer cannot find it to override.',
   'foreign-read':
-    '`{{name}}` is outside the published namespace. A carried rule reads `--shell-*`; the short names belong to this application, not to the package.',
+    '`{{name}}` is outside the published namespace. A carried rule reads `--shell-*` or a `--maximal-color-*` name in the colour grammar; the short names belong to this application, not to the package.',
   redundant:
     '`{{name}}` is already in the published contract. Read it rather than declaring a second value for it — two values for one name is the drift this is meant to end.',
   unknown:
-    '`{{name}}` is in no shipped stylesheet, so a consumer defines nothing for it and the whole declaration is invalid at computed-value time — no border, not a faint one. Use a published `--shell-*` name, or declare this one with a value.',
+    '`{{name}}` is in no shipped stylesheet, so a consumer defines nothing for it and the whole declaration is invalid at computed-value time — no border, not a faint one. Use a published `--shell-*` or `--maximal-color-*` name, or declare this one with a value.',
   unscoped:
     '`{{selector}}` is not under `.sb-shell`. These rules are injected into the consumer\'s document, where an unscoped selector restyles their application.',
 };

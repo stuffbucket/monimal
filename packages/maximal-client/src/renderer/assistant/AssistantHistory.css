@@ -3,23 +3,23 @@
   grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
   height: 100%;
   min-height: 0;
-  background: var(--shell-canvas);
-  color: var(--shell-text);
+  background: var(--maximal-color-bg-secondary);
+  color: var(--maximal-color-text-default);
 }
 
 .assistant-history__sidebar {
   display: flex;
   min-height: 0;
   flex-direction: column;
-  border-right: 1px solid var(--shell-border);
-  background: var(--shell-raised);
+  border-right: 1px solid var(--maximal-color-border-default);
+  background: var(--maximal-color-bg-tertiary);
 }
 
 .assistant-history__header {
   display: grid;
   gap: 10px;
   padding: 16px;
-  border-bottom: 1px solid var(--shell-border);
+  border-bottom: 1px solid var(--maximal-color-border-default);
 }
 
 .assistant-history__header h1 {
@@ -31,9 +31,9 @@
 .assistant-history__select {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid var(--shell-border);
+  border: 1px solid var(--maximal-color-border-default);
   border-radius: 6px;
-  background: var(--shell-canvas);
+  background: var(--maximal-color-bg-secondary);
   color: inherit;
   padding: 7px 9px;
 }
@@ -48,17 +48,17 @@
 .assistant-history__filters button,
 .assistant-history__actions button,
 .assistant-history__continue {
-  border: 1px solid var(--shell-border);
+  border: 1px solid var(--maximal-color-border-default);
   border-radius: 6px;
-  background: var(--shell-canvas);
+  background: var(--maximal-color-bg-secondary);
   color: inherit;
   padding: 6px 9px;
   cursor: pointer;
 }
 
 .assistant-history__filters button[aria-pressed='true'] {
-  border-color: var(--shell-accent);
-  color: var(--shell-accent);
+  border-color: var(--maximal-color-border-brand);
+  color: var(--maximal-color-text-brand);
 }
 
 .assistant-history__list {
@@ -86,7 +86,7 @@
 
 .assistant-history__chat:hover,
 .assistant-history__chat[aria-current='true'] {
-  background: var(--shell-hover);
+  background: var(--maximal-color-bg-hover);
 }
 
 .assistant-history__chat-copy {
@@ -103,12 +103,12 @@
 
 .assistant-history__chat-time {
   margin-top: 2px;
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: 11px;
 }
 
 .assistant-history__attention {
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: 12px;
 }
 
@@ -133,7 +133,7 @@
   gap: 16px;
   align-items: center;
   padding: 14px 18px;
-  border-bottom: 1px solid var(--shell-border);
+  border-bottom: 1px solid var(--maximal-color-border-default);
 }
 
 .assistant-history__content-header h2 {
@@ -157,13 +157,13 @@
 .assistant-history__message strong {
   display: block;
   margin-bottom: 4px;
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: 12px;
 }
 
 .assistant-history__empty {
   margin: auto;
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
 }
 
 @media (max-width: 720px) {

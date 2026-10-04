@@ -1,4 +1,4 @@
-import { SPATIAL_CANVAS_CURSORS } from '../SpatialCanvasStyles.js';
+import { SPATIAL_CANVAS_CURSORS } from '../spatialcanvas/SpatialCanvasStyles.js';
 import {
   CursorStoryIntroduction,
 } from './CursorStoryParts.js';

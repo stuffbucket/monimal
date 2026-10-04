@@ -18,7 +18,7 @@ const UNIT_VALUE_INPUT_STYLES = `
 
 .sb-shell .unit-value-input__label {
   overflow: hidden;
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: var(--shell-text-xs);
   font-weight: var(--shell-weight-md);
   text-overflow: ellipsis;
@@ -38,7 +38,7 @@ const UNIT_VALUE_INPUT_STYLES = `
     calc(var(--shell-control-lg) + var(--shell-space-2))
     0
     var(--shell-space-2);
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
   font: inherit;
   font-size: var(--shell-text-base);
   font-variant-numeric: tabular-nums;
@@ -48,17 +48,17 @@ const UNIT_VALUE_INPUT_STYLES = `
 }
 
 .sb-shell .unit-value-input__input:hover:not(:disabled) {
-  border-color: var(--shell-border-hover);
+  border-color: var(--maximal-color-border-strong-hover);
 }
 
 .sb-shell .unit-value-input__input:focus {
-  border-color: var(--shell-focus);
+  border-color: var(--maximal-color-border-selected);
   outline: none;
-  box-shadow: 0 0 0 var(--shell-focus-ring-width) var(--shell-accent-muted);
+  box-shadow: 0 0 0 var(--shell-focus-ring-width) var(--maximal-color-bg-selected);
 }
 
 .sb-shell .unit-value-input__input[aria-invalid='true'] {
-  border-color: var(--shell-invalid, var(--shell-danger));
+  border-color: var(--maximal-color-border-danger);
 }
 
 .sb-shell .unit-value-input__unit {
@@ -68,7 +68,7 @@ const UNIT_VALUE_INPUT_STYLES = `
   width: var(--shell-control-lg);
   height: 100%;
   padding: 0;
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   font: inherit;
   font-size: var(--shell-text-xs);
   text-align: center;
@@ -80,13 +80,13 @@ const UNIT_VALUE_INPUT_STYLES = `
 
 .sb-shell .unit-value-input__unit:focus-visible {
   border-radius: var(--shell-radius);
-  outline: var(--shell-focus-ring-width) solid var(--shell-focus);
+  outline: var(--shell-focus-ring-width) solid var(--maximal-color-border-selected);
   outline-offset: calc(-1 * var(--shell-focus-ring-width));
 }
 
 .sb-shell .unit-value-input__error {
   margin: 0;
-  color: var(--shell-invalid, var(--shell-danger));
+  color: var(--maximal-color-text-danger);
   font-size: var(--shell-text-xs);
 }
 `;

@@ -17,7 +17,7 @@
  * specification.
  *
  * Only opaque colours. A token defined as `rgb(r g b / a)` composites against
- * whatever is behind it, which this cannot know, so the soft tints are outside
+ * whatever is behind it, which this cannot know, so the tinted fills are outside
  * the contract — including the surface a selected row or the current nav item
  * actually sits on. Those are real surfaces text is drawn on, and this will
  * never see them; `pnpm storybook:check` runs axe over rendered pixels and
@@ -56,27 +56,26 @@ export interface ContrastPair {
  * #65 and has to be added by hand; the tab markers below are three of those.
  */
 export const CONTRAST_PAIRS: ContrastPair[] = [
-  { foreground: '--text-primary', background: '--bg-app', where: 'body text', minimum: AA_NORMAL },
-  { foreground: '--text-primary', background: '--bg-canvas', where: 'canvas text', minimum: AA_NORMAL },
-  { foreground: '--text-primary', background: '--bg-raised', where: 'card title', minimum: AA_NORMAL },
-  { foreground: '--text-primary', background: '--bg-panel', where: 'dialog text', minimum: AA_NORMAL },
-  { foreground: '--text-primary', background: '--bg-input', where: 'field value', minimum: AA_NORMAL },
-  { foreground: '--text-primary', background: '--bg-active', where: 'pressed segment', minimum: AA_NORMAL },
-  { foreground: '--text-primary', background: '--bg-hover', where: 'hovered tab, hovered icon button', minimum: AA_NORMAL },
-  { foreground: '--text-primary', background: '--tab-active', where: 'selected tab label', minimum: AA_NORMAL },
-  { foreground: '--text-secondary', background: '--bg-app', where: 'nav item, field label', minimum: AA_NORMAL },
-  { foreground: '--text-secondary', background: '--bg-raised', where: 'card subtitle', minimum: AA_NORMAL },
-  { foreground: '--text-muted', background: '--bg-app', where: 'nav heading, tab label, placeholder', minimum: AA_NORMAL },
-  { foreground: '--text-muted', background: '--bg-raised', where: 'row subtitle, hint', minimum: AA_NORMAL },
-  { foreground: '--text-muted', background: '--bg-canvas', where: 'empty state', minimum: AA_NORMAL },
-  { foreground: '--accent', background: '--bg-app', where: 'current nav item, busy tab marker', minimum: AA_NORMAL },
-  { foreground: '--accent', background: '--tab-active', where: 'selected tab accent, busy marker on the selected tab', minimum: AA_NON_TEXT },
-  { foreground: '--warning', background: '--bg-app', where: 'attention tab marker', minimum: AA_NON_TEXT },
-  { foreground: '--warning', background: '--tab-active', where: 'attention marker on the selected tab', minimum: AA_NON_TEXT },
-  { foreground: '--accent-contrast', background: '--accent', where: 'primary button label', minimum: AA_NORMAL },
-  { foreground: '--text-on-solid', background: '--danger-fill', where: 'danger button label', minimum: AA_NORMAL },
-  { foreground: '--text-invalid', background: '--bg-app', where: 'field error', minimum: AA_NORMAL },
-  { foreground: '--text-muted', background: '--bg-panel', where: 'menu item, overlay hint', minimum: AA_NORMAL },
+  { foreground: '--maximal-color-text-default', background: '--maximal-color-bg-default', where: 'body text, field value', minimum: AA_NORMAL },
+  { foreground: '--maximal-color-text-default', background: '--maximal-color-bg-secondary', where: 'canvas text', minimum: AA_NORMAL },
+  { foreground: '--maximal-color-text-default', background: '--maximal-color-bg-tertiary', where: 'card title, dialog text', minimum: AA_NORMAL },
+  { foreground: '--maximal-color-text-default', background: '--maximal-color-bg-pressed', where: 'pressed segment', minimum: AA_NORMAL },
+  { foreground: '--maximal-color-text-default', background: '--maximal-color-bg-hover', where: 'hovered tab, hovered icon button', minimum: AA_NORMAL },
+  { foreground: '--maximal-color-text-default', background: '--tab-active', where: 'selected tab label', minimum: AA_NORMAL },
+  { foreground: '--maximal-color-text-secondary', background: '--maximal-color-bg-default', where: 'nav item, field label', minimum: AA_NORMAL },
+  { foreground: '--maximal-color-text-secondary', background: '--maximal-color-bg-hover', where: 'hovered tab label', minimum: AA_NORMAL },
+  { foreground: '--maximal-color-text-secondary', background: '--maximal-color-bg-tertiary', where: 'card subtitle', minimum: AA_NORMAL },
+  { foreground: '--maximal-color-text-tertiary', background: '--maximal-color-bg-default', where: 'nav heading, tab label, placeholder', minimum: AA_NORMAL },
+  { foreground: '--maximal-color-text-tertiary', background: '--maximal-color-bg-tertiary', where: 'row subtitle, hint, menu item, overlay hint', minimum: AA_NORMAL },
+  { foreground: '--maximal-color-text-tertiary', background: '--maximal-color-bg-secondary', where: 'empty state', minimum: AA_NORMAL },
+  { foreground: '--maximal-color-text-brand', background: '--maximal-color-bg-default', where: 'current nav item', minimum: AA_NORMAL },
+  { foreground: '--maximal-color-bg-brand', background: '--maximal-color-bg-default', where: 'busy tab marker', minimum: AA_NON_TEXT },
+  { foreground: '--maximal-color-bg-brand', background: '--tab-active', where: 'selected tab accent, busy marker on the selected tab', minimum: AA_NON_TEXT },
+  { foreground: '--maximal-color-bg-warning', background: '--maximal-color-bg-default', where: 'attention tab marker', minimum: AA_NON_TEXT },
+  { foreground: '--maximal-color-bg-warning', background: '--tab-active', where: 'attention marker on the selected tab', minimum: AA_NON_TEXT },
+  { foreground: '--maximal-color-text-onbrand', background: '--maximal-color-bg-brand', where: 'primary button label', minimum: AA_NORMAL },
+  { foreground: '--maximal-color-text-ondanger', background: '--maximal-color-bg-danger', where: 'danger button label', minimum: AA_NORMAL },
+  { foreground: '--maximal-color-text-danger', background: '--maximal-color-bg-default', where: 'field error', minimum: AA_NORMAL },
 ];
 
 /**
@@ -85,46 +84,62 @@ export const CONTRAST_PAIRS: ContrastPair[] = [
  * A palette that omits one of these leaves a rule resolving to nothing, which
  * renders as a transparent background or an inherited colour rather than as an
  * error. `checkPalette` cannot catch it: a pair whose tokens are absent is
- * skipped, so a consumer who never defines `--bg-input` would otherwise pass.
+ * skipped, so a consumer who never defines `--maximal-color-bg-default` would otherwise pass.
  *
  * Extracted from `var(--…)` in `src/renderer/styles/*.css`. Runtime properties
  * set by component state or third-party primitives are deliberately absent.
  */
 export const REQUIRED_TOKENS: string[] = [
-  '--accent',
-  '--accent-contrast',
-  '--accent-soft',
-  '--bg-active',
-  '--bg-app',
-  '--bg-canvas',
-  '--bg-hover',
-  '--bg-input',
-  '--bg-panel',
-  '--bg-raised',
-  '--border-input-hover',
-  '--border-strong',
-  '--border-subtle',
   '--border-width-thin',
   '--control-lg',
   '--control-md',
   '--control-sm',
-  '--danger',
-  '--danger-fill',
-  '--danger-soft',
   '--duration-fast',
   '--ease-out',
   '--elevation-dialog',
   '--elevation-popover',
-  '--focus-ring-color',
   '--focus-ring-offset',
   '--focus-ring-width',
   '--font-body',
   '--font-mono',
-  '--icon-stroke',
   '--icon-optical-folder-offset-y',
   '--icon-optical-map-scale',
   '--icon-optical-terminal-scale',
+  '--icon-stroke',
   '--leading-base',
+  '--maximal-color-bg-brand',
+  '--maximal-color-bg-danger',
+  '--maximal-color-bg-danger-secondary',
+  '--maximal-color-bg-default',
+  '--maximal-color-bg-hover',
+  '--maximal-color-bg-pressed',
+  '--maximal-color-bg-secondary',
+  '--maximal-color-bg-selected',
+  '--maximal-color-bg-success-secondary',
+  '--maximal-color-bg-tertiary',
+  '--maximal-color-bg-warning',
+  '--maximal-color-bg-warning-secondary',
+  '--maximal-color-border-brand',
+  '--maximal-color-border-danger',
+  '--maximal-color-border-default',
+  '--maximal-color-border-selected',
+  '--maximal-color-border-strong',
+  '--maximal-color-border-strong-hover',
+  '--maximal-color-border-success',
+  '--maximal-color-border-warning',
+  '--maximal-color-icon-brand',
+  '--maximal-color-icon-secondary',
+  '--maximal-color-icon-tertiary',
+  '--maximal-color-text-brand',
+  '--maximal-color-text-danger',
+  '--maximal-color-text-default',
+  '--maximal-color-text-onbrand',
+  '--maximal-color-text-ondanger',
+  '--maximal-color-text-onselected',
+  '--maximal-color-text-secondary',
+  '--maximal-color-text-success',
+  '--maximal-color-text-tertiary',
+  '--maximal-color-text-warning',
   '--nav-collapsed',
   '--nav-heading',
   '--opacity-disabled',
@@ -133,9 +148,9 @@ export const REQUIRED_TOKENS: string[] = [
   '--radius-dialog',
   '--radius-input',
   '--radius-pill',
-  '--size-row',
   '--size-icon',
   '--size-icon-prominent',
+  '--size-row',
   '--size-tabbar',
   '--size-titlebar',
   '--space-1',
@@ -143,24 +158,15 @@ export const REQUIRED_TOKENS: string[] = [
   '--space-3',
   '--space-4',
   '--space-5',
-  '--success',
-  '--success-soft',
   '--tab-active',
   '--tab-fade',
   '--tab-max',
   '--tab-min',
   '--text-base',
-  '--text-invalid',
   '--text-md',
-  '--text-muted',
-  '--text-on-solid',
-  '--text-primary',
-  '--text-secondary',
   '--text-sm',
   '--text-xs',
   '--tracking-caps',
-  '--warning',
-  '--warning-soft',
   '--weight-base',
   '--weight-lg',
   '--weight-md',
@@ -182,7 +188,7 @@ export interface Rgb {
  * Parse `#rgb` or `#rrggbb`.
  *
  * Returns undefined for anything else, including the `rgb(r g b / a)` form the
- * soft tokens use. A translucent colour has no contrast of its own, and
+ * tinted fills use. A translucent colour has no contrast of its own, and
  * guessing what sits behind it would be worse than declining.
  */
 export function parseHex(value: string): Rgb | undefined {

@@ -33,7 +33,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
           fontWeight: 'var(--weight-lg)',
           letterSpacing: 'var(--tracking-caps)',
           textTransform: 'uppercase',
-          color: 'var(--text-muted)',
+          color: 'var(--maximal-color-text-tertiary)',
           marginBottom: 'var(--space-3)',
         }}
       >
@@ -50,7 +50,7 @@ function Name({ token }: { token: string }) {
       style={{
         fontFamily: 'var(--font-mono)',
         fontSize: 'var(--text-xs)',
-        color: 'var(--text-secondary)',
+        color: 'var(--maximal-color-text-secondary)',
       }}
     >
       {token}
@@ -66,7 +66,7 @@ function Swatch({ token }: { token: string }) {
           height: 44,
           borderRadius: 'var(--radius-card)',
           background: `var(${token})`,
-          border: '1px solid var(--border-subtle)',
+          border: '1px solid var(--maximal-color-border-default)',
         }}
       />
       <Name token={token} />
@@ -75,32 +75,35 @@ function Swatch({ token }: { token: string }) {
 }
 
 const SURFACES = [
-  '--bg-app',
-  '--bg-panel',
-  '--bg-canvas',
-  '--bg-raised',
-  '--bg-hover',
-  '--bg-active',
-  '--bg-input',
+  '--maximal-color-bg-default',
+  '--maximal-color-bg-secondary',
+  '--maximal-color-bg-tertiary',
+  '--maximal-color-bg-hover',
+  '--maximal-color-bg-pressed',
 ];
 
 const LINES = [
-  '--border-subtle',
-  '--border-strong',
-  '--border-input-hover',
+  '--maximal-color-border-default',
+  '--maximal-color-border-strong',
+  '--maximal-color-border-strong-hover',
 ];
 
-const INK = ['--text-primary', '--text-secondary', '--text-muted', '--text-invalid'];
+const INK = [
+  '--maximal-color-text-default',
+  '--maximal-color-text-secondary',
+  '--maximal-color-text-tertiary',
+  '--maximal-color-text-danger',
+];
 
 const SEMANTIC = [
-  '--accent',
-  '--accent-soft',
-  '--success',
-  '--success-soft',
-  '--warning',
-  '--warning-soft',
-  '--danger',
-  '--danger-soft',
+  '--maximal-color-text-brand',
+  '--maximal-color-bg-selected',
+  '--maximal-color-text-success',
+  '--maximal-color-bg-success-secondary',
+  '--maximal-color-text-warning',
+  '--maximal-color-bg-warning-secondary',
+  '--maximal-color-text-danger',
+  '--maximal-color-bg-danger-secondary',
 ];
 
 const TYPE = [
@@ -174,7 +177,7 @@ function Palette() {
                 style={{
                   width: `var(${t})`,
                   height: 12,
-                  background: 'var(--accent)',
+                  background: 'var(--maximal-color-bg-brand)',
                   borderRadius: 2,
                 }}
               />
@@ -191,8 +194,8 @@ function Palette() {
               <div
                 style={{
                   height: 44,
-                  background: 'var(--bg-raised)',
-                  border: '1px solid var(--border-strong)',
+                  background: 'var(--maximal-color-bg-tertiary)',
+                  border: '1px solid var(--maximal-color-border-strong)',
                   borderRadius: `var(${t})`,
                 }}
               />
@@ -210,8 +213,8 @@ function Palette() {
                 style={{
                   width: 64,
                   height: `var(${t})`,
-                  background: 'var(--bg-raised)',
-                  border: '1px solid var(--border-strong)',
+                  background: 'var(--maximal-color-bg-tertiary)',
+                  border: '1px solid var(--maximal-color-border-strong)',
                   borderRadius: 'var(--radius-input)',
                 }}
               />
@@ -228,7 +231,7 @@ function Palette() {
               <div
                 style={{
                   height: 60,
-                  background: 'var(--bg-panel)',
+                  background: 'var(--maximal-color-bg-tertiary)',
                   borderRadius: 'var(--radius-card)',
                   boxShadow: `var(${t})`,
                 }}
@@ -242,14 +245,14 @@ function Palette() {
       <Section title="Focus ring">
         <p
           style={{
-            color: 'var(--text-secondary)',
+            color: 'var(--maximal-color-text-secondary)',
             fontSize: 'var(--text-sm)',
             marginTop: 0,
           }}
         >
           Tab to these. One ring, from{' '}
           <Name token="--focus-ring-width" />, <Name token="--focus-ring-offset" /> and{' '}
-          <Name token="--focus-ring-color" />. It was written out five times in three
+          <Name token="--maximal-color-border-selected" />. It was written out five times in three
           geometries before it had a name.
         </p>
         <div style={{ display: 'flex', gap: 'var(--space-3)' }}>

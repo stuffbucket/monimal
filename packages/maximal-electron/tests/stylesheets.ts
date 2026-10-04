@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { withoutComments } from '../scripts/component-css.mjs';
 import { baseStyledClassNames, isScoped, styleRules, styledClassNames } from '../scripts/css-selectors.mjs';
-import { packageStylesheets } from '../scripts/shell-variables.mjs';
+import { isColorToken, packageStylesheets } from '../scripts/shell-variables.mjs';
 
 /**
  * What the two stylesheet contracts are, and how to tell them apart.
@@ -35,9 +35,17 @@ const RENDERER = new URL(
 /** The prefix that marks a token as the consumer's to supply. */
 export const PACKAGE_NAMESPACE = '--shell-';
 
-/** Whether a token belongs to the public package's contract. */
+/** Whether a token belongs to the public package's contract alone. */
 export function isPackageToken(token: string): boolean {
   return token.startsWith(PACKAGE_NAMESPACE);
+}
+
+/**
+ * Whether a token is a `--maximal-color-*` name both contracts share: the
+ * fixture palette defines it, and a consumer defines it for the package.
+ */
+export function isSharedToken(token: string): boolean {
+  return isColorToken(token);
 }
 
 /** Every stylesheet in the shell's style directory, as name and text. */
@@ -62,15 +70,15 @@ export function readTokens(css: string): string[] {
 }
 
 /**
- * Every `--shell-*` token a stylesheet reads, split by whether it has a
- * fallback. A token read as `var(--shell-x)` is the consumer's to define; one
- * read as `var(--shell-x, 8px)` already has a value.
+ * Every `--shell-*` and `--maximal-color-*` token a stylesheet reads, split by
+ * whether it has a fallback. A token read as `var(--shell-x)` is the
+ * consumer's to define; one read as `var(--shell-x, 8px)` already has a value.
  */
 export function packageReads(css: string): { required: Set<string>; optional: Set<string> } {
   const required = new Set<string>();
   const optional = new Set<string>();
 
-  for (const match of css.matchAll(/var\((--shell-[a-z0-9-]+)\s*(,)?/gi)) {
+  for (const match of css.matchAll(/var\(\s*(--(?:shell|maximal-color)-[a-z0-9-]+)\s*(,)?/gi)) {
     const token = match[1];
     if (token) (match[2] ? optional : required).add(token);
   }
@@ -186,8 +194,12 @@ export function publishedTokens(): string[] {
 
   return [
     ...new Set([
-      ...[...css.matchAll(/var\(\s*(--shell-[a-z0-9-]+)/g)].map((match) => match[1] ?? ''),
-      ...[...css.matchAll(/^\s*(--shell-[a-z0-9-]+)\s*:/gm)].map((match) => match[1] ?? ''),
+      ...[...css.matchAll(/var\(\s*(--(?:shell|maximal-color)-[a-z0-9-]+)/g)].map(
+        (match) => match[1] ?? '',
+      ),
+      ...[...css.matchAll(/^\s*(--(?:shell|maximal-color)-[a-z0-9-]+)\s*:/gm)].map(
+        (match) => match[1] ?? '',
+      ),
     ]),
   ].sort();
 }

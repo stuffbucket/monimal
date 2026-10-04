@@ -104,7 +104,7 @@ function Frame({ collapsed, children }: { collapsed: boolean; children: React.Re
         // The widths the shell actually gives it, from the tokens.
         width: collapsed ? 'var(--nav-collapsed)' : 'var(--nav-default)',
         height: 420,
-        border: '1px solid var(--border-subtle)',
+        border: '1px solid var(--maximal-color-border-default)',
       }}
     >
       {children}

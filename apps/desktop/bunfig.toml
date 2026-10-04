@@ -1,0 +1,4 @@
+# `bun test` runs only the Bun-compiled sidecar; Vitest owns every other suite.
+[test]
+root = "sidecar"
+preload = ["../../scripts/test-container-guard.ts"]

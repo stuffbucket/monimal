@@ -48,13 +48,13 @@ describe('parseHex', () => {
   });
 
   it('declines a translucent colour rather than guessing what is behind it', () => {
-    // `--accent-soft` and friends are `rgb(r g b / a)`. Compositing them needs
+    // `--maximal-color-bg-selected` and friends are `rgb(r g b / a)`. Compositing them needs
     // a backdrop this function is not given.
     expect(parseHex('rgb(110 168 254 / 0.16)')).toBeUndefined();
   });
 
   it('declines anything else', () => {
-    for (const value of ['', 'white', '#ff', '#fffff', '#gggggg', 'var(--accent)']) {
+    for (const value of ['', 'white', '#ff', '#fffff', '#gggggg', 'var(--maximal-color-bg-brand)']) {
       expect(parseHex(value), value).toBeUndefined();
     }
   });
@@ -244,16 +244,16 @@ describe('checkPalette', () => {
   });
 
   it('judges each pair against its own threshold', () => {
-    const report = checkPalette(full({ '--text-primary': '#ffffff', '--bg-app': '#000000' }));
+    const report = checkPalette(full({ '--maximal-color-text-default': '#ffffff', '--maximal-color-bg-default': '#000000' }));
     const pair = report.checked.find(
-      (result) => result.foreground === '--text-primary' && result.background === '--bg-app',
+      (result) => result.foreground === '--maximal-color-text-default' && result.background === '--maximal-color-bg-default',
     );
     expect(pair?.passes).toBe(true);
     expect(pair?.ratio).toBeCloseTo(21, 6);
   });
 
   it('fails a pair that does not clear its threshold', () => {
-    const report = checkPalette(full({ '--text-primary': '#777777', '--bg-app': '#888888' }));
+    const report = checkPalette(full({ '--maximal-color-text-default': '#777777', '--maximal-color-bg-default': '#888888' }));
     expect(report.checked.every((result) => result.passes)).toBe(false);
   });
 
@@ -261,25 +261,25 @@ describe('checkPalette', () => {
     // The failure this exists to prevent: an earlier version returned only the
     // pairs it judged, so a palette in `oklch()` produced an empty list and
     // read as success. A green run that checked nothing.
-    const report = checkPalette(full({ '--text-primary': 'oklch(0.7 0.1 250)' }));
+    const report = checkPalette(full({ '--maximal-color-text-default': 'oklch(0.7 0.1 250)' }));
     expect(report.skipped.length).toBeGreaterThan(0);
-    expect(report.skipped.every((pair) => pair.unreadable.includes('--text-primary'))).toBe(
+    expect(report.skipped.every((pair) => pair.unreadable.includes('--maximal-color-text-default'))).toBe(
       true,
     );
   });
 
   it('names which side of a pair it could not read', () => {
-    const report = checkPalette(full({ '--bg-app': 'color-mix(in srgb, red, blue)' }));
-    const pair = report.skipped.find((entry) => entry.background === '--bg-app');
-    expect(pair?.unreadable).toEqual(['--bg-app']);
+    const report = checkPalette(full({ '--maximal-color-bg-default': 'color-mix(in srgb, red, blue)' }));
+    const pair = report.skipped.find((entry) => entry.background === '--maximal-color-bg-default');
+    expect(pair?.unreadable).toEqual(['--maximal-color-bg-default']);
   });
 
   it('blames only the foreground when only the foreground is unreadable', () => {
     // The mirror of the case above. Without both, a version that always blames
     // both sides passes: every assertion about one side still holds.
-    const report = checkPalette(full({ '--text-invalid': 'oklch(0.6 0.2 20)' }));
-    const pair = report.skipped.find((entry) => entry.foreground === '--text-invalid');
-    expect(pair?.unreadable).toEqual(['--text-invalid']);
+    const report = checkPalette(full({ '--maximal-color-text-danger': 'oklch(0.6 0.2 20)' }));
+    const pair = report.skipped.find((entry) => entry.foreground === '--maximal-color-text-danger');
+    expect(pair?.unreadable).toEqual(['--maximal-color-text-danger']);
   });
 
   it('names both sides when neither reads', () => {
@@ -296,7 +296,7 @@ describe('checkPalette', () => {
 
   it('accounts for every pair, either checked or skipped', () => {
     // The invariant that makes a summary trustworthy: nothing vanishes.
-    const report = checkPalette(full({ '--text-primary': 'oklch(0.7 0.1 250)' }));
+    const report = checkPalette(full({ '--maximal-color-text-default': 'oklch(0.7 0.1 250)' }));
     expect(report.checked.length + report.skipped.length).toBe(CONTRAST_PAIRS.length);
   });
 
@@ -306,9 +306,9 @@ describe('checkPalette', () => {
   });
 
   it('carries `where` through, so a failure names something findable', () => {
-    const report = checkPalette(full({ '--text-muted': '#6f7783', '--bg-app': '#16181d' }));
+    const report = checkPalette(full({ '--maximal-color-text-tertiary': '#6f7783', '--maximal-color-bg-default': '#16181d' }));
     const pair = report.checked.find(
-      (result) => result.foreground === '--text-muted' && result.background === '--bg-app',
+      (result) => result.foreground === '--maximal-color-text-tertiary' && result.background === '--maximal-color-bg-default',
     );
     expect(pair?.where).toContain('nav heading');
     expect(pair?.passes).toBe(false);
@@ -357,7 +357,7 @@ const tokenValue = fc.oneof(
     'oklch(0.7 0.1 250)',
     'rgb(110 168 254 / 0.16)',
     'color-mix(in srgb, red, blue)',
-    'var(--accent)',
+    'var(--maximal-color-bg-brand)',
     'white',
     '',
   ),

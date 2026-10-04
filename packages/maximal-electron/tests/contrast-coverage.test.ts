@@ -10,7 +10,7 @@ import { isPackageToken, stylesheets } from './stylesheets.js';
  * `REQUIRED_TOKENS` is derived from the stylesheets, so it cannot go stale.
  * The pair list is written by hand, and issue #53 is that a pair nobody adds
  * is a pair nothing measures. PR #45 found one that way: `.icon-button:hover`
- * had been drawing `--text-primary` on `--bg-hover` with no entry naming it,
+ * had been drawing `--maximal-color-text-default` on `--maximal-color-bg-hover` with no entry naming it,
  * so `check:contrast` reported a clean run over a combination it never saw.
  *
  * Resolving every foreground against whatever surface the cascade puts under
@@ -54,6 +54,9 @@ function soleToken(body: string, property: RegExp): string | undefined {
   return single?.[1];
 }
 
+/** The tinted fills: the selected tint and each role's secondary fill. */
+const TRANSLUCENT = /^--maximal-color-bg-(?:selected|(?:danger|warning|success)-secondary)$/;
+
 /** Every foreground-on-background pair a single rule states outright. */
 export function pairsInRule({ selector, body }: Rule):
   | { foreground: string; background: string; selector: string }
@@ -68,7 +71,7 @@ export function pairsInRule({ selector, body }: Rule):
   // A translucent tint composites against whatever is behind it, which no
   // static check knows. `contrast.ts` says the same, and `storybook:check` runs
   // axe over rendered pixels, which does see the result.
-  if (background.endsWith('-soft')) return undefined;
+  if (TRANSLUCENT.test(background)) return undefined;
 
   return { foreground, background, selector };
 }
@@ -99,12 +102,14 @@ describe('CONTRAST_PAIRS covers what the stylesheets draw', () => {
     expect([...new Set(missing)]).toEqual([]);
   });
 
-  it('skips a -soft background only while -soft means translucent', () => {
-    // The skip above reads a naming convention. If a `-soft` token were ever
-    // given an opaque value, the skip would quietly stop covering a pair that
-    // is measurable after all.
+  it('skips a tinted background only while the tint is translucent', () => {
+    // The skip above reads a naming convention. If a tint were ever given an
+    // opaque value, the skip would quietly stop covering a pair that is
+    // measurable after all.
     const [, tokens] = stylesheets().find(([name]) => name === 'tokens.css') ?? ['', ''];
-    const soft = [...tokens.matchAll(/(--[a-z0-9-]*-soft)\s*:\s*([^;]+);/gi)];
+    const soft = [...tokens.matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+);/gi)].filter(([, token]) =>
+      TRANSLUCENT.test(token ?? ''),
+    );
 
     expect(soft.length).toBeGreaterThan(0);
     for (const [, token, value] of soft) {

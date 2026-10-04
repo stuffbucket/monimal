@@ -40,7 +40,7 @@ const EDITABLE_LABEL_MOLECULE_STYLES = `
 
 .sb-shell .editable-label-owner[aria-selected='true'],
 .sb-shell .editable-label-owner[data-active] {
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
 }
 `;
 

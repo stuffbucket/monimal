@@ -1,4 +1,5 @@
 import type { TerminalPaletteSettings } from '@maximal/maximal-terminal/renderer'
+import { applyPalette } from './color/palette'
 
 import {
   MATERIAL_PRESET_VALUES,
@@ -19,6 +20,8 @@ export interface ThemePaletteSeed {
   surface: string
   text: string
   accent: string
+  /* Pins icons on the accent fill to one colour, such as a brand mark's, regardless of contrast. */
+  accentIcon?: string
 }
 
 export interface ThemeShader {
@@ -80,21 +83,23 @@ const MAXIMAL_LIGHT: ThemePaletteSeed = {
   background: '#FFFFFF',
   surface: '#EEF0F4',
   text: '#12141A',
-  accent: '#2159D1',
+  accent: '#C82543',
+  accentIcon: '#F4EAD0',
 }
 
 const MAXIMAL_DARK: ThemePaletteSeed = {
   background: '#16181D',
   surface: '#1C1F26',
   text: '#F5F5F5',
-  accent: '#62A9B7',
+  accent: '#F65467',
+  accentIcon: '#F4EAD0',
 }
 
 export const DEFAULT_APPEARANCE: AppearanceThemeFile = {
   schema: 'https://maximal.dev/schemas/theme/v2',
   id: 'maximal',
   name: 'Maximal',
-  description: 'A restrained blue-green studio palette.',
+  description: 'Maximal crimson on restrained studio neutrals.',
   source: 'Maximal product palette',
   category: 'studio',
   tags: ['balanced', 'neutral'],
@@ -222,26 +227,6 @@ const CATEGORIES = new Set<ThemeCategory>([
   'studio',
 ])
 const MATERIAL_PRESETS = new Set<string>(MATERIAL_PRESET_VALUES)
-const OVERRIDDEN_TOKENS = [
-  '--shell-background',
-  '--shell-canvas',
-  '--shell-spatial-canvas-background',
-  '--shell-raised',
-  '--shell-text',
-  '--shell-text-muted',
-  '--shell-text-subtle',
-  '--shell-border',
-  '--shell-border-strong',
-  '--shell-input-background',
-  '--shell-hover',
-  '--shell-active',
-  '--shell-accent',
-  '--shell-accent-contrast',
-  '--shell-accent-muted',
-] as const
-
-type ThemeTokens = Record<(typeof OVERRIDDEN_TOKENS)[number], string>
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -271,6 +256,7 @@ function parsePalette(value: unknown, label: string): ThemePaletteSeed {
     surface: requireHex(value.surface, `${label} surface`),
     text: requireHex(value.text, `${label} text`),
     accent: requireHex(value.accent, `${label} accent`),
+    ...(value.accentIcon === undefined ? {} : { accentIcon: requireHex(value.accentIcon, `${label} accent icon`) }),
   }
   if (contrastRatio(palette.text, palette.background) < 7
     || contrastRatio(palette.text, palette.surface) < 7) {
@@ -503,32 +489,6 @@ export function contrastRatio(left: string, right: string): number {
   return (lighter + 0.05) / (darker + 0.05)
 }
 
-function contrastForeground(hex: string): '#000000' | '#FFFFFF' {
-  return contrastRatio('#000000', hex) >= contrastRatio('#FFFFFF', hex)
-    ? '#000000'
-    : '#FFFFFF'
-}
-
-function themeTokens(seed: ThemePaletteSeed): ThemeTokens {
-  return {
-    '--shell-background': seed.background,
-    '--shell-canvas': seed.surface,
-    '--shell-spatial-canvas-background': seed.surface,
-    '--shell-raised': mix(seed.surface, seed.text, 0.08),
-    '--shell-text': seed.text,
-    '--shell-text-muted': mix(seed.background, seed.text, 0.72),
-    '--shell-text-subtle': mix(seed.background, seed.text, 0.62),
-    '--shell-border': mix(seed.background, seed.text, 0.2),
-    '--shell-border-strong': mix(seed.background, seed.text, 0.42),
-    '--shell-input-background': mix(seed.background, seed.text, 0.035),
-    '--shell-hover': mix(seed.background, seed.text, 0.075),
-    '--shell-active': mix(seed.background, seed.text, 0.12),
-    '--shell-accent': seed.accent,
-    '--shell-accent-contrast': contrastForeground(seed.accent),
-    '--shell-accent-muted': mix(seed.background, seed.accent, 0.18),
-  }
-}
-
 export function appearanceAccent(theme: AppearanceThemeFile): string {
   return theme.colors[effectiveAppearanceMode(theme.appearance)].accent
 }
@@ -558,14 +518,15 @@ export function applyAppearance(theme: AppearanceThemeFile): void {
   const mode = effectiveAppearanceMode(theme.appearance)
   root.dataset.theme = mode
   root.dataset.appearancePreset = theme.id
-  for (const token of OVERRIDDEN_TOKENS) root.style.removeProperty(token)
-  for (const [token, value] of Object.entries(themeTokens(theme.colors[mode]))) {
-    root.style.setProperty(token, value)
+  applyPalette(theme.colors)
+  root.style.removeProperty('--shell-spatial-canvas-background')
+  // Otherwise theme.ts aliases the spatial canvas to --maximal-color-bg-secondary.
+  if (theme.colors.spatialCanvasBackground !== undefined) {
+    root.style.setProperty(
+      '--shell-spatial-canvas-background',
+      theme.colors.spatialCanvasBackground,
+    )
   }
-  root.style.setProperty(
-    '--shell-spatial-canvas-background',
-    appearanceSpatialCanvasBackground(theme),
-  )
 }
 
 export function terminalPaletteForTheme(
@@ -574,22 +535,23 @@ export function terminalPaletteForTheme(
 ): TerminalPaletteSettings {
   const light = theme.colors.light
   const dark = theme.colors.dark
+  // Terminals sit on the canvas (--maximal-color-bg-secondary), so the palette follows the surface seed.
   return {
     ...current,
     mode: theme.appearance === 'system' ? 'auto' : theme.appearance,
     light: {
       ...current.light,
-      background: light.background,
+      background: light.surface,
       foreground: light.text,
       cursor: light.accent,
-      selectionBackground: mix(light.background, light.accent, 0.28),
+      selectionBackground: mix(light.surface, light.accent, 0.28),
     },
     dark: {
       ...current.dark,
-      background: dark.background,
+      background: dark.surface,
       foreground: dark.text,
       cursor: dark.accent,
-      selectionBackground: mix(dark.background, dark.accent, 0.34),
+      selectionBackground: mix(dark.surface, dark.accent, 0.34),
     },
     minimumContrast: Math.max(4.5, current.minimumContrast),
   }

@@ -71,7 +71,7 @@ describe('theme application', () => {
     expect(new Date(previous.selectedAt).toISOString()).toBe(previous.selectedAt)
     expect(readAppearance().theme).toEqual(next)
     expect(updateTypography.mock.calls[0]?.[0].palette?.dark).toMatchObject({
-      background: next.colors.dark.background,
+      background: next.colors.dark.surface,
       foreground: next.colors.dark.text,
       cursor: next.colors.dark.accent,
     })

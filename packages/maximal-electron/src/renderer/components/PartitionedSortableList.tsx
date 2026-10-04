@@ -75,7 +75,7 @@ const STYLES = `
   min-height: calc(var(--shell-control-lg) * 3);
   margin: 0;
   padding: var(--shell-space-2);
-  border: 1px solid var(--shell-border-strong, var(--shell-border));
+  border: 1px solid var(--maximal-color-border-strong, var(--maximal-color-border-default));
   border-radius: var(--shell-radius);
   background: transparent;
   list-style: none;
@@ -85,10 +85,10 @@ const STYLES = `
   flex-direction: column;
   border: 1px solid transparent;
   border-radius: var(--shell-radius);
-  background: var(--shell-hover);
+  background: var(--maximal-color-bg-hover);
 }
 .sb-shell .partitioned-sortable__item[data-enabled='false'] {
-  border-color: var(--shell-border-strong, var(--shell-border));
+  border-color: var(--maximal-color-border-strong, var(--maximal-color-border-default));
   background: transparent;
 }
 .sb-shell .partitioned-sortable__row {
@@ -109,17 +109,17 @@ const STYLES = `
   grid-template-columns: auto auto auto minmax(0, 1fr) auto;
 }
 .sb-shell .partitioned-sortable__item[data-dragging='true'] { opacity: var(--shell-partitioned-sortable-drag-opacity); }
-.sb-shell .partitioned-sortable__grip { color: var(--shell-text-subtle); cursor: grab; }
+.sb-shell .partitioned-sortable__grip { color: var(--maximal-color-text-tertiary); cursor: grab; }
 .sb-shell .partitioned-sortable__content {
   display: flex; flex-direction: column; min-width: 0;
 }
 .sb-shell .partitioned-sortable__label { font-size: var(--shell-text-base); font-weight: var(--shell-weight-lg); }
 .sb-shell .partitioned-sortable__item[data-enabled='false'] .partitioned-sortable__label {
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
 }
 .sb-shell .partitioned-sortable__description {
   overflow: hidden;
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   font-size: var(--shell-text-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -136,15 +136,15 @@ const STYLES = `
   padding: 0;
   border: 0;
   border-radius: var(--shell-radius);
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   background: transparent;
   cursor: pointer;
 }
 .sb-shell .partitioned-sortable__action:hover:not(:disabled) {
-  color: var(--shell-text); background: var(--shell-active);
+  color: var(--maximal-color-text-default); background: var(--maximal-color-bg-pressed);
 }
 .sb-shell .partitioned-sortable__action:focus-visible {
-  outline: var(--shell-focus-ring-width) solid var(--shell-focus, var(--shell-accent)); outline-offset: var(--shell-focus-ring-offset);
+  outline: var(--shell-focus-ring-width) solid var(--maximal-color-border-selected, var(--maximal-color-border-brand)); outline-offset: var(--shell-focus-ring-offset);
 }
 .sb-shell .partitioned-sortable__action:disabled {
   opacity: var(--shell-partitioned-sortable-drag-opacity); cursor: default;
@@ -167,12 +167,12 @@ const STYLES = `
       var(--shell-space-2) + var(--shell-partitioned-sortable-grip-width) + var(--shell-space-2) +
       var(--shell-control-lg) + var(--shell-space-2)
     );
-  border-top: 1px solid var(--shell-border);
+  border-top: 1px solid var(--maximal-color-border-default);
 }
 .sb-shell .partitioned-sortable__empty {
   display: grid; flex: 1; place-items: center;
   min-height: calc(var(--shell-control-lg) * 2);
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   font-size: var(--shell-text-sm);
 }
 .sb-shell .partitioned-sortable__announcement {

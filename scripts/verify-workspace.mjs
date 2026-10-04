@@ -102,7 +102,6 @@ check(
 //    resolved major rather than policing an exemption that no longer exists.
 const typescriptVersions = new Set(
   [
-    "packages/maximal",
     "packages/maximal-core",
     "packages/maximal-electron",
     "packages/maximal-cli",
@@ -280,7 +279,6 @@ const ESLINT_CONSUMERS = [
   "packages/maximal-models",
   "packages/maximal-model-contract",
   "packages/maximal-core-contract",
-  "packages/maximal",
   "packages/maximal-electron",
   "packages/maximal-observability-contract",
   "packages/maximal-observability",

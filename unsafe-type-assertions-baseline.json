@@ -15,6 +15,16 @@
     "count": 1
   },
   {
+    "path": "apps/desktop/sidecar/provider-profile-integration.test.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "apps/desktop/sidecar/provider-profile-integration.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 2
+  },
+  {
     "path": "apps/desktop/src/main/adapters/project-catalog.ts",
     "kind": "double-assertion",
     "count": 5
@@ -938,26 +948,6 @@
     "path": "packages/maximal-terminal/tests/tmux/projection-owners.test.ts",
     "kind": "double-assertion",
     "count": 1
-  },
-  {
-    "path": "packages/maximal/scripts/dev/e2e-terminal-attribution.ts",
-    "kind": "unvalidated-response-json",
-    "count": 2
-  },
-  {
-    "path": "packages/maximal/scripts/sbom.ts",
-    "kind": "unvalidated-json-parse",
-    "count": 1
-  },
-  {
-    "path": "packages/maximal/tests/provider-profile-integration.test.ts",
-    "kind": "double-assertion",
-    "count": 1
-  },
-  {
-    "path": "packages/maximal/tests/provider-profile-integration.test.ts",
-    "kind": "unvalidated-json-parse",
-    "count": 2
   },
   {
     "path": "packages/model-runtimes/anthropic/src/config.ts",

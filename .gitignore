@@ -30,5 +30,4 @@ reports/
 
 # packaged app output
 apps/desktop/resources/bin/
-packages/maximal/THIRD-PARTY-LICENSES.txt
 apps/desktop/build/maximal-core.metafile.json

@@ -1,5 +1,4 @@
 import { Settings } from 'lucide-react';
-import { TooltipProvider } from '@radix-ui/react-tooltip';
 import type { ReactElement } from 'react';
 
 import type { Account } from '../lib/account.js';
@@ -8,6 +7,7 @@ import type { SettingsSurface } from '../lib/settings.js';
 
 import { Profile } from './Profile.js';
 import { IconButton } from './controls/Button.js';
+import { Tooltip, TooltipProvider } from './controls/Overlays.js';
 
 export interface WorkbarItem<Id extends string> {
   id: Id;
@@ -48,18 +48,18 @@ export function Workbar<Id extends string>({
           {items.map((item) => {
             const Icon = shellIcon(item.icon);
             return (
-              <button
-                key={item.id}
-                type="button"
-                className="workbar__item"
-                aria-current={item.id === current}
-                aria-label={item.label}
-                title={item.label}
-                onClick={() => onSelect(item.id)}
-                data-testid={`workbar-${item.id.replace(':', '-')}`}
-              >
-                <Icon aria-hidden="true" data-shell-icon={item.icon} />
-              </button>
+              <Tooltip key={item.id} content={item.label} side="right">
+                <button
+                  type="button"
+                  className="workbar__item"
+                  aria-current={item.id === current}
+                  aria-label={item.label}
+                  onClick={() => onSelect(item.id)}
+                  data-testid={`workbar-${item.id.replace(':', '-')}`}
+                >
+                  <Icon aria-hidden="true" data-shell-icon={item.icon} />
+                </button>
+              </Tooltip>
             );
           })}
         </div>

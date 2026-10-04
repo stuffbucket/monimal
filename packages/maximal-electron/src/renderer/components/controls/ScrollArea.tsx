@@ -25,7 +25,7 @@ const SCROLL_AREA_STYLES = `
 .sb-shell .scroll-area:hover,
 .sb-shell .scroll-area:focus-within,
 .sb-shell .scroll-area[data-scrollbar-visible='true'] {
-  scrollbar-color: var(--shell-border-strong) transparent;
+  scrollbar-color: var(--maximal-color-border-strong) transparent;
 }
 .sb-shell .scroll-area::-webkit-scrollbar {
   width: var(--shell-scrollbar-size);
@@ -41,16 +41,16 @@ const SCROLL_AREA_STYLES = `
 .sb-shell .scroll-area:hover::-webkit-scrollbar-thumb,
 .sb-shell .scroll-area:focus-within::-webkit-scrollbar-thumb,
 .sb-shell .scroll-area[data-scrollbar-visible='true']::-webkit-scrollbar-thumb {
-  background-color: var(--shell-border-strong);
+  background-color: var(--maximal-color-border-strong);
 }
 .sb-shell .scroll-area::-webkit-scrollbar-thumb:hover {
-  background-color: var(--shell-text-muted);
+  background-color: var(--maximal-color-icon-secondary);
 }
 .sb-shell .scroll-area::-webkit-scrollbar-track {
   background: transparent;
 }
 .sb-shell .scroll-area[data-surface='canvas'] {
-  background: var(--shell-canvas);
+  background: var(--maximal-color-bg-secondary);
 }
 `;
 

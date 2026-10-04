@@ -29,15 +29,15 @@ const TOKENS_CSS = readFileSync(
 );
 
 /** Every token, in the order `terminalTheme` reads them. */
-const ORDER = ['--bg-canvas', '--text-primary', '--accent'];
+const ORDER = ['--maximal-color-bg-secondary', '--maximal-color-text-default', '--maximal-color-icon-brand'];
 
 describe('terminalTheme', () => {
   it('maps each emulator colour to its documented token', () => {
     const theme = terminalTheme((token) => `value(${token})`);
     expect(theme).toEqual({
-      background: 'value(--bg-canvas)',
-      foreground: 'value(--text-primary)',
-      cursor: 'value(--accent)',
+      background: 'value(--maximal-color-bg-secondary)',
+      foreground: 'value(--maximal-color-text-default)',
+      cursor: 'value(--maximal-color-icon-brand)',
     });
   });
 
@@ -104,7 +104,7 @@ describe('TERMINAL_TOKENS', () => {
     // supported literal forms rather than browser-dependent colour syntax.
     //
     // This is not hypothetical. `tokens.css` already uses the modern
-    // space-separated form for `--accent-soft`, so a rewrite of these three in
+    // space-separated form for `--maximal-color-bg-selected`, so a rewrite of these three in
     // that style, or in `oklch()`, would break the terminal silently.
     const PARSEABLE = /^(#[0-9a-f]{3}|#[0-9a-f]{6}|rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\))$/i;
 
@@ -133,9 +133,9 @@ describe('currentTerminalTheme', () => {
     const root = Symbol('documentElement');
     const seen: string[] = [];
     const values: Record<string, string> = {
-      '--bg-canvas': ' #101216 ',
-      '--text-primary': '#e6e8ec',
-      '--accent': '#6ea8fe',
+      '--maximal-color-bg-secondary': ' #101216 ',
+      '--maximal-color-text-default': '#e6e8ec',
+      '--maximal-color-icon-brand': '#6ea8fe',
     };
 
     let queried: unknown;

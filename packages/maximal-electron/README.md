@@ -35,31 +35,39 @@ canonical values and restoring an automatic value when cleared.
 
 Consumers MUST import
 `@maximal/maximal-electron/renderer/styles.css` and define their own
-`--shell-*` palette.
+`--maximal-color-*` palette and `--shell-*` tokens. Colour names follow
+`--maximal-color-{type}-{element}-{role}-{prominence}-{interaction}`, where a
+slot left at `default` is omitted and a name with nothing after its type and
+element ends in `default`.
 
 The following variables are required:
 
 | Variable | Contract |
 | --- | --- |
-| `--shell-accent` | Selection, focus, and resize feedback. |
-| `--shell-accent-muted` | Selected-control background. |
-| `--shell-active` | Pressed or nested hover controls. |
-| `--shell-background` | Window chrome and side-panel surface. |
-| `--shell-border` | Dividers and quiet outlines. |
+| `--maximal-color-bg-default` | Window chrome, side panels and fields. |
+| `--maximal-color-bg-brand` | Solid brand fill: primary actions and busy markers. |
+| `--maximal-color-bg-hover` | Hovered controls. |
+| `--maximal-color-bg-pressed` | Pressed or nested hover controls. |
+| `--maximal-color-bg-secondary` | Canvas: documents, terminals and the active tab. |
+| `--maximal-color-bg-selected` | Selected-control background. |
+| `--maximal-color-bg-tertiary` | Tooltip and other floating surfaces. |
+| `--maximal-color-border-default` | Dividers and quiet outlines. |
+| `--maximal-color-border-brand` | Selection and resize outlines. |
+| `--maximal-color-icon-secondary` | Secondary icons and inactive glyphs. |
+| `--maximal-color-icon-tertiary` | Tertiary icons. |
+| `--maximal-color-text-default` | Primary foreground. |
+| `--maximal-color-text-brand` | Brand text and markers. |
+| `--maximal-color-text-onselected` | Text on a selected-control background. |
+| `--maximal-color-text-secondary` | Secondary foreground and inactive controls. |
+| `--maximal-color-text-tertiary` | Tertiary labels and counts. |
 | `--shell-candy-background` | Optional candy-coated surface paint. |
 | `--shell-candy-border` | Optional candy-coated surface outline. |
 | `--shell-candy-icon-shadow` | Icon shadow on a candy-coated surface. |
 | `--shell-candy-shadow` | Optional candy-coated surface elevation. |
 | `--shell-candy-sheen` | Optional candy-coated surface highlight. |
 | `--shell-candy-text` | Foreground drawn directly on candy-coated paint. |
-| `--shell-canvas` | Main document surface and active tab. |
 | `--shell-duration-fast` | Short control and scrollbar transitions. |
 | `--shell-ease-out` | Easing for short control and scrollbar transitions. |
-| `--shell-hover` | Hovered controls. |
-| `--shell-raised` | Tooltip and other floating surfaces. |
-| `--shell-text` | Primary foreground. |
-| `--shell-text-muted` | Secondary foreground and inactive controls. |
-| `--shell-text-subtle` | Tertiary labels and counts. |
 
 The package stylesheet MUST remain structural and MUST NOT provide product
 branding or a product palette.

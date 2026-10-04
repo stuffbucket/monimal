@@ -50,8 +50,8 @@ function publishedTokens() {
     .join('\n');
 
   const found = new Set([
-    ...[...css.matchAll(/var\(\s*(--shell-[a-z0-9-]+)/g)].map((match) => match[1]),
-    ...[...css.matchAll(/^\s*(--shell-[a-z0-9-]+)\s*:/gm)].map((match) => match[1]),
+    ...[...css.matchAll(/var\(\s*(--(?:shell|maximal-color)-[a-z0-9-]+)/g)].map((match) => match[1]),
+    ...[...css.matchAll(/^\s*(--(?:shell|maximal-color)-[a-z0-9-]+)\s*:/gm)].map((match) => match[1]),
   ]);
 
   if (found.size < 30) {

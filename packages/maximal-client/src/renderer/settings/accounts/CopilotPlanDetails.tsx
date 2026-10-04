@@ -82,11 +82,11 @@ function DetailRow({
         justifyContent: 'space-between',
         gap: 'var(--shell-space-3)',
         paddingBlock: 'var(--shell-space-2)',
-        borderTop: '1px solid var(--shell-border)',
+        borderTop: '1px solid var(--maximal-color-border-default)',
       }}
     >
       <span>{label}</span>
-      <span style={{ color: 'var(--shell-text-muted)', textAlign: 'right' }}>
+      <span style={{ color: 'var(--maximal-color-text-secondary)', textAlign: 'right' }}>
         {value}
       </span>
     </div>
@@ -137,7 +137,7 @@ export function CopilotPlanDetails({
           }}
         >
           <strong>Credits</strong>
-          <span style={{ color: 'var(--shell-text-muted)' }}>
+          <span style={{ color: 'var(--maximal-color-text-secondary)' }}>
             {usage ? resetLabel(usage.quota_reset_date) : 'Loading usage…'}
           </span>
         </div>
@@ -147,7 +147,7 @@ export function CopilotPlanDetails({
           max={100}
           value={used ?? 0}
           style={{
-            accentColor: 'var(--shell-accent)',
+            accentColor: 'var(--maximal-color-bg-brand)',
             display: 'block',
             marginBlock: 'var(--shell-space-2)',
             visibility: used === null ? 'hidden' : 'visible',

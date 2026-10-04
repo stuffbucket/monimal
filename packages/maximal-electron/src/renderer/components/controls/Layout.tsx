@@ -123,9 +123,9 @@ const TAG_STYLES = `
   align-items: center;
   padding: 1px var(--shell-space-2);
   border-radius: var(--shell-radius-pill);
-  border: 1px solid var(--shell-border);
+  border: 1px solid var(--maximal-color-border-default);
   font-size: var(--shell-text-xs);
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   white-space: nowrap;
 }
 `;
@@ -155,7 +155,7 @@ const NOTE_STYLES = `
   margin: 0;
   font-size: var(--shell-text-sm);
   line-height: var(--shell-leading-base);
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
 }
 
 /*
@@ -166,7 +166,7 @@ const NOTE_STYLES = `
  * unstyled one.
  */
 .sb-shell .note[data-status] {
-  color: var(--shell-status, var(--shell-text-muted));
+  color: var(--shell-status, var(--maximal-color-text-secondary));
 }
 `;
 

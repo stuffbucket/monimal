@@ -77,18 +77,6 @@
       "cycleEdges": [],
       "duplicatePairs": []
     },
-    "@maximal/maximal": {
-      "root": "packages/maximal",
-      "dependsOn": [
-        "@maximal/eslint-config",
-        "@maximal/maximal-configurators",
-        "@maximal/maximal-core",
-        "@maximal/maximal-model-contract",
-        "@maximal/maximal-models"
-      ],
-      "cycleEdges": [],
-      "duplicatePairs": []
-    },
     "@maximal/maximal-core": {
       "root": "packages/maximal-core",
       "dependsOn": [
@@ -281,12 +269,15 @@
         "@maximal/maximal-assets",
         "@maximal/maximal-browser",
         "@maximal/maximal-client",
+        "@maximal/maximal-configurators",
         "@maximal/maximal-core",
         "@maximal/maximal-core-contract",
         "@maximal/maximal-electron",
         "@maximal/maximal-harness",
         "@maximal/maximal-runner-llama-cpp",
         "@maximal/maximal-logging",
+        "@maximal/maximal-model-contract",
+        "@maximal/maximal-models",
         "@maximal/maximal-observability",
         "@maximal/maximal-observability-contract",
         "@maximal/maximal-ollama",
@@ -403,7 +394,7 @@
       {
         "from": [
           "@maximal/maximal-core",
-          "@maximal/maximal",
+          "maximal-desktop",
           "@maximal/maximal-model-contract"
         ],
         "to": [

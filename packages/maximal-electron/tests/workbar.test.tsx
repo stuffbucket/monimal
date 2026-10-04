@@ -4,7 +4,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { SHELL_ICON_NAMES, Workbar } from '../src/renderer/index.js';
+import { SHELL_ICON_NAMES, Tooltip, Workbar } from '../src/renderer/index.js';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -113,5 +113,74 @@ describe('Workbar', () => {
 
     act(() => settings?.click());
     expect(onToggleSettings).toHaveBeenCalledOnce();
+  });
+
+  it('labels items with a Radix tooltip rather than a native title', async () => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() => {
+      root?.render(
+        <Workbar
+          items={[{ id: 'map', label: 'Workspace map', icon: 'map' }]}
+          onSelect={vi.fn()}
+        />,
+      );
+    });
+
+    const item = container.querySelector<HTMLButtonElement>('[data-testid="workbar-map"]');
+    if (item === null) throw new Error('Workbar item was not rendered');
+    expect(item.hasAttribute('title')).toBe(false);
+    expect(item.getAttribute('aria-label')).toBe('Workspace map');
+    await act(async () => item.focus());
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toBe('Workspace map');
+  });
+});
+
+describe('Tooltip', () => {
+  it('opens without a provider and stays closed when empty', async () => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() => {
+      root?.render(
+        <>
+          <Tooltip content="Explained">
+            <button type="button" data-testid="hinted">Hinted</button>
+          </Tooltip>
+          <Tooltip content={undefined}>
+            <button type="button" data-testid="plain">Plain</button>
+          </Tooltip>
+        </>,
+      );
+    });
+
+    const plain = container.querySelector<HTMLButtonElement>('[data-testid="plain"]');
+    await act(async () => plain?.focus());
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    const hinted = container.querySelector<HTMLButtonElement>('[data-testid="hinted"]');
+    await act(async () => hinted?.focus());
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toBe('Explained');
+  });
+
+  it('keeps the trigger mounted when its content appears', () => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    const render = (content?: string) =>
+      act(() => {
+        root?.render(
+          <Tooltip content={content}>
+            <input aria-label="Token" data-testid="token" />
+          </Tooltip>,
+        );
+      });
+
+    render();
+    const before = container.querySelector('[data-testid="token"]');
+    render('Token was rejected.');
+    expect(container.querySelector('[data-testid="token"]')).toBe(before);
   });
 });

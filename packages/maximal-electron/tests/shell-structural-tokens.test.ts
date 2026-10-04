@@ -99,7 +99,7 @@ describe('the structural tokens', () => {
   it('are the only value owner for every token they declare', () => {
     const fallbacks = new Set(shellVariablesIn(packageRules).fallback);
 
-    expect(fallbacks).toContain('--shell-border-strong');
+    expect(fallbacks).toContain('--maximal-color-border-strong');
     expect(declared.map(({ name }) => name).filter((name) => fallbacks.has(name))).toEqual([]);
   });
 

@@ -32,7 +32,7 @@ export const DEFERRED = new Map([
   ['scripts/verify-workflow-health.mjs', 125],
   ['scripts/workflow-health.mjs', 125],
   ['src/main/terminal-identity.ts', 125],
-  ['src/renderer/components/SpatialCanvasStyles.ts', 125],
+  ['src/renderer/components/spatialcanvas/SpatialCanvasStyles.ts', 125],
   ['src/renderer/lib/content-lorem.ts', 125],
   ['src/renderer/lib/panel-sizes.ts', 125],
 ]);

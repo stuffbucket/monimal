@@ -29,8 +29,8 @@ import {
 import {
   SPATIAL_CANVAS_CURSORS,
   SPATIAL_CANVAS_STYLES,
-} from '../src/renderer/components/SpatialCanvasStyles.js';
-import { SpatialCanvasCursorGlyph } from '../src/renderer/components/SpatialCanvasCursorGlyph.js';
+} from '../src/renderer/components/spatialcanvas/SpatialCanvasStyles.js';
+import { SpatialCanvasCursorGlyph } from '../src/renderer/components/spatialcanvas/SpatialCanvasCursorGlyph.js';
 import { TooltipProvider } from '../src/renderer/components/controls/Overlays.js';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -163,7 +163,7 @@ describe('SpatialCanvas', () => {
                 <SpatialCanvasCursor
                   x={80}
                   y={90}
-                  color="var(--shell-accent)"
+                  color="var(--maximal-color-text-brand)"
                   state="text"
                 >
                   Editor

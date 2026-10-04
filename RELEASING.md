@@ -39,10 +39,6 @@ is why `forge.config.ts` has no `osxSign` block: under the current contract it
 would fail, and failing is the intended outcome for a producer that tries to
 sign.
 
-`packages/maximal/.macos-builder/` is **not** part of this. It is a vendored
-fixture for the standalone `maximal` repository, targeting a different layout,
-and the builder never reads it. See [SOURCES.md](SOURCES.md).
-
 ## Cutting a release
 
 A release tag MUST match `vMAJOR.MINOR.PATCH` with an optional SemVer

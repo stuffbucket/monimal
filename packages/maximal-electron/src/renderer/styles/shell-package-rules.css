@@ -13,16 +13,16 @@
   background-color: var(
     --shell-spatial-canvas-background,
     light-dark(
-      var(--shell-spatial-grid-background-light, var(--shell-canvas)),
-      var(--shell-canvas)
+      var(--shell-spatial-grid-background-light, var(--maximal-color-bg-secondary)),
+      var(--maximal-color-bg-secondary)
     )
   );
 }
 
 .sb-shell .spatial-canvas__grid {
   color: light-dark(
-    var(--shell-spatial-grid-dot-light, var(--shell-text-subtle)),
-    var(--shell-spatial-grid-dot-dark, var(--shell-text-subtle))
+    var(--shell-spatial-grid-dot-light, var(--maximal-color-text-tertiary)),
+    var(--shell-spatial-grid-dot-dark, var(--maximal-color-text-tertiary))
   );
 }
 
@@ -83,8 +83,8 @@
  * element, so nothing here changes what it draws.
  */
 .sb-shell {
-  color: var(--shell-text);
-  background: var(--shell-background);
+  color: var(--maximal-color-text-default);
+  background: var(--maximal-color-bg-default);
   font: var(--shell-font, 400 14px/1.5 system-ui, sans-serif);
 }
 
@@ -132,8 +132,8 @@
   padding: 0 var(--shell-space-3) 0 var(--shell-space-2);
   flex: none;
   overflow: hidden;
-  background: var(--shell-background);
-  border-bottom: 1px solid var(--shell-border);
+  background: var(--maximal-color-bg-default);
+  border-bottom: 1px solid var(--maximal-color-border-default);
   -webkit-app-region: drag;
 }
 
@@ -150,7 +150,7 @@
   min-height: 0;
   flex: none;
   overflow: hidden;
-  box-shadow: inset -1px 0 var(--shell-border);
+  box-shadow: inset -1px 0 var(--maximal-color-border-default);
 }
 
 .sb-shell .panels {
@@ -206,9 +206,9 @@
   gap: var(--shell-space-2);
   padding: var(--shell-space-2) var(--shell-space-4);
   flex: none;
-  color: var(--shell-status, var(--shell-text-muted));
-  background: var(--shell-status-muted, var(--shell-active));
-  border-bottom: 1px solid var(--shell-border);
+  color: var(--shell-status, var(--maximal-color-text-secondary));
+  background: var(--shell-status-muted, var(--maximal-color-bg-pressed));
+  border-bottom: 1px solid var(--maximal-color-border-default);
   font-size: 13px;
 }
 
@@ -221,7 +221,7 @@
   padding: 0;
   border: 0;
   border-radius: var(--shell-radius);
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   background: transparent;
   cursor: pointer;
   transition: background 120ms ease-out;
@@ -235,13 +235,13 @@
 }
 
 .sb-shell .icon-button:hover {
-  color: var(--shell-text);
-  background: var(--shell-hover);
+  color: var(--maximal-color-text-default);
+  background: var(--maximal-color-bg-hover);
 }
 
 .sb-shell .icon-button[data-active='true'] {
-  color: var(--shell-accent);
-  background: var(--shell-accent-muted);
+  color: var(--maximal-color-text-onselected);
+  background: var(--maximal-color-bg-selected);
 }
 
 /*
@@ -253,8 +253,8 @@
  * icon button rather than an invisible one.
  */
 .sb-shell .icon-button--danger:hover {
-  color: var(--shell-danger-contrast, var(--shell-text));
-  background: var(--shell-danger, var(--shell-hover));
+  color: var(--maximal-color-text-ondanger, var(--maximal-color-text-default));
+  background: var(--maximal-color-bg-danger, var(--maximal-color-bg-hover));
 }
 
 .sb-shell .icon-button:focus-visible,
@@ -270,7 +270,7 @@
 .sb-shell .input:focus-visible,
 .sb-shell .checkbox__box:focus-visible,
 .sb-shell .radio__box:focus-visible {
-  outline: var(--shell-focus-ring-width) solid var(--shell-focus, var(--shell-accent));
+  outline: var(--shell-focus-ring-width) solid var(--maximal-color-border-selected, var(--maximal-color-border-brand));
   outline-offset: var(--shell-focus-ring-offset);
 }
 
@@ -287,11 +287,11 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  background: var(--shell-background);
+  background: var(--maximal-color-bg-default);
 }
 
 .sb-shell .panel--canvas {
-  background: var(--shell-canvas);
+  background: var(--maximal-color-bg-secondary);
 }
 
 .sb-shell .tabpanel {
@@ -304,13 +304,13 @@
 
 .sb-shell .panel--drawer {
   overflow: auto;
-  border-top: 1px solid var(--shell-border);
+  border-top: 1px solid var(--maximal-color-border-default);
 }
 
 .sb-shell .resize-handle {
   position: relative;
   width: 1px;
-  background: var(--shell-border);
+  background: var(--maximal-color-border-default);
   cursor: col-resize;
   transition: background 120ms ease-out;
 }
@@ -323,7 +323,7 @@
 
 .sb-shell .resize-handle:hover,
 .sb-shell .resize-handle[data-resize-handle-active] {
-  background: var(--shell-accent);
+  background: var(--maximal-color-bg-brand);
 }
 
 .sb-shell .resize-handle--horizontal {
@@ -366,7 +366,7 @@
   height: var(--shell-control-md);
   padding: 0 var(--shell-space-2);
   flex: none;
-  color: var(--shell-accent);
+  color: var(--maximal-color-text-brand);
   background: color-mix(in srgb, currentColor 14%, transparent);
   border-radius: var(--shell-radius-pill);
   font-size: var(--shell-text-xs);
@@ -374,34 +374,34 @@
 }
 
 .sb-shell .tab-group[data-color='blue'] {
-  color: var(--shell-accent);
+  color: var(--maximal-color-text-brand);
 }
 
 .sb-shell .tab-group[data-color='green'] {
-  color: var(--shell-success, var(--shell-accent));
+  color: var(--maximal-color-text-success, var(--maximal-color-text-brand));
 }
 
 .sb-shell .tab-group[data-color='yellow'] {
-  color: var(--shell-warning, var(--shell-accent));
+  color: var(--maximal-color-text-warning, var(--maximal-color-text-brand));
 }
 
 .sb-shell .tab-group[data-color='red'] {
-  color: var(--shell-danger, var(--shell-accent));
+  color: var(--maximal-color-text-danger, var(--maximal-color-text-brand));
 }
 
 .sb-shell .tab-group[data-color='purple'] {
   color: color-mix(
     in srgb,
-    var(--shell-accent) 60%,
-    var(--shell-danger, var(--shell-accent))
+    var(--maximal-color-text-brand) 60%,
+    var(--maximal-color-text-danger, var(--maximal-color-text-brand))
   );
 }
 
 .sb-shell .tab-group[data-color='orange'] {
   color: color-mix(
     in srgb,
-    var(--shell-warning, var(--shell-accent)) 65%,
-    var(--shell-danger, var(--shell-accent))
+    var(--maximal-color-text-warning, var(--maximal-color-text-brand)) 65%,
+    var(--maximal-color-text-danger, var(--maximal-color-text-brand))
   );
 }
 
@@ -438,7 +438,7 @@
   min-width: var(--shell-tab-min);
   max-width: var(--shell-tab-max);
   padding: 0 var(--shell-space-3);
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   white-space: nowrap;
   border: var(--shell-border-width-thin) solid transparent;
   border-radius: var(--shell-radius);
@@ -451,47 +451,47 @@
 }
 
 .sb-shell .tab:hover {
-  color: var(--shell-text-muted);
-  background: var(--shell-hover);
+  color: var(--maximal-color-text-secondary);
+  background: var(--maximal-color-bg-hover);
 }
 
 /* The selected tab is a complete compact control rather than a title-bar
    segment: its fill and outline remain visible on every host surface. */
 .sb-shell .tab[data-state='active'] {
-  color: var(--shell-text);
-  background: var(--shell-tab-active, var(--shell-canvas));
-  border-color: var(--shell-border-strong, var(--shell-border));
+  color: var(--maximal-color-text-default);
+  background: var(--shell-tab-active, var(--maximal-color-bg-secondary));
+  border-color: var(--maximal-color-border-strong, var(--maximal-color-border-default));
 }
 
 .sb-shell .tab[data-color='blue'] {
-  box-shadow: inset 0 2px var(--shell-accent);
+  box-shadow: inset 0 2px var(--maximal-color-border-brand);
 }
 
 .sb-shell .tab[data-color='green'] {
-  box-shadow: inset 0 2px var(--shell-success, var(--shell-accent));
+  box-shadow: inset 0 2px var(--maximal-color-border-success, var(--maximal-color-border-brand));
 }
 
 .sb-shell .tab[data-color='yellow'] {
-  box-shadow: inset 0 2px var(--shell-warning, var(--shell-accent));
+  box-shadow: inset 0 2px var(--maximal-color-border-warning, var(--maximal-color-border-brand));
 }
 
 .sb-shell .tab[data-color='red'] {
-  box-shadow: inset 0 2px var(--shell-danger, var(--shell-accent));
+  box-shadow: inset 0 2px var(--maximal-color-border-danger, var(--maximal-color-border-brand));
 }
 
 .sb-shell .tab[data-color='purple'] {
   box-shadow: inset 0 2px color-mix(
     in srgb,
-    var(--shell-accent) 60%,
-    var(--shell-danger, var(--shell-accent))
+    var(--maximal-color-border-brand) 60%,
+    var(--maximal-color-border-danger, var(--maximal-color-border-brand))
   );
 }
 
 .sb-shell .tab[data-color='orange'] {
   box-shadow: inset 0 2px color-mix(
     in srgb,
-    var(--shell-warning, var(--shell-accent)) 65%,
-    var(--shell-danger, var(--shell-accent))
+    var(--maximal-color-border-warning, var(--maximal-color-border-brand)) 65%,
+    var(--maximal-color-border-danger, var(--maximal-color-border-brand))
   );
 }
 
@@ -531,7 +531,7 @@
 }
 
 .sb-shell .tab__close:hover {
-  background: var(--shell-active);
+  background: var(--maximal-color-bg-pressed);
   opacity: 1;
 }
 
@@ -559,7 +559,7 @@
   clip: auto;
   flex: none;
   align-self: center;
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   border-radius: var(--shell-radius);
 }
 
@@ -571,18 +571,18 @@
   height: var(--shell-control-md);
   flex: none;
   align-self: center;
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   border-radius: var(--shell-radius);
 }
 
 .sb-shell .tab__new:hover {
-  color: var(--shell-text);
-  background: var(--shell-hover);
+  color: var(--maximal-color-text-default);
+  background: var(--maximal-color-bg-hover);
 }
 
 /*
  * Emphasis. Geometry carries the signal, so a consumer who supplies no
- * `--shell-warning` still gets two shapes nothing else in the strip draws.
+ * `--maximal-color-bg-warning` still gets two shapes nothing else in the strip draws.
  */
 .sb-shell .tab__emphasis {
   position: absolute;
@@ -594,7 +594,7 @@
   bottom: 1px;
   left: var(--shell-space-3);
   height: 2px;
-  background: var(--shell-warning, var(--shell-accent));
+  background: var(--maximal-color-bg-warning, var(--maximal-color-bg-brand));
 }
 
 .sb-shell .tab[data-emphasis='busy'] .tab__emphasis {
@@ -605,9 +605,9 @@
   background: linear-gradient(
     90deg,
     transparent 0%,
-    var(--shell-accent-muted) 32%,
-    color-mix(in srgb, var(--shell-accent) 55%, transparent) 50%,
-    var(--shell-accent-muted) 68%,
+    var(--maximal-color-bg-selected) 32%,
+    color-mix(in srgb, var(--maximal-color-bg-brand) 55%, transparent) 50%,
+    var(--maximal-color-bg-selected) 68%,
     transparent 100%
   );
   background-size: 300% 100%;
@@ -664,7 +664,7 @@
   gap: var(--shell-space-1);
   height: var(--shell-nav-heading-height, 24px);
   padding: var(--shell-space-1) var(--shell-space-2);
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -693,7 +693,7 @@
   content: '';
   width: 100%;
   height: 1px;
-  background: var(--shell-border);
+  background: var(--maximal-color-border-default);
 }
 
 .sb-shell .nav__heading[aria-expanded='false'] .nav__chevron {
@@ -704,18 +704,18 @@
   gap: var(--shell-space-2);
   height: var(--shell-row-height);
   padding: 0 var(--shell-space-2);
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   transition: background 120ms ease-out;
 }
 
 .sb-shell .nav__item:hover {
-  color: var(--shell-text);
-  background: var(--shell-hover);
+  color: var(--maximal-color-text-default);
+  background: var(--maximal-color-bg-hover);
 }
 
 .sb-shell .nav__item[aria-current='true'] {
-  color: var(--shell-accent);
-  background: var(--shell-accent-muted);
+  color: var(--maximal-color-text-onselected);
+  background: var(--maximal-color-bg-selected);
   font-weight: 500;
 }
 
@@ -733,7 +733,7 @@
 
 .sb-shell .nav__item-count {
   margin-left: auto;
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
@@ -789,7 +789,7 @@
   height: var(--shell-control-lg);
   flex: none;
   padding: 0;
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   background: transparent;
   border: 0;
   border-radius: var(--shell-radius);
@@ -798,13 +798,13 @@
 }
 
 .sb-shell .workbar__item:hover {
-  color: var(--shell-text);
-  background: var(--shell-hover);
+  color: var(--maximal-color-text-default);
+  background: var(--maximal-color-bg-hover);
 }
 
 .sb-shell .workbar__item[aria-current='true'] {
-  color: var(--shell-accent);
-  background: var(--shell-accent-muted);
+  color: var(--maximal-color-text-onselected);
+  background: var(--maximal-color-bg-selected);
 }
 
 .sb-shell .workbar__item > svg {
@@ -848,7 +848,7 @@
   gap: var(--shell-space-2);
   padding: var(--shell-space-2) var(--shell-space-4);
   flex: none;
-  border-bottom: 1px solid var(--shell-border);
+  border-bottom: 1px solid var(--maximal-color-border-default);
 }
 
 .sb-shell .toolbar__title {
@@ -861,8 +861,8 @@
   display: inline-flex;
   gap: 2px;
   padding: 2px;
-  background: var(--shell-raised);
-  border: 1px solid var(--shell-border);
+  background: var(--maximal-color-bg-tertiary);
+  border: 1px solid var(--maximal-color-border-default);
   border-radius: var(--shell-radius);
 }
 
@@ -876,7 +876,7 @@
   width: var(--shell-control-md);
   height: var(--shell-control-sm);
   padding: 0;
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   font: inherit;
   border: 0;
   border-radius: var(--shell-radius-small, 4px);
@@ -885,8 +885,8 @@
 }
 
 .sb-shell .segmented button[aria-pressed='true'] {
-  color: var(--shell-text);
-  background: var(--shell-active);
+  color: var(--maximal-color-text-default);
+  background: var(--maximal-color-bg-pressed);
 }
 
 .sb-shell .canvas {
@@ -925,8 +925,8 @@
   color: inherit;
   font: inherit;
   text-align: left;
-  background: var(--shell-raised);
-  border: 1px solid var(--shell-border);
+  background: var(--maximal-color-bg-tertiary);
+  border: 1px solid var(--maximal-color-border-default);
   border-radius: var(--shell-radius-large);
   cursor: pointer;
   transition:
@@ -935,22 +935,22 @@
 }
 
 .sb-shell .card:hover {
-  border-color: var(--shell-border-strong, var(--shell-border));
+  border-color: var(--maximal-color-border-strong, var(--maximal-color-border-default));
   transform: translateY(-1px);
 }
 
 .sb-shell .card[aria-selected='true'] {
-  border-color: var(--shell-accent);
-  box-shadow: 0 0 0 1px var(--shell-accent);
+  border-color: var(--maximal-color-border-brand);
+  box-shadow: 0 0 0 1px var(--maximal-color-border-brand);
 }
 
 .sb-shell .card__thumb {
   display: grid;
   place-items: center;
   aspect-ratio: 4 / 3;
-  color: var(--shell-text-subtle);
-  background: var(--shell-canvas);
-  border-bottom: 1px solid var(--shell-border);
+  color: var(--maximal-color-text-tertiary);
+  background: var(--maximal-color-bg-secondary);
+  border-bottom: 1px solid var(--maximal-color-border-default);
 }
 
 .sb-shell .card__meta {
@@ -964,7 +964,7 @@
 .sb-shell .card__name {
   display: block;
   overflow: hidden;
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -973,7 +973,7 @@
 .sb-shell .card__sub {
   display: block;
   overflow: hidden;
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -995,7 +995,7 @@
   width: 100%;
   height: var(--shell-row-height);
   padding: 0 var(--shell-space-3);
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font: inherit;
   text-align: left;
   border: 0;
@@ -1005,12 +1005,12 @@
 }
 
 .sb-shell .row:hover {
-  background: var(--shell-hover);
+  background: var(--maximal-color-bg-hover);
 }
 
 .sb-shell .row[aria-selected='true'] {
-  color: var(--shell-accent);
-  background: var(--shell-accent-muted);
+  color: var(--maximal-color-text-onselected);
+  background: var(--maximal-color-bg-selected);
 }
 
 .sb-shell .row__name {
@@ -1022,7 +1022,7 @@
 }
 
 .sb-shell .row__sub {
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
@@ -1033,7 +1033,7 @@
   gap: var(--shell-space-2);
   height: 100%;
   padding: var(--shell-space-5);
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   text-align: center;
 }
 
@@ -1057,8 +1057,8 @@
   flex: none;
   flex-wrap: wrap;
   row-gap: var(--shell-space-1);
-  color: var(--shell-text-subtle);
-  border-top: 1px solid var(--shell-border);
+  color: var(--maximal-color-text-tertiary);
+  border-top: 1px solid var(--maximal-color-border-default);
   font-size: 11px;
 }
 
@@ -1084,7 +1084,7 @@
 
 .sb-shell .status-viewport__position {
   min-width: 3em;
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
@@ -1103,12 +1103,12 @@
 }
 
 .sb-shell .status-viewport__action:hover {
-  color: var(--shell-text);
-  background: var(--shell-hover);
+  color: var(--maximal-color-text-default);
+  background: var(--maximal-color-bg-hover);
 }
 
 .sb-shell .status-viewport__action:focus-visible {
-  outline: var(--shell-focus-ring-width) solid var(--shell-focus, var(--shell-accent));
+  outline: var(--shell-focus-ring-width) solid var(--maximal-color-border-selected, var(--maximal-color-border-brand));
   outline-offset: calc(-1 * var(--shell-focus-ring-width));
 }
 
@@ -1122,7 +1122,7 @@
   height: 7px;
   flex: none;
   border-radius: 9999px;
-  background: var(--shell-status, var(--shell-text-muted));
+  background: var(--shell-status, var(--maximal-color-icon-secondary));
   /* A halo, so a 7px dot still reads as live against a dark panel. It falls
      back to transparent rather than to a surface: a host that names no status
      tint gets the dot alone, not a grey ring around it. */
@@ -1133,8 +1133,8 @@
   display: inline-flex;
   align-items: center;
   padding: 2px var(--shell-space-2);
-  color: var(--shell-status, var(--shell-text-muted));
-  background: var(--shell-status-muted, var(--shell-active));
+  color: var(--shell-status, var(--maximal-color-text-secondary));
+  background: var(--shell-status-muted, var(--maximal-color-bg-pressed));
   border-radius: 9999px;
   font-size: 11px;
   font-weight: 500;
@@ -1146,9 +1146,9 @@
   box-sizing: border-box;
   max-width: min(24rem, calc(100vw - 16px));
   padding: var(--shell-space-1) var(--shell-space-2);
-  color: var(--shell-text);
-  background: var(--shell-raised);
-  border: 1px solid var(--shell-border-strong, var(--shell-border));
+  color: var(--maximal-color-text-default);
+  background: var(--maximal-color-bg-tertiary);
+  border: 1px solid var(--maximal-color-border-strong, var(--maximal-color-border-default));
   border-radius: var(--shell-radius-small, 4px);
   box-shadow: var(--shell-elevation, none);
   font-size: 13px;
@@ -1165,7 +1165,7 @@
    * Fills the slot, and draws no edge of its own.
    *
    * It did both the other way round. ShellLayout's own `.resize-handle` is
-   * `width: 1px; background: var(--shell-border)` and already draws the
+   * `width: 1px; background: var(--maximal-color-border-default)` and already draws the
    * divider between the canvas and this panel, so a `border-left` here put a
    * second 1px line of the same colour immediately beside the first: measured
    * in the browser at x=857 and x=858, a 2px divider where the design says
@@ -1185,12 +1185,12 @@
   min-height: 36px;
   padding: var(--shell-space-2) var(--shell-space-3);
   flex: none;
-  border-bottom: 1px solid var(--shell-border);
+  border-bottom: 1px solid var(--maximal-color-border-default);
 }
 
 .sb-shell .inspector__title {
   margin: 0;
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -1228,7 +1228,7 @@
 }
 
 .sb-shell .field__label {
-  color: var(--shell-text-subtle);
+  color: var(--maximal-color-text-tertiary);
   font-size: 13px;
 }
 
@@ -1250,20 +1250,20 @@
   justify-content: center;
   gap: var(--shell-space-1);
   padding: 0 var(--shell-space-3);
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
   font: inherit;
   font-weight: 500;
   white-space: nowrap;
-  background: var(--shell-raised);
-  border: 1px solid var(--shell-border-strong, var(--shell-border));
+  background: var(--maximal-color-bg-tertiary);
+  border: 1px solid var(--maximal-color-border-strong, var(--maximal-color-border-default));
   border-radius: var(--shell-radius);
   cursor: pointer;
   transition: background 120ms ease-out;
 }
 
 .sb-shell .btn:hover:not(:disabled) {
-  background: var(--shell-hover);
-  border-color: var(--shell-border-hover, var(--shell-accent));
+  background: var(--maximal-color-bg-hover);
+  border-color: var(--maximal-color-border-strong-hover, var(--maximal-color-border-brand));
 }
 
 .sb-shell .btn--sm {
@@ -1288,9 +1288,9 @@
 }
 
 .sb-shell .btn--primary {
-  color: var(--shell-accent-contrast, var(--shell-text));
-  background: var(--shell-accent);
-  border-color: var(--shell-accent);
+  color: var(--maximal-color-text-onbrand, var(--maximal-color-text-default));
+  background: var(--maximal-color-bg-brand);
+  border-color: var(--maximal-color-border-brand);
 }
 
 /*
@@ -1299,23 +1299,23 @@
  *
  * Each restates its own fill, because `.btn:hover:not(:disabled)` above has the
  * same specificity and would otherwise repaint a filled button with
- * `--shell-hover`. A consumer's primary button lost its accent on hover for as
+ * `--maximal-color-bg-hover`. A consumer's primary button lost its accent on hover for as
  * long as these two shared a rule that set `filter` alone.
  */
 .sb-shell .btn--primary:hover:not(:disabled) {
-  background: var(--shell-accent);
+  background: var(--maximal-color-bg-brand);
   filter: brightness(1.08);
 }
 
 .sb-shell .btn--danger:hover:not(:disabled) {
-  background: var(--shell-danger, var(--shell-hover));
+  background: var(--maximal-color-bg-danger, var(--maximal-color-bg-hover));
   filter: brightness(1.08);
 }
 
 .sb-shell .btn--danger {
-  color: var(--shell-danger-contrast, var(--shell-text));
-  background: var(--shell-danger, var(--shell-hover));
-  border-color: var(--shell-danger, var(--shell-hover));
+  color: var(--maximal-color-text-ondanger, var(--maximal-color-text-default));
+  background: var(--maximal-color-bg-danger, var(--maximal-color-bg-hover));
+  border-color: var(--maximal-color-border-danger, var(--maximal-color-bg-hover));
 }
 
 .sb-shell .btn:disabled {
@@ -1348,8 +1348,8 @@
   gap: var(--shell-space-3);
   width: min(520px, 90vw);
   padding: var(--shell-space-4);
-  background: var(--shell-raised);
-  border: 1px solid var(--shell-border-strong, var(--shell-border));
+  background: var(--maximal-color-bg-tertiary);
+  border: 1px solid var(--maximal-color-border-strong, var(--maximal-color-border-default));
   border-radius: var(--shell-radius-dialog);
   box-shadow: var(--shell-elevation, none);
   transform: translate(-50%, -50%);
@@ -1369,13 +1369,13 @@
 }
 
 .sb-shell .dialog__description {
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   line-height: 1.5;
 }
 
 .sb-shell .unsaved-changes-dialog__error {
   margin: 0;
-  color: var(--shell-invalid, var(--shell-danger, var(--shell-text)));
+  color: var(--maximal-color-text-danger, var(--maximal-color-text-danger, var(--maximal-color-text-default)));
   line-height: 1.5;
 }
 
@@ -1392,8 +1392,8 @@
   max-height: min(360px, 100vh);
   overflow-y: auto;
   padding: var(--shell-space-1);
-  background: var(--shell-raised);
-  border: 1px solid var(--shell-border-strong, var(--shell-border));
+  background: var(--maximal-color-bg-tertiary);
+  border: 1px solid var(--maximal-color-border-strong, var(--maximal-color-border-default));
   border-radius: var(--shell-radius);
   box-shadow: var(--shell-elevation, none);
 }
@@ -1404,7 +1404,7 @@
   gap: var(--shell-space-2);
   height: var(--shell-row-height);
   padding: 0 var(--shell-space-2);
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: 13px;
   border-radius: var(--shell-radius-small, 4px);
   /* Radix moves a roving highlight rather than focus, so the ring would draw
@@ -1414,7 +1414,7 @@
 }
 
 .sb-shell .menu__item-shortcut {
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   font-size: 11px;
   letter-spacing: 0.02em;
 }
@@ -1441,12 +1441,12 @@
 .sb-shell .menu__separator {
   height: 1px;
   margin: var(--shell-space-1) 0;
-  background: var(--shell-border);
+  background: var(--maximal-color-border-default);
 }
 
 .sb-shell .menu__item[data-highlighted] {
-  color: var(--shell-text);
-  background: var(--shell-hover);
+  color: var(--maximal-color-text-default);
+  background: var(--maximal-color-bg-hover);
 }
 
 .sb-shell .menu__item[data-disabled] {
@@ -1458,15 +1458,15 @@
    Both tokens fall back, so a host that names no danger colour gets an
    ordinary highlighted item rather than an invisible one. */
 .sb-shell .menu__item--danger[data-highlighted] {
-  color: var(--shell-danger-contrast, var(--shell-text));
-  background: var(--shell-danger, var(--shell-hover));
+  color: var(--maximal-color-text-ondanger, var(--maximal-color-text-default));
+  background: var(--maximal-color-bg-danger, var(--maximal-color-bg-hover));
 }
 
 .sb-shell .menu__header {
   display: block;
   padding: var(--shell-space-2);
   margin-bottom: var(--shell-space-1);
-  border-bottom: 1px solid var(--shell-border);
+  border-bottom: 1px solid var(--maximal-color-border-default);
 }
 
 .sb-shell .menu__header--action {
@@ -1476,7 +1476,7 @@
 }
 
 .sb-shell .menu__header--action[data-highlighted] {
-  background: var(--shell-hover);
+  background: var(--maximal-color-bg-hover);
 }
 
 .sb-shell .avatar {
@@ -1512,14 +1512,14 @@
 }
 
 .sb-shell .avatar--initials {
-  color: var(--shell-accent-contrast, var(--shell-text));
-  background: var(--shell-accent);
+  color: var(--maximal-color-text-onbrand, var(--maximal-color-text-default));
+  background: var(--maximal-color-bg-brand);
 }
 
 .sb-shell .avatar--anon {
-  color: var(--shell-text-muted);
-  background: var(--shell-raised);
-  border: 1px solid var(--shell-border-strong, var(--shell-border));
+  color: var(--maximal-color-text-secondary);
+  background: var(--maximal-color-bg-tertiary);
+  border: 1px solid var(--maximal-color-border-strong, var(--maximal-color-border-default));
 }
 
 .sb-shell .profile__identity {
@@ -1536,7 +1536,7 @@
 }
 
 .sb-shell .profile__name {
-  color: var(--shell-text);
+  color: var(--maximal-color-text-default);
   overflow: hidden;
   font-size: var(--shell-text-sm);
   font-weight: var(--shell-weight-md);
@@ -1545,7 +1545,7 @@
 }
 
 .sb-shell .profile__handle {
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
   overflow: hidden;
   font-size: var(--shell-text-xs);
   text-overflow: ellipsis;
@@ -1556,8 +1556,8 @@
   padding: 2px var(--shell-space-2);
   margin-left: auto;
   flex: none;
-  color: var(--shell-text-muted);
-  background: var(--shell-raised);
+  color: var(--maximal-color-text-secondary);
+  background: var(--maximal-color-bg-tertiary);
   border-radius: var(--shell-radius-pill);
   font-size: var(--shell-text-xs);
   font-weight: var(--shell-weight-md);
@@ -1579,7 +1579,7 @@
 .sb-shell .nav:focus-within,
 .sb-shell .inspector__body:hover,
 .sb-shell .inspector__body:focus-within {
-  scrollbar-color: var(--shell-border-strong, var(--shell-border)) transparent;
+  scrollbar-color: var(--maximal-color-border-strong, var(--maximal-color-border-default)) transparent;
 }
 
 .sb-shell .canvas::-webkit-scrollbar,
@@ -1605,13 +1605,13 @@
 .sb-shell .nav:focus-within::-webkit-scrollbar-thumb,
 .sb-shell .inspector__body:hover::-webkit-scrollbar-thumb,
 .sb-shell .inspector__body:focus-within::-webkit-scrollbar-thumb {
-  background-color: var(--shell-border-strong, var(--shell-border));
+  background-color: var(--maximal-color-border-strong, var(--maximal-color-border-default));
 }
 
 .sb-shell .canvas::-webkit-scrollbar-thumb:hover,
 .sb-shell .nav::-webkit-scrollbar-thumb:hover,
 .sb-shell .inspector__body::-webkit-scrollbar-thumb:hover {
-  background: var(--shell-text-subtle);
+  background: var(--maximal-color-icon-tertiary);
   background-clip: content-box;
 }
 
@@ -1685,8 +1685,8 @@
   inset: auto var(--shell-space-2) var(--shell-space-2) auto;
   margin: 0;
   padding: var(--shell-space-1) var(--shell-space-2);
-  background: var(--shell-raised);
-  color: var(--shell-text-muted);
+  background: var(--maximal-color-bg-tertiary);
+  color: var(--maximal-color-text-secondary);
 }
 
 .sb-shell .terminal {
@@ -1695,14 +1695,14 @@
   min-height: 0;
   padding: 0;
   overflow: hidden;
-  background: var(--shell-terminal-background, var(--shell-canvas));
+  background: var(--shell-terminal-background, var(--maximal-color-bg-secondary));
   border-radius: 7px;
 }
 
 .sb-shell .terminal[data-focused='true'][data-focus-indicator='true'] {
   box-shadow: inset 0 0 0 1px color-mix(
     in srgb,
-    var(--shell-focus, var(--shell-accent)) 55%,
+    var(--maximal-color-border-selected, var(--maximal-color-border-brand)) 55%,
     transparent
   );
 }
@@ -1712,7 +1712,7 @@
 }
 
 .sb-shell .terminal .xterm-viewport {
-  background-color: var(--shell-terminal-background, var(--shell-canvas)) !important;
+  background-color: var(--shell-terminal-background, var(--maximal-color-bg-secondary)) !important;
 }
 
 .sb-shell .terminal .xterm-viewport::-webkit-scrollbar {
@@ -1724,7 +1724,7 @@
 }
 
 .sb-shell .terminal .xterm-viewport::-webkit-scrollbar-thumb {
-  background: var(--shell-border-strong, var(--shell-border));
+  background: var(--maximal-color-border-strong, var(--maximal-color-border-default));
 }
 
 .sb-shell .terminal__error {
@@ -1732,7 +1732,7 @@
   display: flex;
   align-items: center;
   gap: var(--shell-space-2);
-  color: var(--shell-text-muted);
+  color: var(--maximal-color-text-secondary);
 }
 
 }

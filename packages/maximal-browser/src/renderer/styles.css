@@ -12,7 +12,7 @@
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  border-bottom: 1px solid var(--shell-border, #30333a);
+  border-bottom: 1px solid var(--maximal-color-border-default, #30333a);
 }
 
 .maximal-browser__toolbar button {
@@ -25,7 +25,7 @@
 }
 
 .maximal-browser__toolbar button:hover {
-  background: var(--shell-hover, rgba(255, 255, 255, 0.08));
+  background: var(--maximal-color-bg-hover, rgba(255, 255, 255, 0.08));
 }
 
 .maximal-browser__toolbar input {
@@ -33,7 +33,7 @@
   min-width: 0;
   height: 28px;
   padding: 0 9px;
-  border: 1px solid var(--shell-border, #30333a);
+  border: 1px solid var(--maximal-color-border-default, #30333a);
   border-radius: 4px;
   color: inherit;
   background: var(--shell-input, #202229);
@@ -50,7 +50,7 @@
   gap: 6px;
   white-space: nowrap;
   font-size: 12px;
-  color: var(--shell-warning, #f2c66d);
+  color: var(--maximal-color-text-warning, #f2c66d);
 }
 
 .maximal-browser__agent-control button {

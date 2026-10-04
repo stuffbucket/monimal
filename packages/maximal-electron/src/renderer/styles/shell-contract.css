@@ -19,35 +19,16 @@
  * The names left out are the ones `shell-package-rules.css` reads with a fallback and
  * the ones set at run time. `docs/shell-variables.md` says which are which.
  *
- * This file disappears when the stylesheets in this directory are renamed onto
- * the published namespace, because there will be one set of names.
+ * Colour needs no row: `tokens.css` defines the published `--maximal-color-*`
+ * names directly. What remains are component tokens with no short name.
  */
 
 :root {
-  --shell-accent: var(--accent);
-  --shell-accent-muted: var(--accent-soft);
-  --shell-active: var(--bg-active);
-  --shell-background: var(--bg-app);
-  --shell-border: var(--border-subtle);
-  --shell-canvas: var(--bg-canvas);
-  --shell-spatial-canvas-background: var(--bg-canvas);
-  --shell-hover: var(--bg-hover);
-  --shell-raised: var(--bg-raised);
-  --shell-text: var(--text-primary);
-  --shell-text-muted: var(--text-secondary);
-  --shell-text-subtle: var(--text-muted);
-  --shell-accent-contrast: var(--accent-contrast);
-  --shell-border-hover: var(--border-input-hover);
-  --shell-border-strong: var(--border-strong);
-  --shell-danger: var(--danger-fill);
-  --shell-danger-contrast: var(--text-on-solid);
-  --shell-invalid: var(--text-invalid);
+  --shell-spatial-canvas-background: var(--maximal-color-bg-secondary);
   --shell-elevation: var(--elevation-popover);
   --shell-font-mono: var(--font-mono);
-  --shell-input-background: var(--bg-input);
   --shell-tab-active: var(--tab-active);
-  --shell-warning: var(--warning);
-  --shell-terminal-background: var(--bg-canvas);
-  --shell-terminal-cursor: var(--accent);
-  --shell-terminal-foreground: var(--text-primary);
+  --shell-terminal-background: var(--maximal-color-bg-secondary);
+  --shell-terminal-cursor: var(--maximal-color-icon-brand);
+  --shell-terminal-foreground: var(--maximal-color-text-default);
 }

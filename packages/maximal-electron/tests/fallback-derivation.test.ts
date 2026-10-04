@@ -8,14 +8,14 @@ import { packageStylesheets } from '../scripts/shell-variables.mjs';
  * Whether a colour this package falls back to tracks the palette it sits in.
  *
  * A `fallback` token is one a shipped rule reads with a value already in hand:
- * `var(--shell-border-strong, …)`. What goes after the comma decides whether
+ * `var(--maximal-color-border-strong, …)`. What goes after the comma decides whether
  * the token is part of the design system or a stowaway in it.
  *
  * VS Code's `registerColor` takes a default that *references* another colour —
  * `transparent(editorSelectionBackground, 0.5)`, `lighten(toolbarHover,
  * 0.1)` — so a theme sets a small base and everything else resolves from it.
  * A default written as its own swatch cannot do that: a consumer changes
- * `--shell-border` and the strong border stays whatever hex was transcribed,
+ * `--maximal-color-border-default` and the strong border stays whatever hex was transcribed,
  * and nothing reports an error, because a colour that is merely wrong renders.
  * That is the mechanism behind the twenty-nine divergent
  * `var(--shell-*, literal)` sites measured in `packages/maximal-client/src/renderer`.
@@ -39,10 +39,10 @@ const INDEPENDENT = new Map([
 /** Anything whose text names a colour outright. */
 const COLOUR = /^(?:#[0-9a-f]{3,8}|(?:rgba?|hsla?|oklch|oklab|lab|lch|color-mix)\()/i;
 
-/** Every `--shell-*` read with a fallback, and the fallback it was given. */
+/** Every `--shell-*` or `--maximal-color-*` read with a fallback, and the fallback it was given. */
 function fallbacks(css: string): Map<string, string> {
   const found = new Map<string, string>();
-  const opening = /var\(\s*(--shell-[a-z0-9-]+)\s*,/g;
+  const opening = /var\(\s*(--(?:shell|maximal-color)-[a-z0-9-]+)\s*,/g;
   let match: RegExpExecArray | null;
 
   while ((match = opening.exec(css)) !== null) {
@@ -75,7 +75,7 @@ describe('what a shipped rule falls back to', () => {
     // The floor. A reader that matched nothing reports every fallback as a
     // derivation by finding none of them.
     expect(found.size).toBeGreaterThan(20);
-    expect(found.get('--shell-border-strong')).toBe('var(--shell-border)');
+    expect(found.get('--maximal-color-border-strong')).toBe('var(--maximal-color-border-default)');
   });
 
   it('names no colour at all', () => {

@@ -10,9 +10,9 @@ and the shared bridge types consumed by the host. Native lifecycle, preload,
 packaging, and the private IPC channel allowlist live in `apps/desktop`.
 
 How it is built is owned by
-[`../maximal/docs/dev/client-architecture.md`](../maximal/docs/dev/client-architecture.md).
+[`../../apps/desktop/docs/architecture.md`](../../apps/desktop/docs/architecture.md).
 How it should look is owned by
-[`../maximal/.design-context.md`](../maximal/.design-context.md). This file records the current
+[`docs/design-context.md`](docs/design-context.md). This file records the current
 surface state and near-term roadmap.
 
 ## State

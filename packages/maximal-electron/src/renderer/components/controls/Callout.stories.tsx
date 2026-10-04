@@ -124,7 +124,7 @@ export const HostMapping: Story = {
   },
   render: (args) => (
     <div style={{ width: 460 }}>
-      <style>{"[data-status='blocked'] { --shell-status: var(--warning); --shell-status-muted: var(--warning-soft); }"}</style>
+      <style>{"[data-status='blocked'] { --shell-status: var(--maximal-color-text-warning); --shell-status-muted: var(--maximal-color-bg-warning-secondary); }"}</style>
       <Callout {...args} />
     </div>
   ),
@@ -135,7 +135,7 @@ export const HostMapping: Story = {
     // Resolved from the token rather than transcribed, so a palette change
     // cannot leave this passing against a colour nothing draws any more.
     const probe = document.createElement('span');
-    probe.style.color = 'var(--warning)';
+    probe.style.color = 'var(--maximal-color-text-warning)';
     canvasElement.append(probe);
     const warning = getComputedStyle(probe).color;
     probe.remove();

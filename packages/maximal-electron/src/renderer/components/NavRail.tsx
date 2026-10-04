@@ -2,6 +2,8 @@ import * as Collapsible from '@radix-ui/react-collapsible';
 import { ChevronDown } from 'lucide-react';
 import { useState, type ComponentType } from 'react';
 
+import { Tooltip } from './controls/Overlays.js';
+
 /** One row in a section: an icon, a label, a count, and an optional dot. */
 export interface NavRailEntry<Id extends string, Status extends string = string> {
   id: Id;
@@ -98,24 +100,29 @@ export function NavRail<Id extends string, Status extends string = string>({
             {section.items.map((entry) => {
               const Icon = icon(entry);
               return (
-                <button
+                <Tooltip
                   key={entry.id}
-                  type="button"
-                  className="nav__item"
-                  aria-current={entry.id === current}
-                  data-status={entry.status}
-                  onClick={() => onSelect(entry.id)}
-                  title={collapsed ? entry.label : undefined}
-                  // A colon is legal in an id and not in a test selector. The
-                  // production ids contain none, so this is a no-op for them.
-                  data-testid={`nav-${entry.id.replace(':', '-')}`}
+                  content={collapsed ? entry.label : undefined}
+                  side="right"
                 >
-                  <Icon size={16} />
-                  <span className="nav__label">{entry.label}</span>
-                  {entry.count > 0 && (
-                    <span className="nav__item-count">{entry.count}</span>
-                  )}
-                </button>
+                  <button
+                    type="button"
+                    className="nav__item"
+                    aria-current={entry.id === current}
+                    aria-label={collapsed ? entry.label : undefined}
+                    data-status={entry.status}
+                    onClick={() => onSelect(entry.id)}
+                    // A colon is legal in an id and not in a test selector. The
+                    // production ids contain none, so this is a no-op for them.
+                    data-testid={`nav-${entry.id.replace(':', '-')}`}
+                  >
+                    <Icon size={16} />
+                    <span className="nav__label">{entry.label}</span>
+                    {entry.count > 0 && (
+                      <span className="nav__item-count">{entry.count}</span>
+                    )}
+                  </button>
+                </Tooltip>
               );
             })}
           </Collapsible.Content>

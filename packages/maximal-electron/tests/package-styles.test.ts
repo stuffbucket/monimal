@@ -8,6 +8,7 @@ import {
   componentStyles,
   exportedModules,
   isPackageToken,
+  isSharedToken,
   mirroredRules,
   packageReads,
   readTokens,
@@ -19,7 +20,7 @@ import {
  * What `shell-package-rules.css` owes a consumer, and what a consumer owes it.
  *
  * `shell-package-rules.css` is the stylesheet the package ships. It defines no palette:
- * it reads the `--shell-*` namespace, and `README.md` holds the table that
+ * it reads the `--shell-*` and `--maximal-color-*` namespaces, and `README.md` holds the table that
  * tells a consumer which of those they have to define. Nothing checked that
  * table, and nothing checked that the file styles the classes the exported
  * components actually render.
@@ -63,9 +64,11 @@ describe('the package token namespace', () => {
   it('partitions every token the stylesheets read', () => {
     // The claim that lets `contrast.test.ts` classify by prefix rather than by
     // filename. A stylesheet reading both namespaces would belong to both
-    // contracts, and neither check could say which one owned it.
+    // contracts, and neither check could say which one owned it. Colour
+    // tokens are the one vocabulary both contracts read, so they sit outside
+    // the partition.
     for (const [name, css] of stylesheets()) {
-      const tokens = readTokens(css);
+      const tokens = readTokens(css).filter((token) => !isSharedToken(token));
       const ours = tokens.filter((token) => isPackageToken(token));
       const theirs = tokens.filter((token) => !isPackageToken(token));
 
@@ -78,7 +81,9 @@ describe('the package token namespace', () => {
 
   it('is the whole of what shell-package-rules.css reads', () => {
     expect(reads.required.size).toBeGreaterThan(0);
-    expect(readTokens(packageRules).filter((token) => !isPackageToken(token))).toEqual([]);
+    expect(
+      readTokens(packageRules).filter((token) => !isPackageToken(token) && !isSharedToken(token)),
+    ).toEqual([]);
   });
 
   it('declares none of its own tokens', () => {
@@ -162,7 +167,6 @@ describe('the exported components', () => {
       .sort();
 
     expect(opaque).toEqual([
-      'components/Canvas: 1',
       'components/RetainedTabPanels: 1',
       'components/SplitTree: 5',
       'components/controls/Button: 2',
@@ -314,7 +318,7 @@ describe('the mirror between the package stylesheet and the reference', () => {
 
   it('leaves no shared rule short of a property the reference declares', () => {
     /*
-     * Names, never values. The reference carries a palette — `var(--accent)`,
+     * Names, never values. The reference carries a palette — `var(--maximal-color-bg-brand)`,
      * literal colours — and `shell-package-rules.css` reads `--shell-*` from its host.
      * That difference is the whole design of the package, so a comparison of
      * values would fail on every shared rule and be deleted inside a week. A
