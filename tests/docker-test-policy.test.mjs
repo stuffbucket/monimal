@@ -829,13 +829,13 @@ test("required CI runs native checks before Docker and has one cache writer", ()
   assert.equal(workflow.split("turbo-v2-").length - 1, 6);
 });
 
-test("full PR tests restart on new commits and reconcile a non-blocking issue", () => {
+test("full tests run on main only and reconcile a non-blocking issue", () => {
   const workflow = read(".github/workflows/full-test.yml");
   const reporter = read(".github/workflows/full-test-failure.yml");
 
   assert.match(workflow, /^name: Full test graph$/m);
   assert.match(workflow, /push:\n    branches: \[main\]/);
-  assert.match(workflow, /types: \[opened, synchronize\]/);
+  assert.doesNotMatch(workflow, /^  pull_request:/m);
   assert.match(
     workflow,
     /group: full-test-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref \}\}/,

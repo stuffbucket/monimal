@@ -3,8 +3,6 @@ name: Full test graph
 on:
   push:
     branches: [main]
-  pull_request:
-    types: [opened, synchronize]
 
 concurrency:
   group: full-test-${{ github.event.pull_request.number || github.ref }}
