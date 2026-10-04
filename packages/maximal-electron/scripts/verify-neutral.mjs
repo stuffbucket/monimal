@@ -88,19 +88,19 @@ const read = (file) => readFileSync(path.join(ROOT, file), 'utf8');
  */
 const LAUNDERING = `
   import { createRequire as make } from 'node:module';
-  import '@maximal/maximal';
+  import '@maximal/maximal-core';
   export { a } from '@maximal/maximal-core';
   import type { B } from '@maximal/maximal-core';
-  import legacy = require('@maximal/maximal');
+  import legacy = require('@maximal/maximal-core');
   const later = make(import.meta.url);
   await import('@maximal/maximal-client');
-  require('@maximal/maximal');
+  require('@maximal/maximal-core');
   require.resolve('@maximal/maximal-core');
   later('@maximal/maximal-core');
-  later.resolve('@maximal/maximal');
-  make(import.meta.url)('@maximal/maximal');
-  make(import.meta.url).resolve('@maximal/maximal');
-  import.meta.resolve('@maximal/maximal');
+  later.resolve('@maximal/maximal-core');
+  make(import.meta.url)('@maximal/maximal-core');
+  make(import.meta.url).resolve('@maximal/maximal-core');
+  import.meta.resolve('@maximal/maximal-core');
   type C = import('@maximal/maximal-core').D;
 `;
 
