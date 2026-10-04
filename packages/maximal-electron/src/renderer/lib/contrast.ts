@@ -104,6 +104,7 @@ export const REQUIRED_TOKENS: string[] = [
   '--border-input-hover',
   '--border-strong',
   '--border-subtle',
+  '--border-width-thin',
   '--control-lg',
   '--control-md',
   '--control-sm',

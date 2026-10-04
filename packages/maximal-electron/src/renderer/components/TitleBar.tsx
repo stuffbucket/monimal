@@ -17,6 +17,7 @@ export function TitleBar<T extends Tab>({
   activeTab,
   onSelectTab,
   onCloseTab,
+  onRenameTab,
   onNewTab,
   tabsLabel,
   newTabLabel,
@@ -42,6 +43,7 @@ export function TitleBar<T extends Tab>({
         active={activeTab}
         onSelect={onSelectTab}
         onClose={onCloseTab}
+        onRename={onRenameTab}
         onNew={onNewTab}
         label={tabsLabel}
         newLabel={newTabLabel}

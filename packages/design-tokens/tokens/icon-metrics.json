@@ -1,4 +1,42 @@
 {
+  "border": {
+    "$description": "Canonical border widths for renderer controls and surfaces.",
+    "width": {
+      "thin": {
+        "$type": "dimension",
+        "$value": {
+          "value": 1,
+          "unit": "px"
+        },
+        "$extensions": {
+          "dev.maximal.design-token": {
+            "cssCustomProperties": [
+              "--border-width-thin",
+              "--shell-border-width-thin"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "tab": {
+    "$description": "Canonical geometry for document tabs.",
+    "fade": {
+      "$type": "dimension",
+      "$value": {
+        "value": 12,
+        "unit": "px"
+      },
+      "$extensions": {
+        "dev.maximal.design-token": {
+          "cssCustomProperties": [
+            "--tab-fade",
+            "--shell-tab-fade"
+          ]
+        }
+      }
+    }
+  },
   "icon": {
     "$description": "Canonical icon geometry for renderer glyphs and source assets.",
     "size": {
