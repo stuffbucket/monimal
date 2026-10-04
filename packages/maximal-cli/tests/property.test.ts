@@ -11,7 +11,23 @@ import {
   JsonLineDecoder,
 } from "../src/stdio.ts"
 
-const jsonObject = fc.dictionary(fc.string(), fc.jsonValue())
+// V8 (Node 24.x and 26.x) can corrupt a one-character escaped key (`"` or `\`)
+// in a later JSON.parse call; see https://github.com/nodejs/node/issues/63785.
+// Remove this filter once Node ships V8 commit 93cd21e825.
+function hasEscapedSingleCharacterKey(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.some((item) => hasEscapedSingleCharacterKey(item))
+  }
+  if (value === null || typeof value !== "object") return false
+  return Object.entries(value).some(
+    ([key, child]) =>
+      key === '"' || key === "\\" || hasEscapedSingleCharacterKey(child),
+  )
+}
+
+const jsonObject = fc
+  .dictionary(fc.string(), fc.jsonValue())
+  .filter((value) => !hasEscapedSingleCharacterKey(value))
 
 function split(
   bytes: Uint8Array,
