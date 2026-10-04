@@ -886,22 +886,12 @@ body,
   gap: var(--shell-space-2, 8px);
   padding: var(--shell-space-1, 4px) var(--shell-space-3, 12px);
   border-radius: 999px;
-  border: 1px solid var(--maximal-color-border-default);
-  background: var(--maximal-color-bg-tertiary);
-  color: var(--maximal-color-text-default);
-  font: inherit;
   font-size: var(--shell-text-xs, 0.6875rem);
   -webkit-app-region: no-drag;
 }
 
 .mh-pill:hover {
   border-color: var(--maximal-color-border-brand);
-}
-
-.mh-pill--primary {
-  background: var(--maximal-color-bg-brand);
-  border-color: var(--maximal-color-border-brand);
-  color: var(--maximal-color-text-onbrand);
 }
 
 .mh-pill kbd {
