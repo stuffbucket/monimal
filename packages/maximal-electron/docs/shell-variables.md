@@ -190,6 +190,7 @@ looks exactly like an ordinary hovered one.
 | Variable | Fallback | Drawn by |
 | --- | --- | --- |
 | `--maximal-color-bg-danger` | `--maximal-color-bg-hover` | destructive icon button, destructive `Button` fill, highlighted destructive menu item |
+| `--maximal-color-bg-success` | `--maximal-color-bg-brand` | the marker on a green tab or tab group |
 | `--maximal-color-bg-warning` | `--maximal-color-bg-brand` | the attention marker on a tab |
 | `--maximal-color-border-danger` | `--maximal-color-border-brand` | the outline of a destructive control or of a field that failed validation |
 | `--maximal-color-border-selected` | `--maximal-color-border-brand` | focus ring on every control |
