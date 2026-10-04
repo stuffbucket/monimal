@@ -48,6 +48,20 @@ void test("JSON documents enforce object shape, encoding, and exact bounds", () 
   assert.throws(() => decodeJsonObject(Uint8Array.of(0xef)), TypeError)
 })
 
+void test("JSON decoding preserves quote-only object keys", () => {
+  const value = { '"': { '"': true } }
+  assert.deepEqual(
+    decodeJsonObject(new TextEncoder().encode(JSON.stringify(value))),
+    value,
+  )
+
+  const decoder = new JsonLineDecoder()
+  assert.deepEqual(
+    decoder.push(new TextEncoder().encode(`${JSON.stringify(value)}\n`)),
+    [value],
+  )
+})
+
 void test("decoder accepts every BOM split and a final unterminated record", () => {
   const expected = { message: "héllo" }
   for (const bytes of [
