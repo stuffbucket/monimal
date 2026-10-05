@@ -250,7 +250,7 @@ export function taskOutput(lines, packageName, task) {
   return output.length > 0 ? output : null;
 }
 
-// packages/design-tokens/scripts/check-inventory.mjs prints these ratchet totals.
+// packages/maximal-design-system/scripts/check-inventory.mjs prints these ratchet totals.
 const tokenRatchetPatterns = {
   known: /^Token inventory warning ratchet: (\d+) known issue/,
   added: /^New token inventory issues \((\d+)\):/,

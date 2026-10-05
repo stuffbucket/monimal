@@ -1,28 +1,21 @@
-import { useState, type ReactElement } from 'react'
+import type { ReactElement } from 'react'
 import { Button, Note } from '@maximal/maximal-electron/renderer'
-import type { TerminalPane } from '@maximal/maximal-terminal/renderer'
 
 import type { AppTab } from '../frame/AppFrame'
-import { WorkspaceMap } from '../workspace-map/WorkspaceMap'
-
-const EMPTY_PANES: ReadonlyMap<string, TerminalPane> = new Map()
 
 export function WorkspaceHome({
   tabs,
-  panes = EMPTY_PANES,
   onSelectTab,
   onOpenProjects,
   onNewTerminal,
   onNewBrowser,
 }: {
   tabs: AppTab[]
-  panes?: ReadonlyMap<string, TerminalPane>
   onSelectTab: (id: string) => void
   onOpenProjects: () => void
   onNewTerminal: () => void
   onNewBrowser: () => void
 }): ReactElement {
-  const [mapOpen, setMapOpen] = useState(false)
   const documents = tabs.filter(({ kind }) =>
     kind === 'projects' || kind === 'terminal' || kind === 'browser' || kind === 'settings')
   return (
@@ -35,7 +28,6 @@ export function WorkspaceHome({
         <Button variant="primary" onClick={onOpenProjects}>Open Projects</Button>
         <Button onClick={onNewTerminal}>New terminal</Button>
         <Button onClick={onNewBrowser}>New browser</Button>
-        <Button onClick={() => setMapOpen(true)}>Workspace map</Button>
       </div>
       <section aria-label="Open documents">
         <h2>Open documents</h2>
@@ -55,16 +47,6 @@ export function WorkspaceHome({
           </ul>
         )}
       </section>
-      <WorkspaceMap
-        open={mapOpen}
-        tabs={tabs}
-        panes={panes}
-        onOpenChange={setMapOpen}
-        onFocus={(id) => {
-          setMapOpen(false)
-          onSelectTab(id)
-        }}
-      />
     </main>
   )
 }

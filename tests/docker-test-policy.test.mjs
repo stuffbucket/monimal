@@ -473,7 +473,7 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   );
   assert.equal(
     manifest.scripts["check:affected"],
-    "turbo run build typecheck lint --affected && turbo run @maximal/design-tokens#token:check @maximal/maximal-settings#migration:check @maximal/maximal-settings#security:check //#check:network-literals //#check:cross-package-duplicates && turbo run @maximal/maximal-core#check:deep:host:after-workspace --affected && pnpm test",
+    "turbo run build typecheck lint --affected && turbo run @maximal/maximal-design-system#token:check @maximal/maximal-settings#migration:check @maximal/maximal-settings#security:check //#check:network-literals //#check:cross-package-duplicates && turbo run @maximal/maximal-core#check:deep:host:after-workspace --affected && pnpm test",
   );
   assert.equal(
     (manifest.scripts.check.match(/(?:^|&& )pnpm test(?: |$)/g) ?? []).length,

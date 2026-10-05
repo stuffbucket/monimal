@@ -555,7 +555,7 @@
     "count": 1
   },
   {
-    "path": "packages/maximal-storybook/.storybook/preview-head.html",
+    "path": "packages/maximal-design-system/.storybook/preview-head.html",
     "literal": "140.0.0.0",
     "count": 1
   },
@@ -565,7 +565,7 @@
     "count": 1
   },
   {
-    "path": "packages/maximal-storybook/scripts/storybook-check.mjs",
+    "path": "packages/maximal-design-system/scripts/storybook-check.mjs",
     "literal": "http://localhost",
     "count": 1
   },

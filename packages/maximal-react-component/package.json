@@ -24,7 +24,7 @@
     "build": "pnpm tokens:build && tsup src/index.ts src/client.ts --format esm --dts --clean --splitting false --target node24 --out-dir dist",
     "lint": "eslint",
     "mutate": "pnpm tokens:build && stryker run",
-    "storybook": "pnpm tokens:build && node ../maximal-storybook/scripts/storybook-server.mjs start --catalog maximal-react-component --catalog-root .",
+    "storybook": "pnpm tokens:build && node scripts/storybook-server.mjs start --catalog maximal-react-component --catalog-root .",
     "storybook:build": "pnpm tokens:build && storybook build",
     "test": "pnpm tokens:build && pnpm test:unit",
     "test:unit": "vitest run",

@@ -13,37 +13,22 @@
     "./test": {
       "types": "./src/test.ts",
       "default": "./src/test.ts"
-    }
+    },
+    "./storybook-server": "./storybook-server.mjs"
   },
   "scripts": {
     "analyze": "bun ../maximal-core/scripts/analyze.ts",
     "build": "tsc --noEmit",
     "lint": "eslint .",
-    "storybook": "node scripts/storybook-server.mjs start --catalog maximal-storybook",
-    "storybook:list": "node scripts/storybook-server.mjs list",
-    "storybook:stop": "node scripts/storybook-server.mjs stop",
-    "storybook:build": "storybook build",
-    "storybook:check": "node scripts/storybook-check.mjs",
-    "test": "node --test scripts/storybook-server.test.mjs",
+    "test": "node --test storybook-server.test.mjs",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@maximal/eslint-config": "workspace:*",
-    "@playwright/test": "^1.62.0",
-    "@storybook/addon-a11y": "10.5.10",
-    "@storybook/addon-docs": "10.5.10",
     "@storybook/react-vite": "10.5.10",
-    "@types/node": "^26.4.0",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.5",
-    "@typescript/native": "npm:typescript@^7.0.2",
-    "axe-core": "4.13.0",
     "eslint": "^10.9.1",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
     "storybook": "10.5.10",
-    "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vite": "^8.2.2"
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "engines": {
     "node": ">=24"

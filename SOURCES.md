@@ -14,7 +14,7 @@ their source repositories.
 
 | Package | Purpose |
 | --- | --- |
-| `packages/design-tokens` (`@maximal/design-tokens`) | Workspace-wide Style Dictionary inventory and down-only design-token and icon-metric migration ratchet. |
+| `packages/maximal-design-system` (`@maximal/maximal-design-system`) | Shared color and theme system, generated Style Dictionary artifacts, workspace token inventory, design tools, and the workspace Storybook catalog. |
 | `packages/maximal-browser` | Agent-shareable browser sessions, native Electron views, and browser-tab renderer UI. |
 | `packages/maximal-terminal` | Electron-free terminal hosts, tmux control and projection, launch connectors, and the terminal renderer. |
 | `packages/maximal-settings` | Typed layered settings, process-owned JSON stores, plugin-schema validation, and the settings migration ratchet. |
@@ -25,7 +25,7 @@ their source repositories.
 | `packages/maximal-recording` | Optional video capture engine and developer recording tools; desktop owns consent and output selection. |
 | `packages/maximal-data-visualization` | Visualization primitives and styles. |
 | `packages/maximal-project-browser` | WASM-accelerated spatial project canvas, navigation, board tools, presence, comments, and chat UI. |
-| `packages/maximal-storybook` | Workspace Storybook configuration, preview decorators, browser checks, and developer commands. |
+| `packages/maximal-storybook` | Shared Storybook authoring types, test helpers, manager identity utilities, and multi-catalog server launcher. |
 | `packages/maximal-github` | Runtime-neutral GitHub contracts, device authentication, Octokit API adapter, host profiles, and read-only GitHub CLI interoperability. |
 | `packages/maximal-harness` | Local agent orchestration and renderer. |
 | `packages/maximal-runner-gliner2` | Standalone GLiNER2 classification runner and pinned Python worker contract. |
@@ -54,8 +54,10 @@ their source repositories.
 
 | Assets | Source | Commit | License |
 | --- | --- | --- | --- |
+| UI3 compact, prominent, and stroke-endpoint icon sheets | Figma UI3 UI Kit (Community), user-provided SVG exports | Imported 2026-10-05 | Figma Community Resource License |
 | Claude, Claude Code, GitHub Copilot, and Codex terminal icons | `lobehub/lobe-icons` | `329f378cbd1a88f45b60cd096b9111ce16f3ea39` | MIT |
 | Maximal terminal icon | `apps/desktop/build/icon.icns` | Workspace-owned | Workspace license |
+| Lil Grotesk variable webfont | `noirblancrouge/LilGrotesk` | `150b9c8405ee95185c32023c09a430972309cfde`; SHA-256 `1324392d6a2f5ad1bd776a142de01183ca7cefa6f35e4885b05e46c4d26151e0` | OFL-1.1 |
 | Curated terminal font downloads and generated specimens | `ryanoasis/nerd-fonts` release assets | `v3.5.1`; SHA-256 digests and font identities in `packages/maximal-client/src/shared/terminal-font-downloads.json` | Per-font OFL-1.1 or MIT |
 
 ## API provenance
@@ -139,7 +141,7 @@ packaged sidecar.
 | `maximal-provider-gliner25` | The HTTP adapter follows the Apache-2.0 `stuffbucket/gliner-runner` API contract; the standalone repository remains the owner of its wire schema and execution behavior. |
 | `maximal-electron` / `maximal-project-browser` / `maximal-client` / `apps/desktop` | `maximal-electron` owns token-driven spatial canvas presentation and control primitives; the reusable project map owns interaction and collaborative state, the client owns project discovery and opening, and desktop owns composition and shared shell stylesheet loading. |
 | `maximal-electron` / `maximal-client` / `apps/desktop` | Projects tab transfers MUST use the shared document drag payload, a client-owned board and view snapshot, and a desktop-owned ready-checked window lifecycle. |
-| `maximal-storybook` | Owns workspace Storybook integration while stories and deterministic fixtures remain beside the packages they exercise. |
+| `maximal-design-system` / `maximal-storybook` | The design system owns the workspace Storybook catalog and generated token artifacts; `maximal-storybook` owns shared authoring and test APIs while stories and deterministic fixtures remain beside the packages they exercise. |
 | `maximal-electron` | `NumberInput` owns bounded numeric draft-and-commit behavior; `UnitValueInput` owns automatic/manual presentation and persisted display units while consumers own canonical conversion; `TypefaceControls` composes reusable compact typeface fields; and `TerminalTabs` forwards consumer-owned live typography to terminal views without owning its persistence or font discovery. |
 | `@wterm/dom` 0.4.1 | Kitty graphics canvas backing stores scale with the bounded device pixel ratio so terminal images remain sharp on HiDPI displays. |
 | `maximal-electron` | Electron hosts MAY launch trusted application-owned terminal commands through the main-only `launchTrustedTerminal` API; renderer PTY requests remain restricted to opaque session geometry. |
@@ -184,7 +186,7 @@ packaged sidecar.
 | `maximal-electron` | `verify:neutral` denies imports of workspace packages outside its `dependsOn` in the root `architecture-analysis.json` instead of a fixed name list, and bare `maximal` is no longer a forbidden term. |
 | `maximal-electron` | Private workspace package, not published; the registry publish, tag, and git-install checks are removed. |
 | `maximal-electron` | Workspace installation MUST NOT build the package; Turbo MUST own dependency-ordered builds. |
-| `design-tokens` | Its package build and Turbo token inventory hash tracked application and package sources because the Style Dictionary inventory is workspace-wide. |
+| `maximal-design-system` | Its package build and Turbo token inventory hash tracked application and package sources because the Style Dictionary inventory is workspace-wide. |
 | `maximal-electron` | The package MUST NOT contain demo-shell or terminal-lab application composition. |
 | `maximal-recording` / `apps/desktop` | Recording owns capture and encoding; desktop owns explicit initiation, destination, and window selection. |
 | `apps/desktop` | The desktop application MUST own terminal integration behavior and end-to-end coverage. |

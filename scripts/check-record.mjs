@@ -371,7 +371,7 @@ function recordEslint(write, report) {
   return totals;
 }
 
-const tokensPackage = "@maximal/design-tokens";
+const tokensPackage = "@maximal/maximal-design-system";
 const tokenRatchetTasks = ["token:check", "build"];
 
 // Records the design-token ratchet once per run from the JSON the ratchet tasks write;

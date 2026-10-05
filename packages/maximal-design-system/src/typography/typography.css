@@ -1,0 +1,78 @@
+.typography-tokens__header {
+  max-width: 680px;
+}
+
+.typography-row {
+  grid-template-columns: minmax(220px, 0.7fr) minmax(420px, 1.3fr);
+  align-items: center;
+}
+
+.typography-row__copy p { color: var(--maximal-color-text-secondary); }
+
+.typography-row__copy code {
+  font: 15px/22px ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.typography-row__copy p {
+  max-width: 42ch;
+  margin: var(--spacer-2) 0 0;
+  font-size: 13px;
+}
+
+.typography-specimen {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 120px;
+  box-sizing: border-box;
+  align-items: center;
+  padding: var(--spacer-5);
+  overflow-wrap: anywhere;
+  border: 1px solid var(--maximal-color-border-default);
+  border-radius: var(--radius-large);
+  background:
+    linear-gradient(var(--maximal-color-border-default) 1px, transparent 1px),
+    linear-gradient(90deg, var(--maximal-color-border-default) 1px, transparent 1px),
+    var(--maximal-color-bg-secondary);
+  background-size: 16px 16px;
+}
+
+.typography-specimen small {
+  position: absolute;
+  inset: var(--spacer-2) var(--spacer-2) auto auto;
+  color: var(--maximal-color-text-secondary);
+  font: 10px/14px ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.typography-specimen--heading-display { font: var(--heading-display); }
+.typography-specimen--heading-large { font: var(--heading-large); }
+.typography-specimen--heading-medium { font: var(--heading-medium); }
+.typography-specimen--heading-small { font: var(--heading-small); }
+.typography-specimen--body-large { font: var(--body-large); }
+.typography-specimen--body-large-strong { font: var(--body-large-strong); }
+.typography-specimen--body-medium { font: var(--body-medium); }
+.typography-specimen--body-medium-strong { font: var(--body-medium-strong); }
+.typography-specimen--body-small { font: var(--body-small); }
+.typography-specimen--body-small-strong { font: var(--body-small-strong); }
+
+.typography-body-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: var(--spacer-3);
+}
+
+@media (max-width: 820px) {
+  .typography-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .typography-body-pair {
+    grid-template-columns: 1fr;
+  }
+
+  .typography-specimen {
+    padding: var(--spacer-4);
+  }
+}

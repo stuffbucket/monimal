@@ -1,0 +1,137 @@
+.elevations__header {
+  max-width: 680px;
+}
+
+.elevation-overview {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(112px, 1fr));
+  gap: var(--spacer-4);
+  padding: var(--spacer-5);
+}
+
+.elevation-sample {
+  display: grid;
+  justify-items: center;
+  gap: var(--spacer-3);
+  min-width: 0;
+  padding: var(--spacer-4) var(--spacer-2);
+}
+
+.elevation-sample code {
+  max-width: 100%;
+  color: var(--maximal-color-text-secondary);
+  font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow-wrap: anywhere;
+}
+
+.elevation-swatch {
+  display: block;
+  width: 88px;
+  height: 88px;
+  border-radius: var(--radius-large);
+  background: var(--maximal-color-bg-tertiary);
+}
+
+.elevation-swatch--100 { box-shadow: var(--elevation-100); }
+.elevation-swatch--200 { box-shadow: var(--elevation-200); }
+.elevation-swatch--300 { box-shadow: var(--elevation-300); }
+.elevation-swatch--400 { box-shadow: var(--elevation-400); }
+.elevation-swatch--500 { box-shadow: var(--elevation-500); }
+
+.elevation-levels {
+  margin-block-start: var(--spacer-6);
+}
+
+.elevation-level {
+  grid-template-columns: minmax(240px, 0.7fr) minmax(480px, 1.3fr);
+  align-items: center;
+}
+
+.elevation-level__copy > span {
+  display: block;
+  max-width: 48ch;
+  font-size: 14px;
+}
+
+.elevation-level__copy ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacer-1) var(--spacer-3);
+  margin: var(--spacer-3) 0 0;
+  padding: 0;
+  color: var(--maximal-color-text-secondary);
+  font-size: 12px;
+  list-style: none;
+}
+
+.elevation-comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  overflow: hidden;
+  border-radius: var(--radius-large);
+}
+
+.elevation-mode {
+  min-width: 0;
+  padding: var(--spacer-3);
+}
+
+.elevation-mode > span {
+  display: block;
+  font-size: 11px;
+  font-weight: 650;
+  text-transform: uppercase;
+}
+
+.elevation-mode .elevation-sample {
+  min-height: 160px;
+  place-content: center;
+}
+
+.elevation-mode--light {
+  color: rgb(33 33 33);
+  background: rgb(248 248 248);
+}
+
+.elevation-mode--light .elevation-swatch {
+  background: rgb(255 255 255);
+}
+
+.elevation-mode--light .elevation-sample code {
+  color: rgb(92 92 92);
+}
+
+.elevation-mode--dark {
+  color: rgb(232 232 232);
+  background: rgb(40 40 40);
+}
+
+.elevation-mode--dark .elevation-swatch {
+  background: rgb(47 47 47);
+}
+
+.elevation-mode--dark .elevation-sample code {
+  color: rgb(176 176 176);
+}
+
+@media (max-width: 900px) {
+  .elevation-overview {
+    grid-template-columns: repeat(2, minmax(112px, 1fr));
+  }
+
+  .elevation-level {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .elevation-comparison {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .elevation-overview {
+    grid-template-columns: 1fr;
+  }
+}

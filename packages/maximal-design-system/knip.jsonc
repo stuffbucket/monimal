@@ -1,0 +1,16 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "entry": [
+    "src/**/*.stories.tsx",
+    "src/**/*.test.ts",
+    "scripts/*.mjs",
+    "test/*.test.mjs"
+  ],
+  "project": [
+    ".storybook/**/*.{ts,mdx}",
+    "src/**/*.{ts,tsx}",
+    "scripts/*.mjs",
+    "test/*.test.mjs"
+  ],
+  "ignoreExportsUsedInFile": true
+}

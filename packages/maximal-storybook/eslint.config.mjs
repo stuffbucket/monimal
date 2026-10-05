@@ -8,7 +8,7 @@ export default [
     typeChecked: true,
   }),
   {
-    files: ['scripts/**/*.mjs'],
+    files: ['*.mjs', 'scripts/**/*.mjs'],
     languageOptions: {
       globals: {
         console: 'readonly',

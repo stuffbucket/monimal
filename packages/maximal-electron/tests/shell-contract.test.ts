@@ -23,7 +23,7 @@ import { describe, expect, it } from 'vitest';
 const STYLES = new URL('../src/renderer/styles/', import.meta.url);
 const contract = readFileSync(new URL('shell-contract.css', STYLES), 'utf8');
 const consumer = readFileSync(
-  new URL('../../maximal-storybook/.storybook/consumer.css', import.meta.url),
+  new URL('../../maximal-design-system/.storybook/consumer.css', import.meta.url),
   'utf8',
 );
 

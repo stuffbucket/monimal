@@ -24,9 +24,9 @@ export const allowedAdhocStyles = new Map([
   ],
   ['packages/maximal-client/src/renderer/base.ts', { injectors: 1 }],
   // Shared Storybook specimens resolve both palettes outside the app cascade.
-  ['packages/maximal-client/src/renderer/color/ColorApplications.tsx', { inlineAttributes: 7 }],
-  ['packages/maximal-client/src/renderer/color/ColorSheet.tsx', { inlineAttributes: 11 }],
-  ['packages/maximal-client/src/renderer/color/palette.ts', { injectors: 1 }],
+  ['packages/maximal-design-system/src/color/ColorApplications.tsx', { inlineAttributes: 7 }],
+  ['packages/maximal-design-system/src/color/ColorSheet.tsx', { inlineAttributes: 11 }],
+  ['packages/maximal-design-system/src/color/palette.ts', { injectors: 1 }],
   [
     'packages/maximal-client/src/renderer/frame/WorkspaceRail.tsx',
     { inlineAttributes: 1 },
@@ -68,10 +68,6 @@ export const allowedAdhocStyles = new Map([
     { injectors: 1 },
   ],
   ['packages/maximal-client/src/renderer/theme.ts', { injectors: 1 }],
-  [
-    'packages/maximal-client/src/renderer/workspace-map/WorkspaceMap.tsx',
-    { inlineAttributes: 2 },
-  ],
   [
     'packages/maximal-context-window/src/ContextWindowSessionPanel.tsx',
     { inlineAttributes: 3 },
