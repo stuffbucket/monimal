@@ -48,14 +48,27 @@ jobs:
         with:
           bun-version-file: .bun-version
 
-      - name: Restore turbo cache
+      # Merge the two content-addressed cache lineages before running the full
+      # graph. Separate immutable keys let this workflow and CI run in parallel
+      # without racing to save different task sets under the same key.
+      - name: Restore check turbo cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: .turbo
-          key: turbo-v2-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          path: .turbo/cache
+          key: turbo-check-v3-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
           restore-keys: |
-            turbo-v2-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
-            turbo-v2-${{ runner.os }}-
+            turbo-check-v3-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            turbo-check-v3-${{ runner.os }}-
+
+      - name: Restore full-test turbo cache
+        id: turbo-full-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-full-v3-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-full-v3-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            turbo-full-v3-${{ runner.os }}-
 
       - name: Normalise the lockfile
         run: node scripts/strip-lockfile-hosts.mjs
@@ -66,3 +79,10 @@ jobs:
         env:
           MONIMAL_PERF_MARKERS: 1
         run: pnpm run test:all
+
+      - name: Save full-test turbo cache
+        if: steps.turbo-full-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .turbo/cache
+          key: ${{ steps.turbo-full-cache.outputs.cache-primary-key }}
