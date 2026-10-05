@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@maximal/maximal-design-system",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared color system, design-token inventory, icon metrics, and design tools.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./color": "./src/color/index.ts",
+    "./color/tools": "./src/color/tools.ts",
+    "./icons": "./src/icons/index.ts",
+    "./theme": "./src/theme.ts"
+  },
+  "scripts": {
+    "analyze": "bun ../maximal-core/scripts/analyze.ts",
+    "build": "pnpm run tokens:build && node scripts/check-inventory.mjs",
+    "lint": "eslint .",
+    "test": "node --test test/*.test.mjs && vitest run src",
+    "storybook": "pnpm run tokens:build && node scripts/storybook-server.mjs start --catalog maximal-design-system --catalog-root .",
+    "storybook:list": "node scripts/storybook-server.mjs list",
+    "storybook:stop": "node scripts/storybook-server.mjs stop",
+    "storybook:build": "pnpm run tokens:build && storybook build",
+    "storybook:check": "pnpm run tokens:build && node scripts/storybook-check.mjs",
+    "tokens:build": "style-dictionary build --config style-dictionary.config.mjs",
+    "token:inventory": "node scripts/build-inventory.mjs",
+    "token:check": "node scripts/check-inventory.mjs",
+    "typecheck": "node --check style-dictionary.config.mjs && node --check scripts/build-inventory.mjs && node --check scripts/check-inventory.mjs && node --check scripts/inventory.mjs && tsc --noEmit"
+  },
+  "dependencies": {
+    "lucide-react": "^1.38.0",
+    "react": "^19.2.8"
+  },
+  "devDependencies": {
+    "@maximal/eslint-config": "workspace:*",
+    "@maximal/maximal-storybook": "workspace:*",
+    "@playwright/test": "^1.62.0",
+    "@storybook/addon-a11y": "10.5.10",
+    "@storybook/addon-docs": "10.5.10",
+    "@storybook/react-vite": "10.5.10",
+    "@types/node": "^26.4.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.5",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "axe-core": "4.13.0",
+    "eslint": "^10.9.1",
+    "react-dom": "^19.2.8",
+    "storybook": "10.5.10",
+    "style-dictionary": "https://codeload.github.com/style-dictionary/style-dictionary/tar.gz/489abdfcf6c4a23c35e9d4e85ae93b9c02d9cf4a",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vite": "^8.2.2",
+    "vitest": "^5.0.1"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

@@ -115,7 +115,6 @@ export const REQUIRED_TOKENS: string[] = [
   '--maximal-color-bg-pressed',
   '--maximal-color-bg-secondary',
   '--maximal-color-bg-selected',
-  '--maximal-color-bg-success',
   '--maximal-color-bg-success-secondary',
   '--maximal-color-bg-tertiary',
   '--maximal-color-bg-warning',

@@ -1,0 +1,7 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "project": ["src/**/*.ts", "*.mjs"],
+  // The npm alias for the TypeScript 6 preview obscures its tsc binary provider.
+  "ignoreBinaries": ["tsc"],
+  "ignoreExportsUsedInFile": true
+}

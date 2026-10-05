@@ -1,0 +1,86 @@
+:is(.elevations, .grid-tokens, .icon-catalog, .typography-tokens) {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: clamp(24px, 5vw, 72px);
+  color: var(--maximal-color-text-default);
+  background: var(--maximal-color-bg-default);
+  font-family: system-ui, sans-serif;
+}
+
+:is(.elevations, .grid-tokens, .typography-tokens) {
+  background:
+    linear-gradient(var(--maximal-color-border-default) 1px, transparent 1px),
+    linear-gradient(90deg, var(--maximal-color-border-default) 1px, transparent 1px),
+    var(--maximal-color-bg-default);
+  background-size: 40px 40px;
+}
+
+:is(.elevations__header, .grid-tokens__header, .typography-tokens__header) {
+  margin-block-end: var(--spacer-6);
+}
+
+:is(
+  .elevations__header p,
+  .elevation-level__copy > p,
+  .grid-tokens__header p,
+  .icon-catalog__header p,
+  .typography-tokens__header > p
+) {
+  margin: 0 0 var(--spacer-2);
+  color: var(--maximal-color-text-brand);
+  font-size: 12px;
+  font-weight: 650;
+  text-transform: uppercase;
+}
+
+:is(
+  .elevations__header h1,
+  .grid-tokens__header h1,
+  .icon-catalog__header h1,
+  .typography-tokens__header h1
+) {
+  margin: 0 0 var(--spacer-2);
+  font-size: 40px;
+  font-weight: 560;
+  letter-spacing: 0;
+}
+
+:is(
+  .elevations__header span,
+  .elevation-level__copy > span,
+  .grid-tokens__header span,
+  .icon-catalog__header span,
+  .typography-tokens__header > span
+) {
+  color: var(--maximal-color-text-secondary);
+}
+
+:is(
+  .elevations__header span,
+  .elevation-level__copy > span,
+  .grid-tokens__header span,
+  .typography-tokens__header > span,
+  .grid-token-copy p,
+  .typography-row__copy p
+) {
+  line-height: 1.6;
+}
+
+:is(.elevation-level, .grid-token-section, .typography-row) {
+  display: grid;
+  gap: var(--spacer-5);
+  padding-block: var(--spacer-6);
+  border-top: 1px solid var(--maximal-color-border-default);
+}
+
+:is(.elevation-level__copy h2, .grid-token-copy h2) {
+  margin: 0 0 var(--spacer-2);
+  font-size: 20px;
+  font-weight: 580;
+  letter-spacing: 0;
+}
+
+:is(.elevation-overview, .grid-token-row, .grid-token-radius-item, .grid-token-height-demo) {
+  border-radius: var(--radius-large);
+  background: var(--maximal-color-bg-secondary);
+}

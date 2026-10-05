@@ -34,18 +34,23 @@ design** — this client supplies one. Surfaces MUST NOT hardcode colours.
 
 ### Colour palette
 
-- `src/renderer/color/palette.ts` MUST own every theme-dependent colour value.
+- `@maximal/maximal-design-system/color` MUST own every generated
+  theme-dependent colour value.
   It writes one `<style id="maximal-palette">` with a `:root` (dark) block and
   a `[data-theme='light']` block; `applyAppearance` replaces it on a theme
   change.
+- The client MUST select and persist themes, then pass the selected theme to
+  `@maximal/maximal-design-system/theme`. It MUST NOT calculate palette tokens,
+  resolve system appearance, or write `data-theme` directly.
 - Atomic colours are `--maximal-color-{ramp}-{step}`, steps 100 to 1000 from
   lightest to darkest in both modes. Ramps: `grey`, `blue`, `purple`, `pink`,
   `red`, `orange`, `yellow`, `green`, `violet`, `teal`, `persimmon`,
   `crimson` (the Maximal brand colour), `pale-{hue}`, `white`, `black` and `cream` (alpha), `neutral` (theme background to
   theme text) and `brand` (anchored on the theme accent at 500).
 - Hue ramps MUST be calculated in OKLCH from the profiles in
-  `src/renderer/color/ramps.ts`, which reproduce the reference ramps in
-  `src/renderer/color/reference.ts` within ΔE_OK 0.005. Step 500 is the anchor.
+  `packages/maximal-design-system/src/color/ramps.ts`, which reproduce the
+  reference ramps in `packages/maximal-design-system/src/color/reference.ts`
+  within ΔE_OK 0.005. Step 500 is the anchor.
 - `crimson` 500 in light mode MUST be the published brand colour `#B8404D`
   at the same OKLCH lightness and hue, with chroma raised to 90% of the sRGB
   maximum (`#C82543`, `oklch(0.543 0.196 17.6)`).
@@ -99,8 +104,8 @@ design** — this client supplies one. Surfaces MUST NOT hardcode colours.
 - Icon colour applications MUST be shown in Storybook under
   `Foundations/Icon colors`.
 - Lucide glyphs SHOULD take their size and stroke from `lucideStroke`
-  (`src/renderer/shared/lucide-stroke.ts`): a 1px stroke, and 2px at 48px
-  and larger.
+  (`@maximal/maximal-design-system/color/tools`): a 1px stroke, and 2px at
+  48px and larger.
 - `inverse` MUST use the opposite end of `neutral`.
 - `bg-on{role}`, `text-on{role}` and `icon-on{role}` MUST be white or black,
   whichever contrasts more with `bg-{role}`, except that `brand` MUST use
@@ -110,8 +115,9 @@ design** — this client supplies one. Surfaces MUST NOT hardcode colours.
   modes.
 - Role and data-visualization colours MUST be chosen by contrast against the
   theme's surfaces: 4.5:1 for `text-{role}`, 3:1 for `icon-{role}`,
-  `border-{role}` and chart series. `color/palette.test.ts` checks every
-  built-in theme in both modes.
+  `border-{role}` and chart series. The design-system palette tests check the
+  algorithm, and `src/renderer/theme.test.ts` checks every built-in theme in
+  both modes.
 - The Maximal theme accent MUST be crimson: `#C82543` in light mode and
   `#F65467` (`oklch(0.670 0.197 17.5)`) in dark mode, which keeps 4.5:1
   against the dark background.

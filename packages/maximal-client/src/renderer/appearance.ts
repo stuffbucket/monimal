@@ -1,5 +1,11 @@
 import type { TerminalPaletteSettings } from '@maximal/maximal-terminal/renderer'
-import { applyPalette } from './color/palette'
+import {
+  createThemeManager,
+  resolveThemeMode,
+  type DesignSystemTheme,
+  type PaletteSeed,
+  type ThemeMode,
+} from '@maximal/maximal-design-system/theme'
 
 import {
   MATERIAL_PRESET_VALUES,
@@ -7,7 +13,7 @@ import {
   type PersistedMaterialPreference,
 } from '../shared/host'
 
-export type AppearanceMode = 'system' | 'light' | 'dark'
+export type AppearanceMode = ThemeMode
 export type ThemeCategory =
   | 'expressive'
   | 'heritage-inspired'
@@ -15,14 +21,7 @@ export type ThemeCategory =
   | 'nature'
   | 'studio'
 
-export interface ThemePaletteSeed {
-  background: string
-  surface: string
-  text: string
-  accent: string
-  /* Pins icons on the accent fill to one colour, such as a brand mark's, regardless of contrast. */
-  accentIcon?: string
-}
+export type ThemePaletteSeed = PaletteSeed
 
 export interface ThemeShader {
   material: MaterialPreset
@@ -43,7 +42,7 @@ export interface ThemeBoardPlacement {
   cue: number
 }
 
-export interface AppearanceThemeFile {
+export interface AppearanceThemeFile extends DesignSystemTheme {
   schema: 'https://maximal.dev/schemas/theme/v2'
   id: string
   name: string
@@ -51,11 +50,8 @@ export interface AppearanceThemeFile {
   source: string
   category: ThemeCategory
   tags: string[]
-  appearance: AppearanceMode
   placement?: ThemeBoardPlacement
-  colors: {
-    light: ThemePaletteSeed
-    dark: ThemePaletteSeed
+  colors: DesignSystemTheme['colors'] & {
     spatialCanvasBackground?: string
   }
   shader?: ThemeShader
@@ -212,6 +208,7 @@ const STORAGE_KEY = 'maximal.appearance.v2'
 const LEGACY_STORAGE_KEY = 'maximal.appearance.v1'
 const CHANGE_EVENT = 'maximal:appearance-changed'
 const HEX_COLOR = /^#[0-9a-f]{6}$/i
+const themeManager = createThemeManager()
 
 function isHexColor(value: unknown): value is string {
   // Stryker disable next-line ConditionalExpression: the regex rejects every non-string JSON value after coercion.
@@ -447,11 +444,7 @@ export function readAppearance(): AppearanceState {
 export function effectiveAppearanceMode(
   mode: AppearanceMode,
 ): Exclude<AppearanceMode, 'system'> {
-  if (mode !== 'system') return mode
-  return typeof matchMedia === 'function'
-    && matchMedia('(prefers-color-scheme: light)').matches
-    ? 'light'
-    : 'dark'
+  return resolveThemeMode(mode)
 }
 
 function rgb(hex: string): [number, number, number] {
@@ -515,10 +508,8 @@ export function appearanceSpatialCanvasBackground(
 
 export function applyAppearance(theme: AppearanceThemeFile): void {
   const root = document.documentElement
-  const mode = effectiveAppearanceMode(theme.appearance)
-  root.dataset.theme = mode
   root.dataset.appearancePreset = theme.id
-  applyPalette(theme.colors)
+  themeManager.setTheme(theme)
   root.style.removeProperty('--shell-spatial-canvas-background')
   // Otherwise theme.ts aliases the spatial canvas to --maximal-color-bg-secondary.
   if (theme.colors.spatialCanvasBackground !== undefined) {
@@ -576,13 +567,6 @@ export function subscribeToAppearance(listener: (theme: AppearanceThemeFile) => 
 export function initializeAppearance(): AppearanceState {
   const state = readAppearance()
   applyAppearance(state.theme)
-  if (typeof matchMedia !== 'function') return state
-  const media = matchMedia('(prefers-color-scheme: light)')
-  const onSystemChange = (): void => {
-    const current = readAppearance().theme
-    if (current.appearance === 'system') applyAppearance(current)
-  }
-  media.addEventListener('change', onSystemChange)
   return state
 }
 

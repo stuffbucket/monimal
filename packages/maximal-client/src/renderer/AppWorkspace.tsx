@@ -100,7 +100,6 @@ function ActiveSurface({
       {current?.kind === 'home' ? (
         <WorkspaceHome
           tabs={terminalState.tabs}
-          panes={terminalState.panes}
           onSelectTab={onSelectTab}
           onOpenProjects={() => onSelectTab('projects')}
           onNewTerminal={onNewTerminal}

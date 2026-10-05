@@ -13,8 +13,13 @@ import {
   terminalPaletteForTheme,
   themeGradient,
 } from './appearance'
-import { PALETTE_STYLE_ID, paletteCss, paletteTokens, resolvePaletteToken } from './color/palette'
-import { BRAND_CREAM_HEX } from './color/ramps'
+import {
+  BRAND_CREAM_HEX,
+  PALETTE_STYLE_ID,
+  paletteCss,
+  paletteTokens,
+  resolvePaletteToken,
+} from '@maximal/maximal-design-system/color'
 import { BUILT_IN_THEMES } from './themes/catalog'
 
 const TERMINAL_PALETTE = {

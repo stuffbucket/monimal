@@ -1,0 +1,45 @@
+{
+  "spacer": {
+    "$description": "Canonical 4px-based spacing scale for layout, padding, and margins.",
+    "$type": "dimension",
+    "0": { "$value": { "value": 0, "unit": "px" }, "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--spacer-0"] } } },
+    "1": { "$value": { "value": 4, "unit": "px" }, "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--spacer-1"] } } },
+    "2": { "$value": { "value": 8, "unit": "px" }, "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--spacer-2"] } } },
+    "3": { "$value": { "value": 16, "unit": "px" }, "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--spacer-3"] } } },
+    "4": { "$value": { "value": 24, "unit": "px" }, "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--spacer-4"] } } },
+    "5": { "$value": { "value": 32, "unit": "px" }, "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--spacer-5"] } } },
+    "6": { "$value": { "value": 40, "unit": "px" }, "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--spacer-6"] } } }
+  },
+  "height": {
+    "$description": "Canonical heights for dense controls and list structures.",
+    "$type": "dimension",
+    "control": {
+      "compact": {
+        "$description": "Small buttons, dropdowns, and other dense controls.",
+        "$value": { "value": 24, "unit": "px" },
+        "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--height-control-compact"] } }
+      }
+    },
+    "row": {
+      "standard": {
+        "$description": "Standard item row.",
+        "$value": { "value": 32, "unit": "px" },
+        "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--height-row-standard"] } }
+      },
+      "heading": {
+        "$description": "Heading and enclosing alignment row.",
+        "$value": { "value": 40, "unit": "px" },
+        "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--height-row-heading"] } }
+      }
+    }
+  },
+  "radius": {
+    "$description": "Canonical radii designed to nest with the spacing scale.",
+    "$type": "dimension",
+    "none": { "$value": { "value": 0, "unit": "px" }, "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--radius-none"] } } },
+    "small": { "$value": { "value": 2, "unit": "px" }, "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--radius-small"] } } },
+    "medium": { "$value": { "value": 5, "unit": "px" }, "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--radius-medium"] } } },
+    "large": { "$value": { "value": 13, "unit": "px" }, "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--radius-large"] } } },
+    "full": { "$value": { "value": 9999, "unit": "px" }, "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--radius-full"] } } }
+  }
+}

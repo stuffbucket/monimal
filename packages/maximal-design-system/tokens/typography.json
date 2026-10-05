@@ -1,0 +1,110 @@
+{
+  "heading": {
+    "$type": "typography",
+    "$description": "Heading styles for product hierarchy and branded moments.",
+    "display": {
+      "$description": "Expressive display type for onboarding, branded moments, and important announcements.",
+      "$value": {
+        "fontFamily": "'Lil Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
+        "fontSize": { "value": 64, "unit": "px" },
+        "fontWeight": 600,
+        "lineHeight": { "value": 72, "unit": "px" }
+      },
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--heading-display"] } }
+    },
+    "large": {
+      "$description": "Primary page title within large views.",
+      "$value": {
+        "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
+        "fontSize": { "value": 24, "unit": "px" },
+        "fontWeight": 600,
+        "lineHeight": { "value": 32, "unit": "px" }
+      },
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--heading-large"] } }
+    },
+    "medium": {
+      "$description": "Medium product heading.",
+      "$value": {
+        "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
+        "fontSize": { "value": 15, "unit": "px" },
+        "fontWeight": 600,
+        "lineHeight": { "value": 25, "unit": "px" }
+      },
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--heading-medium"] } }
+    },
+    "small": {
+      "$description": "Small product heading.",
+      "$value": {
+        "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
+        "fontSize": { "value": 13, "unit": "px" },
+        "fontWeight": 600,
+        "lineHeight": { "value": 22, "unit": "px" }
+      },
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--heading-small"] } }
+    }
+  },
+  "body": {
+    "$type": "typography",
+    "$description": "Body styles for product content and controls.",
+    "large": {
+      "$description": "Largest body style for multiline text.",
+      "$value": {
+        "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
+        "fontSize": { "value": 13, "unit": "px" },
+        "fontWeight": 400,
+        "lineHeight": { "value": 22, "unit": "px" }
+      },
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--body-large"] } }
+    },
+    "large-strong": {
+      "$description": "Strong largest body style for multiline text.",
+      "$value": {
+        "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
+        "fontSize": { "value": 13, "unit": "px" },
+        "fontWeight": 600,
+        "lineHeight": { "value": 22, "unit": "px" }
+      },
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--body-large-strong"] } }
+    },
+    "medium": {
+      "$description": "Default body style for most interface elements, including inputs and buttons.",
+      "$value": {
+        "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
+        "fontSize": { "value": 11, "unit": "px" },
+        "fontWeight": 400,
+        "lineHeight": { "value": 16, "unit": "px" }
+      },
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--body-medium"] } }
+    },
+    "medium-strong": {
+      "$description": "Strong default body style for most interface elements.",
+      "$value": {
+        "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
+        "fontSize": { "value": 11, "unit": "px" },
+        "fontWeight": 600,
+        "lineHeight": { "value": 16, "unit": "px" }
+      },
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--body-medium-strong"] } }
+    },
+    "small": {
+      "$description": "Smallest body style for compact elements such as avatars and badges.",
+      "$value": {
+        "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
+        "fontSize": { "value": 9, "unit": "px" },
+        "fontWeight": 400,
+        "lineHeight": { "value": 16, "unit": "px" }
+      },
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--body-small"] } }
+    },
+    "small-strong": {
+      "$description": "Strong smallest body style for compact elements.",
+      "$value": {
+        "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
+        "fontSize": { "value": 9, "unit": "px" },
+        "fontWeight": 600,
+        "lineHeight": { "value": 16, "unit": "px" }
+      },
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--body-small-strong"] } }
+    }
+  }
+}

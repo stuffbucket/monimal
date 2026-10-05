@@ -1,5 +1,5 @@
 import { DEFAULT_APPEARANCE } from './appearance'
-import { PALETTE_STYLE_ID, applyPalette } from './color/palette'
+import { applyTheme } from '@maximal/maximal-design-system/theme'
 
 /*
  * The `--maximal-color-*` palette and the `--shell-*` component tokens.
@@ -20,9 +20,9 @@ import { PALETTE_STYLE_ID, applyPalette } from './color/palette'
  * along with the terminal colours, which nothing here mounts. Adding a token
  * no surface reads is a second place to keep numbers in sync.
  *
- * Colour values are not written here. `./color/palette.ts` calculates the
- * atomic ramps and the semantic colours that alias them; this file holds the
- * aliases that are the same in every theme and mode.
+ * Colour values are not written here. `@maximal/maximal-design-system/color`
+ * calculates the atomic ramps and semantic colours that alias them; this file
+ * holds the aliases that are the same in every theme and mode.
  */
 const THEME_CSS = `
 :root {
@@ -41,11 +41,11 @@ const THEME_CSS = `
      its type and element ends in default.
 
      Atomic colours are --maximal-color-{ramp}-{step}, steps 100 to 1000 by
-     lightness in both modes; ./color/palette.ts defines them and the base
+    lightness in both modes; the shared design system defines them and the base
      semantic colours. bg-default is the window chrome and side panels,
      bg-secondary is the canvas (documents, terminals, the spatial canvas),
      and bg-tertiary is floating surfaces. Role colours are calculated per
-     theme in ./color/palette.ts. */
+    theme in the shared design system. */
 
   /* The strong step keeps inputs and scroll thumbs distinct from the canvas. */
   --maximal-color-border-strong-hover: var(--maximal-color-bg-brand);
@@ -185,5 +185,5 @@ if (typeof document !== 'undefined' && !document.getElementById(THEME_STYLE_ID))
   style.textContent = THEME_CSS
   document.head.appendChild(style)
   applyCandyPalette(document.documentElement.style)
-  if (document.getElementById(PALETTE_STYLE_ID) === null) applyPalette(DEFAULT_APPEARANCE.colors)
+  applyTheme(DEFAULT_APPEARANCE)
 }

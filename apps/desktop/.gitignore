@@ -3,6 +3,8 @@ node_modules/
 .vite/
 out/
 resources/bin/
+# bun build --compile temporary executables (left behind if compilation is interrupted)
+.*.bun-build
 *.log
 test-results/
 playwright-report/

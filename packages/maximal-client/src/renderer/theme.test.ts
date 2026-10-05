@@ -8,11 +8,51 @@ import { SHELL_TERMINAL_PROPERTIES } from '@maximal/maximal-terminal/renderer'
 import { shellVariableContract } from '@maximal/maximal-electron/verify/shell-variables'
 
 import { DEFAULT_APPEARANCE } from './appearance'
-import { paletteTokens } from './color/palette'
+import { BUILT_IN_THEMES } from './themes/catalog'
+import {
+  BRAND_CREAM_HEX,
+  paletteTokens,
+  resolvePaletteToken,
+  wcagContrast,
+  type PaletteTokens,
+} from '@maximal/maximal-design-system/color'
 
 const require = createRequire(import.meta.url)
 const SHELL_STYLES_PATH = require.resolve('@maximal/maximal-electron/renderer/styles.css')
 const SHELL_STYLES = readFileSync(SHELL_STYLES_PATH, 'utf8')
+
+function paletteColor(tokens: PaletteTokens, name: string): string {
+  return resolvePaletteToken(tokens, `--maximal-color-${name}`)
+}
+
+describe('built-in theme palettes', () => {
+  it('preserves every seed and required contrast relationship', () => {
+    for (const theme of BUILT_IN_THEMES) {
+      const tokens = paletteTokens(theme.colors)
+      for (const mode of ['light', 'dark'] as const) {
+        const palette = tokens[mode]
+        const seed = theme.colors[mode]
+        const label = `${theme.id} ${mode}`
+        expect(paletteColor(palette, 'bg-default'), `${label} background`).toBe(seed.background.toLowerCase())
+        expect(paletteColor(palette, 'bg-secondary'), `${label} surface`).toBe(seed.surface.toLowerCase())
+        expect(paletteColor(palette, 'text-default'), `${label} text`).toBe(seed.text.toLowerCase())
+        expect(paletteColor(palette, 'bg-brand'), `${label} accent`).toBe(seed.accent.toLowerCase())
+
+        for (const text of ['text-secondary', 'text-tertiary']) {
+          expect(
+            wcagContrast(paletteColor(palette, text), paletteColor(palette, 'bg-default')),
+            `${label} ${text} on bg-default`,
+          ).toBeGreaterThanOrEqual(4.5)
+        }
+
+        const brand = paletteColor(palette, 'bg-brand')
+        const onBrand = paletteColor(palette, 'text-onbrand')
+        expect(wcagContrast(onBrand, brand), `${label} text-onbrand`).toBeGreaterThanOrEqual(4.5)
+        if (wcagContrast(BRAND_CREAM_HEX, brand) >= 4.5) expect(onBrand).toBe(BRAND_CREAM_HEX)
+      }
+    }
+  })
+})
 
 function installedContract() {
   return shellVariableContract({

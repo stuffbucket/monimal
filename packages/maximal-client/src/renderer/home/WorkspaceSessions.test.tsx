@@ -164,13 +164,3 @@ it('makes Home an actionable landing page rather than a blank map', async () => 
   expect(onClose).toHaveBeenCalledOnce()
   expect(onSelect).toHaveBeenCalledWith(browser.id)
 })
-
-it('opens the existing live workspace map and focuses its actual document nodes', async () => {
-  await render(<WorkspaceHome tabs={[terminal, browser]} onSelectTab={onSelect} onOpenProjects={onResume} onNewTerminal={onNew} onNewBrowser={onClose} />)
-  click('Workspace map')
-  expect(document.querySelectorAll('.workspace-map__node')).toHaveLength(2)
-  const node = document.querySelector('.workspace-map__node')
-  if (!node) throw new Error('The workspace map must contain the running terminal')
-  act(() => { node.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })) })
-  expect(onSelect).toHaveBeenCalledWith(terminal.id)
-})
