@@ -822,11 +822,16 @@ test("required CI runs native checks before Docker and has one cache writer", ()
   assert.ok(workflow.indexOf(sidecarProvenance) < workflow.indexOf(testGate));
   assert.equal(workflow.split("uses: actions/cache/save@").length - 1, 3);
   assert.equal(workflow.split("uses: actions/cache@").length - 1, 1);
-  assert.equal(workflow.split("uses: actions/cache/restore@").length - 1, 5);
+  assert.equal(workflow.split("uses: actions/cache/restore@").length - 1, 6);
   assert.equal(workflow.split("cache: pnpm").length - 1, 0);
   assert.equal(workflow.split("pnpm-v1-").length - 1, 6);
-  assert.match(workflow, /if: github\.event_name == 'push'/);
-  assert.equal(workflow.split("turbo-v2-").length - 1, 6);
+  assert.match(
+    workflow,
+    /if: \(github\.event_name == 'push' \|\| github\.event_name == 'pull_request'\)/,
+  );
+  assert.equal(workflow.split("turbo-check-v3-").length - 1, 6);
+  assert.equal(workflow.split("turbo-full-v3-").length - 1, 3);
+  assert.equal(workflow.split("path: .turbo/cache").length - 1, 4);
 });
 
 test("full tests run on main only and reconcile a non-blocking issue", () => {
@@ -849,6 +854,11 @@ test("full tests run on main only and reconcile a non-blocking issue", () => {
   assert.match(workflow, /persist-credentials: false/);
   assert.match(workflow, /pnpm install --frozen-lockfile/);
   assert.match(workflow, /pnpm run test:all/);
+  assert.equal(workflow.split("uses: actions/cache/restore@").length - 1, 3);
+  assert.equal(workflow.split("uses: actions/cache/save@").length - 1, 1);
+  assert.equal(workflow.split("turbo-check-v3-").length - 1, 3);
+  assert.equal(workflow.split("turbo-full-v3-").length - 1, 3);
+  assert.equal(workflow.split("path: .turbo/cache").length - 1, 3);
   assert.doesNotMatch(workflow, /issues: write/);
 
   assert.match(reporter, /^name: Report full test failure$/m);
