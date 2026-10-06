@@ -10,7 +10,8 @@
     "./color": "./src/color/index.ts",
     "./color/tools": "./src/color/tools.ts",
     "./icons": "./src/icons/index.ts",
-    "./theme": "./src/theme.ts"
+    "./theme": "./src/theme.ts",
+    "./styles.css": "./src/styles/index.css"
   },
   "scripts": {
     "analyze": "bun ../maximal-core/scripts/analyze.ts",
@@ -28,6 +29,7 @@
     "typecheck": "node --check style-dictionary.config.mjs && node --check scripts/build-inventory.mjs && node --check scripts/check-inventory.mjs && node --check scripts/inventory.mjs && tsc --noEmit"
   },
   "dependencies": {
+    "@base-ui/react": "1.8.0",
     "lucide-react": "^1.38.0",
     "react": "^19.2.8"
   },

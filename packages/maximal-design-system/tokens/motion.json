@@ -1,0 +1,40 @@
+{
+  "duration": {
+    "$description": "Canonical durations for design-system transitions.",
+    "$type": "duration",
+    "fade": {
+      "$description": "Short fade used by transient interface affordances.",
+      "$value": { "value": 120, "unit": "ms" },
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--duration-fade"] } }
+    }
+  },
+  "easing": {
+    "$description": "Canonical easing curves for design-system motion.",
+    "$type": "cubicBezier",
+    "standard": {
+      "$description": "Default easing for short interface transitions.",
+      "$value": [0.25, 0.1, 0.25, 1],
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--easing-standard"] } }
+    }
+  },
+  "opacity": {
+    "$description": "Canonical opacity states for interface affordances.",
+    "$type": "number",
+    "hidden": {
+      "$value": 0,
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--opacity-hidden"] } }
+    },
+    "disabled": {
+      "$value": 0.5,
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--opacity-disabled"] } }
+    },
+    "affordance": {
+      "$value": 0.55,
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--opacity-affordance"] } }
+    },
+    "visible": {
+      "$value": 1,
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--opacity-visible"] } }
+    }
+  }
+}

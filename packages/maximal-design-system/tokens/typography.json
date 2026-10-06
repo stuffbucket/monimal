@@ -105,6 +105,16 @@
         "lineHeight": { "value": 16, "unit": "px" }
       },
       "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--body-small-strong"] } }
+    },
+    "code": {
+      "$description": "Monospaced interface text for terminals, logs, and inline code.",
+      "$value": {
+        "fontFamily": "ui-monospace, 'SFMono-Regular', 'SF Mono', Menlo, Consolas, monospace",
+        "fontSize": { "value": 11, "unit": "px" },
+        "fontWeight": 400,
+        "lineHeight": { "value": 16, "unit": "px" }
+      },
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--body-code"] } }
     }
   }
 }

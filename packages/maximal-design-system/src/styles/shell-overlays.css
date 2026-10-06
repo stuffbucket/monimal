@@ -1,0 +1,159 @@
+.maximal-canvas-toolbars {
+  position: absolute;
+  inset-block-end: var(--spacer-3);
+  inset-inline-start: 50%;
+  z-index: var(--z-index-floating-controls);
+  display: grid;
+  max-width: calc(100% - (2 * var(--spacer-3)));
+  justify-items: center;
+  gap: var(--spacer-3);
+  transform: translateX(-50%);
+}
+
+.maximal-canvas-toolbar {
+  max-width: calc(100% - (2 * var(--spacer-3)));
+  padding: var(--spacer-2);
+  overflow-x: auto;
+  box-shadow: var(--elevation-400);
+}
+
+.maximal-canvas-toolbar--secondary {
+  max-width: 100%;
+}
+
+.maximal-canvas-toolbar__color {
+  cursor: pointer;
+}
+
+.maximal-canvas-toolbar__color > span {
+  width: var(--height-control-compact);
+  height: var(--height-control-compact);
+  border: var(--border-width-thin) solid var(--maximal-color-border-default);
+  border-radius: var(--radius-full);
+}
+
+.maximal-canvas-toolbar__color[aria-pressed="true"] {
+  outline-offset: calc(-1 * var(--border-width-thin));
+}
+
+.maximal-canvas-toolbar__color[data-color="white"] > span {
+  background: var(--maximal-color-swatch-white);
+}
+
+.maximal-canvas-toolbar__color[data-color="grey"] > span {
+  background: var(--maximal-color-swatch-grey);
+}
+
+.maximal-canvas-toolbar__color[data-color="persimmon"] > span {
+  background: var(--maximal-color-swatch-persimmon);
+}
+
+.maximal-canvas-toolbar__color[data-color="orange"] > span {
+  background: var(--maximal-color-swatch-orange);
+}
+
+.maximal-canvas-toolbar__color[data-color="yellow"] > span {
+  background: var(--maximal-color-swatch-yellow);
+}
+
+.maximal-canvas-toolbar__color[data-color="green"] > span {
+  background: var(--maximal-color-swatch-green);
+}
+
+.maximal-canvas-toolbar__color[data-color="teal"] > span {
+  background: var(--maximal-color-swatch-teal);
+}
+
+.maximal-canvas-toolbar__color[data-color="blue"] > span {
+  background: var(--maximal-color-swatch-blue);
+}
+
+.maximal-canvas-toolbar__color[data-color="purple"] > span {
+  background: var(--maximal-color-swatch-purple);
+}
+
+.maximal-canvas-toolbar__color[data-color="pink"] > span {
+  background: var(--maximal-color-swatch-pink);
+}
+
+.maximal-canvas-toolbar .maximal-icon-button[data-selected] {
+  color: var(--maximal-color-text-onbrand);
+  background: var(--maximal-color-bg-brand);
+}
+
+.maximal-canvas-toolbar .maximal-icon-button[data-selected]:hover:not([data-disabled]),
+.maximal-canvas-toolbar .maximal-icon-button[data-selected]:active:not([data-disabled]) {
+  background: var(--maximal-color-bg-brand);
+}
+
+.maximal-shell-status-controls {
+  position: absolute;
+  inset-block-end: var(--spacer-3);
+  inset-inline-end: var(--spacer-3);
+  z-index: var(--z-index-notification);
+  display: flex;
+  align-items: flex-end;
+  gap: var(--spacer-2);
+}
+
+.maximal-zoom-split {
+  height: var(--height-row-standard);
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  box-shadow: var(--elevation-500);
+}
+
+.maximal-zoom-split .maximal-icon-button {
+  border-radius: var(--radius-none);
+}
+
+.maximal-zoom-split .maximal-icon-button + .maximal-icon-button {
+  border-inline-start-color: var(--maximal-color-border-default);
+}
+
+.maximal-shell-notification {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  max-width: calc(var(--width-sidebar-standard) + var(--width-navigation-bar));
+  align-items: center;
+  overflow: hidden;
+  background: var(--maximal-color-bg-default);
+  border: var(--border-width-thin) solid var(--maximal-color-border-default);
+  border-radius: var(--radius-medium);
+  box-shadow: var(--elevation-500);
+}
+
+.maximal-shell-notification > svg {
+  margin-inline-start: var(--spacer-2);
+}
+
+.maximal-shell-notification p {
+  margin: 0;
+  padding: var(--spacer-2);
+  font: var(--body-small);
+}
+
+.maximal-shell-notification > div {
+  display: grid;
+  align-self: stretch;
+  border-inline-start: var(--border-width-thin) solid var(--maximal-color-border-default);
+}
+
+.maximal-shell-notification button {
+  min-width: calc(var(--height-row-standard) * 2);
+  padding-inline: var(--spacer-2);
+  cursor: pointer;
+}
+
+.maximal-shell-notification button + button {
+  border-block-start: var(--border-width-thin) solid var(--maximal-color-border-default);
+}
+
+.maximal-tabs__panels,
+.maximal-tabs__panel {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}

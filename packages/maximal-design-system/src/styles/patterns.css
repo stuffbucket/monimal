@@ -1,0 +1,102 @@
+/* Shared interaction and surface patterns; component files own geometry and overrides. */
+
+.maximal-button:focus-visible,
+.maximal-control-button:focus-visible,
+.maximal-icon-button:focus-visible,
+.maximal-tabs__tab:focus-visible,
+.maximal-horizontal-scroll-area__thumb:focus-visible,
+.maximal-zoom-trigger:focus-visible,
+.maximal-page-controls__color:focus-within,
+.maximal-edge-resizer:focus-visible,
+.maximal-canvas-toolbar__color[aria-pressed="true"],
+.maximal-sidebar-section-split__handle:focus-visible,
+.maximal-project-page-row > input {
+  outline: var(--border-width-thin) solid var(--maximal-color-border-selected);
+}
+
+.maximal-tabs__tab:hover:not([data-disabled]),
+.maximal-project-page-row > button:hover,
+.maximal-project-content__group button:hover,
+.maximal-project-page-row[data-current] > button {
+  color: var(--maximal-color-text-default);
+  background-color: var(--maximal-color-bg-hover);
+}
+
+.maximal-workspace-shell,
+.maximal-zoom-menu,
+.maximal-tab-search,
+.maximal-collaborators {
+  color: var(--maximal-color-text-default);
+  font: var(--body-medium);
+  background: var(--maximal-color-bg-default);
+  border: var(--border-width-thin) solid var(--maximal-color-border-default);
+  border-radius: var(--radius-large);
+  box-shadow: var(--elevation-500);
+}
+
+.maximal-zoom-menu__input input,
+.maximal-tab-search__input input,
+.maximal-collaborators__search input {
+  min-width: 0;
+  flex: 1;
+  color: inherit;
+  font: inherit;
+  background: transparent;
+  border: 0;
+  outline: none;
+}
+
+.maximal-horizontal-scroll-area__track,
+.maximal-edge-resizer__thumb,
+.maximal-scrollbar {
+  opacity: var(--opacity-hidden);
+  transition: opacity var(--duration-fade) var(--easing-standard);
+}
+
+.maximal-horizontal-scroll-area__thumb,
+.maximal-edge-resizer__thumb,
+.maximal-scrollbar__thumb {
+  background: var(--maximal-color-bg-pressed);
+  border-radius: var(--radius-full);
+}
+
+.maximal-canvas-toolbar .maximal-icon-button,
+.maximal-workspace-shell__navigation-bar .maximal-icon-button,
+.maximal-zoom-split .maximal-icon-button {
+  width: var(--height-row-standard);
+  height: var(--height-row-standard);
+}
+
+.maximal-canvas-toolbar__color,
+.maximal-collaborators [data-avatar] {
+  display: grid;
+  width: var(--height-row-standard);
+  height: var(--height-row-standard);
+  flex: none;
+  place-items: center;
+  border-radius: var(--radius-full);
+}
+
+.maximal-icon-button,
+.maximal-zoom-trigger {
+  border: var(--border-width-thin) solid transparent;
+  border-radius: var(--radius-medium);
+  cursor: pointer;
+}
+
+.maximal-control-cluster,
+.maximal-assistant-spike {
+  border: var(--border-width-thin) solid var(--maximal-color-border-default);
+  border-radius: var(--radius-large);
+  box-shadow: var(--elevation-200);
+}
+
+.maximal-zoom-menu__input,
+.maximal-tab-search__input,
+.maximal-collaborators__search {
+  display: flex;
+  align-items: center;
+  padding-inline: var(--spacer-2);
+  background: var(--maximal-color-bg-secondary);
+  border-radius: var(--radius-medium);
+}

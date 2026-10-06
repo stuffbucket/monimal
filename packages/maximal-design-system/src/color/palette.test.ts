@@ -67,6 +67,50 @@ describe('palette tokens', () => {
     expect(light['--maximal-color-bg-brand']).toBe(atomicAlias('brand', 500))
   })
 
+  it('owns named toolbar swatches instead of deriving component colors', () => {
+    const { light } = paletteTokens(DEFAULT_PALETTE_FIXTURE.colors)
+
+    for (const colorName of [
+      'grey',
+      'persimmon',
+      'orange',
+      'yellow',
+      'green',
+      'teal',
+      'blue',
+      'purple',
+      'pink',
+    ]) {
+      expect(light[`--maximal-color-swatch-${colorName}`]).toBe(
+        atomicAlias(colorName, 500),
+      )
+    }
+    expect(light['--maximal-color-swatch-white']).toBe(atomicAlias('white', 1000))
+  })
+
+  it('owns quiet selected-control states for each mode', () => {
+    const { light, dark } = paletteTokens(DEFAULT_PALETTE_FIXTURE.colors)
+
+    expect(light['--maximal-color-bg-selected-quiet']).toBe(
+      atomicAlias('black', 100),
+    )
+    expect(light['--maximal-color-bg-selected-quiet-hover']).toBe(
+      atomicAlias('black', 200),
+    )
+    expect(light['--maximal-color-bg-selected-quiet-pressed']).toBe(
+      atomicAlias('black', 300),
+    )
+    expect(dark['--maximal-color-bg-selected-quiet']).toBe(
+      atomicAlias('white', 200),
+    )
+    expect(dark['--maximal-color-bg-selected-quiet-hover']).toBe(
+      atomicAlias('white', 300),
+    )
+    expect(dark['--maximal-color-bg-selected-quiet-pressed']).toBe(
+      atomicAlias('white', 400),
+    )
+  })
+
   it('keeps each theme seed exact', () => {
     for (const theme of PALETTE_FIXTURES) {
       const tokens = paletteTokens(theme.colors)

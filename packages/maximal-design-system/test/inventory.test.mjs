@@ -74,8 +74,19 @@ test('ratchet reports additions and stale baseline entries', () => {
       [...runtimePropertyDeclarations(`
         host.style.setProperty('--term-selection', theme.selection);
         host.style.setProperty("--maximal-term-baseline", baseline);
+        Object.assign(tokens, {
+          '--maximal-color-swatch-orange': alias('orange', 500),
+          '--maximal-color-bg-selected-quiet': mode === 'dark'
+            ? alias('white', 200)
+            : alias('black', 100),
+        });
       `)],
-      ['--term-selection', '--maximal-term-baseline'],
+      [
+        '--term-selection',
+        '--maximal-term-baseline',
+        '--maximal-color-swatch-orange',
+        '--maximal-color-bg-selected-quiet',
+      ],
     );
   });
 });
@@ -96,6 +107,23 @@ test('DTCG icon owners type matching CSS custom properties', () => {
   );
   assert.equal(inventory['icon-optical-map-scale'].$type, 'number');
   assert.equal(inventory['icon-optical-map-scale'].$value, 1.111111);
+});
+
+test('DTCG motion and stacking owners preserve CSS values', () => {
+  const tokens = new Map([
+    ['--easing-standard', [{
+      file: 'tokens.css',
+      value: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
+    }]],
+    ['--opacity-disabled', [{ file: 'tokens.css', value: '0.5' }]],
+    ['--z-index-popover', [{ file: 'tokens.css', value: '20' }]],
+  ]);
+  const inventory = dtcgInventory(tokens).inventory;
+
+  assert.equal(inventory['easing-standard'].$type, 'cubicBezier');
+  assert.deepEqual(inventory['easing-standard'].$value, [0.25, 0.1, 0.25, 1]);
+  assert.equal(inventory['opacity-disabled'].$type, 'number');
+  assert.equal(inventory['z-index-popover'].$type, 'number');
 });
 
 test('DTCG spatial grid owners type colors and dot geometry', () => {

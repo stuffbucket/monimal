@@ -31,7 +31,7 @@ import tokensCss from '../../maximal-electron/src/renderer/styles/tokens.css?inl
  * is two browser windows on the same story with `&globals=shell:app` and
  * `&globals=shell:package`.
  */
-export const SHELL_MODES = ['app', 'package'] as const;
+export const SHELL_MODES = ['app', 'package', 'design-system'] as const;
 
 export type ShellMode = (typeof SHELL_MODES)[number];
 
@@ -50,6 +50,7 @@ const ELEMENT_ID = 'sb-shell-mode';
 const STYLESHEETS: Record<ShellMode, string> = {
   app: [structuralTokensCss, shellCss].join('\n'),
   package: [tokensCss, consumerCss, structuralTokensCss, packageRulesCss].join('\n'),
+  'design-system': '',
 };
 
 /**
@@ -103,8 +104,8 @@ export function applyShellMode(mode: ShellMode): void {
  * arrangement that does not exist. Nothing else changes: an unscoped rule
  * matches whether the class is there or not.
  */
-export function applyShellRoot(_mode: ShellMode, element: HTMLElement): void {
-  element.classList.add(SHELL_ROOT_CLASS);
+export function applyShellRoot(mode: ShellMode, element: HTMLElement): void {
+  element.classList.toggle(SHELL_ROOT_CLASS, mode !== 'design-system');
 }
 
 /**
@@ -117,5 +118,6 @@ export function applyShellRoot(_mode: ShellMode, element: HTMLElement): void {
  */
 export function initialShellMode(): ShellMode {
   const requested: unknown = import.meta.env['STORYBOOK_SHELL_MODE'];
-  return requested === 'package' ? 'package' : 'app';
+  if (requested === 'package' || requested === 'design-system') return requested;
+  return 'app';
 }

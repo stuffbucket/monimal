@@ -319,6 +319,28 @@ function modeTokens(seed: PaletteSeed, mode: ColorMode): PaletteTokens {
     }
   }
 
+  Object.assign(tokens, {
+    '--maximal-color-bg-selected-quiet': mode === 'dark'
+      ? alias('white', 200)
+      : alias('black', 100),
+    '--maximal-color-bg-selected-quiet-hover': mode === 'dark'
+      ? alias('white', 300)
+      : alias('black', 200),
+    '--maximal-color-bg-selected-quiet-pressed': mode === 'dark'
+      ? alias('white', 400)
+      : alias('black', 300),
+    '--maximal-color-swatch-white': alias('white', 1000),
+    '--maximal-color-swatch-grey': alias('grey', 500),
+    '--maximal-color-swatch-persimmon': alias('persimmon', 500),
+    '--maximal-color-swatch-orange': alias('orange', 500),
+    '--maximal-color-swatch-yellow': alias('yellow', 500),
+    '--maximal-color-swatch-green': alias('green', 500),
+    '--maximal-color-swatch-teal': alias('teal', 500),
+    '--maximal-color-swatch-blue': alias('blue', 500),
+    '--maximal-color-swatch-purple': alias('purple', 500),
+    '--maximal-color-swatch-pink': alias('pink', 500),
+  })
+
   DATA_VIZ_HUES.forEach((hue, index) => {
     tokens[`--data-viz-series-${String(index + 1)}`] = firstReadable(ramps, [hue], mode, surfaces, GRAPHIC_CONTRAST)
   })

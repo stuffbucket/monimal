@@ -1,0 +1,173 @@
+.maximal-control-cluster {
+  display: flex;
+  align-items: center;
+  gap: var(--spacer-1);
+  padding: var(--spacer-1);
+  background: var(--maximal-color-bg-default);
+}
+
+.maximal-control-cluster__group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacer-1);
+}
+
+.maximal-control-cluster__group + .maximal-control-cluster__group {
+  margin-inline-start: var(--spacer-1);
+  padding-inline-start: var(--spacer-2);
+  border-inline-start: var(--border-width-thin) solid
+    var(--maximal-color-border-default);
+}
+
+.maximal-compact-project-cluster,
+.maximal-compact-surface-cluster {
+  position: absolute;
+  inset-block-start: calc(var(--height-row-heading) + var(--spacer-2));
+  z-index: var(--z-index-floating-controls);
+}
+
+.maximal-compact-project-cluster {
+  inset-inline-start: var(--spacer-2);
+  height: var(--height-row-heading);
+}
+
+.maximal-compact-project-cluster__identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--spacer-2);
+  padding-inline: var(--spacer-1);
+  font: var(--body-medium-strong);
+}
+
+.maximal-compact-surface-cluster {
+  inset-inline-end: var(--spacer-2);
+}
+
+.maximal-surface-cluster.maximal-compact-surface-cluster {
+  flex-wrap: nowrap;
+  height: var(--height-row-heading);
+  padding: var(--spacer-1);
+}
+
+.maximal-canvas-viewport {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background: var(--maximal-color-bg-secondary);
+}
+
+.maximal-workspace-shell__main[data-background-visible] .maximal-canvas-viewport {
+  background: var(--maximal-content-background);
+}
+
+.maximal-canvas-content {
+  width: calc(100% / var(--maximal-content-zoom));
+  min-width: calc(100% / var(--maximal-content-zoom));
+  height: calc(100% / var(--maximal-content-zoom));
+  min-height: calc(100% / var(--maximal-content-zoom));
+  transform: scale(var(--maximal-content-zoom));
+  transform-origin: top left;
+}
+
+.maximal-canvas-content .maximal-terminal {
+  background: transparent;
+}
+
+.maximal-canvas-board {
+  width: 100%;
+  height: 100%;
+}
+
+.maximal-edge-resizer {
+  position: absolute;
+  z-index: var(--z-index-resizer);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+}
+
+.maximal-edge-resizer:focus-visible {
+  outline-offset: calc(-1 * var(--border-width-thin));
+}
+
+.maximal-edge-resizer[data-edge="left"],
+.maximal-edge-resizer[data-edge="right"] {
+  inset-block: 0;
+  width: var(--spacer-2);
+  cursor: col-resize;
+}
+
+.maximal-edge-resizer[data-edge="top"],
+.maximal-edge-resizer[data-edge="bottom"] {
+  inset-inline: 0;
+  height: var(--spacer-2);
+  cursor: row-resize;
+}
+
+.maximal-edge-resizer[data-edge="left"] {
+  inset-inline-start: 0;
+}
+
+.maximal-edge-resizer[data-edge="right"] {
+  inset-inline-end: 0;
+}
+
+.maximal-edge-resizer[data-edge="top"] {
+  inset-block-start: 0;
+}
+
+.maximal-edge-resizer[data-edge="bottom"] {
+  inset-block-end: 0;
+}
+
+.maximal-edge-resizer[data-overlap][data-edge="left"] {
+  inset-inline-start: calc(-1 * var(--spacer-1));
+}
+
+.maximal-edge-resizer[data-overlap][data-edge="right"] {
+  inset-inline-end: calc(-1 * var(--spacer-1));
+}
+
+.maximal-edge-resizer[data-overlap][data-edge="top"] {
+  inset-block-start: calc(-1 * var(--spacer-1));
+}
+
+.maximal-edge-resizer[data-overlap][data-edge="bottom"] {
+  inset-block-end: calc(-1 * var(--spacer-1));
+}
+
+.maximal-edge-resizer__track {
+  position: relative;
+  width: var(--border-width-thin);
+  height: 100%;
+  background: var(--maximal-color-border-default);
+}
+
+.maximal-edge-resizer[data-edge="top"] .maximal-edge-resizer__track,
+.maximal-edge-resizer[data-edge="bottom"] .maximal-edge-resizer__track {
+  width: 100%;
+  height: var(--border-width-thin);
+}
+
+.maximal-edge-resizer__thumb {
+  position: absolute;
+}
+
+.maximal-edge-resizer[data-edge="left"] .maximal-edge-resizer__thumb,
+.maximal-edge-resizer[data-edge="right"] .maximal-edge-resizer__thumb {
+  inset-block-start: 0;
+  inset-inline: calc(-1 * var(--spacer-1));
+}
+
+.maximal-edge-resizer[data-edge="top"] .maximal-edge-resizer__thumb,
+.maximal-edge-resizer[data-edge="bottom"] .maximal-edge-resizer__thumb {
+  inset-block: calc(-1 * var(--spacer-1));
+  inset-inline-start: 0;
+}
+
+.maximal-edge-resizer:hover .maximal-edge-resizer__thumb,
+.maximal-edge-resizer[data-scroll-active] .maximal-edge-resizer__thumb {
+  opacity: var(--opacity-visible);
+}

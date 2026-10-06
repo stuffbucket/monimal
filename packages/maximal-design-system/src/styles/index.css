@@ -1,0 +1,9 @@
+@import './patterns.css';
+@import './workspace-shell.css';
+@import './sidebar.css';
+@import './canvas-controls.css';
+@import './canvas.css';
+@import './buttons.css';
+@import './tabs.css';
+@import './shell-overlays.css';
+@import './terminal.css';

@@ -14,7 +14,7 @@ their source repositories.
 
 | Package | Purpose |
 | --- | --- |
-| `packages/maximal-design-system` (`@maximal/maximal-design-system`) | Shared color and theme system, generated Style Dictionary artifacts, workspace token inventory, design tools, and the workspace Storybook catalog. |
+| `packages/maximal-design-system` (`@maximal/maximal-design-system`) | Shared color and theme system, generated Style Dictionary artifacts, workspace token inventory, Base UI-backed design primitives and spikes, design tools, and the workspace Storybook catalog. |
 | `packages/maximal-browser` | Agent-shareable browser sessions, native Electron views, and browser-tab renderer UI. |
 | `packages/maximal-terminal` | Electron-free terminal hosts, tmux control and projection, launch connectors, and the terminal renderer. |
 | `packages/maximal-settings` | Typed layered settings, process-owned JSON stores, plugin-schema validation, and the settings migration ratchet. |
@@ -142,6 +142,7 @@ packaged sidecar.
 | `maximal-electron` / `maximal-project-browser` / `maximal-client` / `apps/desktop` | `maximal-electron` owns token-driven spatial canvas presentation and control primitives; the reusable project map owns interaction and collaborative state, the client owns project discovery and opening, and desktop owns composition and shared shell stylesheet loading. |
 | `maximal-electron` / `maximal-client` / `apps/desktop` | Projects tab transfers MUST use the shared document drag payload, a client-owned board and view snapshot, and a desktop-owned ready-checked window lifecycle. |
 | `maximal-design-system` / `maximal-storybook` | The design system owns the workspace Storybook catalog and generated token artifacts; `maximal-storybook` owns shared authoring and test APIs while stories and deterministic fixtures remain beside the packages they exercise. |
+| `maximal-design-system` | Base UI MAY own headless interaction behavior; visible component styling and theme values MUST come from `maximal-design-system` CSS and tokens rather than `maximal-electron` shell contracts. |
 | `maximal-electron` | `NumberInput` owns bounded numeric draft-and-commit behavior; `UnitValueInput` owns automatic/manual presentation and persisted display units while consumers own canonical conversion; `TypefaceControls` composes reusable compact typeface fields; and `TerminalTabs` forwards consumer-owned live typography to terminal views without owning its persistence or font discovery. |
 | `@wterm/dom` 0.4.1 | Kitty graphics canvas backing stores scale with the bounded device pixel ratio so terminal images remain sharp on HiDPI displays. |
 | `maximal-electron` | Electron hosts MAY launch trusted application-owned terminal commands through the main-only `launchTrustedTerminal` API; renderer PTY requests remain restricted to opaque session geometry. |

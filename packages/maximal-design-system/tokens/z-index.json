@@ -1,0 +1,41 @@
+{
+  "z-index": {
+    "$description": "Semantic stacking roles within an isolated interface surface.",
+    "$type": "number",
+    "raised-content": {
+      "$description": "Content raised above adjacent siblings.",
+      "$value": 1,
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--z-index-raised-content"] } }
+    },
+    "resizer": {
+      "$description": "Interactive resize handles above the regions they resize.",
+      "$value": 2,
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--z-index-resizer"] } }
+    },
+    "floating-controls": {
+      "$description": "Floating toolbars and compact control clusters.",
+      "$value": 4,
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--z-index-floating-controls"] } }
+    },
+    "notification": {
+      "$description": "Transient status and notification surfaces above floating controls.",
+      "$value": 5,
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--z-index-notification"] } }
+    },
+    "resize-affordance": {
+      "$description": "Visible story or preview resize affordances.",
+      "$value": 6,
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--z-index-resize-affordance"] } }
+    },
+    "menu": {
+      "$description": "Menus positioned above local controls.",
+      "$value": 10,
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--z-index-menu"] } }
+    },
+    "popover": {
+      "$description": "Portalled popovers above menus and local overlays.",
+      "$value": 20,
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--z-index-popover"] } }
+    }
+  }
+}
