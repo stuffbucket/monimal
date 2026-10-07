@@ -3,7 +3,7 @@
 .maximal-button:focus-visible,
 .maximal-control-button:focus-visible,
 .maximal-icon-button:focus-visible,
-.maximal-tabs__tab:focus-visible,
+.maximal-tab:focus-visible,
 .maximal-horizontal-scroll-area__thumb:focus-visible,
 .maximal-zoom-trigger:focus-visible,
 .maximal-page-controls__color:focus-within,
@@ -14,10 +14,11 @@
   outline: var(--border-width-thin) solid var(--maximal-color-border-selected);
 }
 
-.maximal-tabs__tab:hover:not([data-disabled]),
+.maximal-tab:hover:not([data-disabled]),
 .maximal-project-page-row > button:hover,
 .maximal-project-content__group button:hover,
-.maximal-project-page-row[data-current] > button {
+.maximal-project-page-row[data-current] > button,
+.maximal-project-content__group button[aria-current="page"] {
   color: var(--maximal-color-text-default);
   background-color: var(--maximal-color-bg-hover);
 }

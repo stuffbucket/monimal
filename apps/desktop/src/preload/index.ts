@@ -80,6 +80,10 @@ const bridge = {
     get: () => ipcRenderer.invoke(BRIDGE_CHANNELS.providerOnboardingGet),
     setDismissed: (dismissed) => ipcRenderer.invoke(BRIDGE_CHANNELS.providerOnboardingSet, dismissed),
   },
+  uiMode: {
+    get: () => ipcRenderer.invoke(BRIDGE_CHANNELS.uiModeGet),
+    set: (mode) => ipcRenderer.invoke(BRIDGE_CHANNELS.uiModeSet, mode),
+  },
   appearance: {
     get: () => ipcRenderer.invoke(BRIDGE_CHANNELS.appearanceGet),
     setVibrancyEnabled: (enabled) =>

@@ -12,6 +12,7 @@ import {
   COLOR_HUES,
   COLOR_STEPS,
   BRAND_CREAM_HEX,
+  BRAND_HEX,
   BRAND_RAMP,
   alphaRamp,
   anchoredRamp,
@@ -41,6 +42,23 @@ export interface PaletteSeeds {
 }
 
 export type PaletteTokens = Record<`--${string}`, string>
+
+export const REFERENCE_PALETTE_SEEDS: PaletteSeeds = {
+  light: {
+    background: '#ffffff',
+    surface: '#eef0f4',
+    text: '#12141a',
+    accent: BRAND_HEX,
+    accentIcon: BRAND_CREAM_HEX,
+  },
+  dark: {
+    background: '#16181d',
+    surface: '#1c1f26',
+    text: '#f5f5f5',
+    accent: '#f65467',
+    accentIcon: BRAND_CREAM_HEX,
+  },
+}
 
 const PREFIX = '--maximal-color'
 
@@ -320,6 +338,7 @@ function modeTokens(seed: PaletteSeed, mode: ColorMode): PaletteTokens {
   }
 
   Object.assign(tokens, {
+    '--maximal-color-bg-modal-backdrop': alias('black', 400),
     '--maximal-color-bg-selected-quiet': mode === 'dark'
       ? alias('white', 200)
       : alias('black', 100),

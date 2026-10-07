@@ -274,6 +274,7 @@
         "@maximal/maximal-configurators",
         "@maximal/maximal-core",
         "@maximal/maximal-core-contract",
+        "@maximal/maximal-design-system",
         "@maximal/maximal-electron",
         "@maximal/maximal-harness",
         "@maximal/maximal-runner-llama-cpp",

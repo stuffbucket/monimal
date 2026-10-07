@@ -71,7 +71,7 @@
 .maximal-button:focus-visible,
 .maximal-control-button:focus-visible,
 .maximal-icon-button:focus-visible,
-.maximal-tabs__tab:focus-visible {
+.maximal-tab:focus-visible {
   outline-offset: var(--border-width-thin);
 }
 

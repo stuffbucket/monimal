@@ -1,3 +1,4 @@
+import { designSystemRendererBoundary } from "@maximal/eslint-config/architecture";
 import { typescript } from "@maximal/eslint-config/typescript";
 import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
@@ -115,4 +116,5 @@ export default [
       ],
     },
   },
+  designSystemRendererBoundary({ files: ["src/renderer/design-system/**/*.{ts,tsx}"] }),
 ];

@@ -55,6 +55,9 @@ importers:
       '@maximal/maximal-core-contract':
         specifier: workspace:*
         version: link:../../packages/maximal-core-contract
+      '@maximal/maximal-design-system':
+        specifier: workspace:*
+        version: link:../../packages/maximal-design-system
       '@maximal/maximal-electron':
         specifier: workspace:*
         version: link:../../packages/maximal-electron

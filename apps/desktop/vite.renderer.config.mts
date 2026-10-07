@@ -19,6 +19,8 @@ export default defineConfig(({ command }) => ({
     // maximal-electron) loads twice, with its dependencies.
     preserveSymlinks: false,
     dedupe: [
+      '@base-ui/react',
+      '@maximal/maximal-design-system',
       '@maximal/maximal-electron',
       '@maximal/maximal-harness',
       '@maximal/maximal-observability',
@@ -47,6 +49,8 @@ export default defineConfig(({ command }) => ({
       input: {
         index: resolve(import.meta.dirname, 'src/renderer/index.html'),
         overlay: resolve(import.meta.dirname, 'src/renderer/overlay.html'),
+        'design-system': resolve(import.meta.dirname, 'src/renderer/design-system.html'),
+        spike: resolve(import.meta.dirname, 'src/renderer/spike.html'),
       },
     },
   },

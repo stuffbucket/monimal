@@ -18,6 +18,7 @@ import {
   useGuardedNavigation,
 } from '@maximal/maximal-client/renderer/unsaved-changes'
 
+import { UiModeStrip } from './UiModeStrip'
 import { WorkspaceTerminalLauncher } from './WorkspaceTerminalLauncher'
 import { CozyBackground } from './CozyBackground'
 import { useAppearancePreference } from './useAppearancePreference'
@@ -86,6 +87,19 @@ function AppContent(): ReactElement {
     [openSettings, requestNavigation, settings],
   )
 
+  const workspace = (
+    <AppWorkspace
+      detachedWindow={detachedWindow}
+      detachedProjects={detachedProjects}
+      accountStatus={accountStatus}
+      settings={settings}
+      sectionRequest={sectionRequest}
+      terminalState={terminalTabsState}
+      requestNavigation={requestNavigation}
+      openSettingsSection={(id) => setSectionRequest({ id })}
+    />
+  )
+
   return (
     <ObservabilityProvider source={observability}>
       <CozyBackground
@@ -93,16 +107,7 @@ function AppContent(): ReactElement {
         reducedMotion={appearance?.reducedMotionEnabled === true}
         material={material.state ?? DEFAULT_MATERIAL_PREFERENCE}
       />
-      <AppWorkspace
-        detachedWindow={detachedWindow}
-        detachedProjects={detachedProjects}
-        accountStatus={accountStatus}
-        settings={settings}
-        sectionRequest={sectionRequest}
-        terminalState={terminalTabsState}
-        requestNavigation={requestNavigation}
-        openSettingsSection={(id) => setSectionRequest({ id })}
-      />
+      {detachedWindow || detachedProjects ? workspace : <UiModeStrip>{workspace}</UiModeStrip>}
       {/* Detached windows display transferred sessions; only the workspace launches new ones. */}
       {!detachedWindow && !detachedProjects && <WorkspaceTerminalLauncher terminalState={terminalTabsState} />}
       <ThirdPartyLicensesDialog />

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
 import '../styles/index.css'
-import { WorkspaceShellSpike } from './workspace-shell'
+import { WorkspaceShellSpike } from './workspace-shell-spike'
 
 const meta = {
   title: 'Spikes/Base UI/Workspace Shell',

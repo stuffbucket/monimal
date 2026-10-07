@@ -12,6 +12,8 @@
     "src/main/workers/llama-worker.ts",
     "src/preload/index.ts",
     "src/renderer/workspace/main.tsx",
+    "src/renderer/design-system/main.tsx",
+    "src/renderer/design-system/spike.tsx",
     "src/renderer/overlay/entry.tsx",
     "sidecar/main.ts",
     "sidecar/**/*.test.ts"

@@ -187,6 +187,16 @@ export interface ProviderOnboardingPreference {
   dismissed: boolean
 }
 
+/** Which renderer entry draws the workspace window. */
+export const UI_MODES = ['legacy', 'design-system', 'spike'] as const
+export type UiMode = (typeof UI_MODES)[number]
+
+export interface UiModeState {
+  mode: UiMode
+  /** Development builds expose the in-window switch; packaged builds do not. */
+  switchable: boolean
+}
+
 export interface AppearancePreference {
   vibrancyEnabled: boolean
   vibrancySupported: boolean
@@ -426,6 +436,11 @@ export interface MaximalHost {
   providerOnboarding: {
     get: () => Promise<ProviderOnboardingPreference>
     setDismissed: (dismissed: boolean) => Promise<ProviderOnboardingPreference>
+  }
+  uiMode: {
+    get: () => Promise<UiModeState>
+    /** Persists the mode and reloads the requesting workspace window. */
+    set: (mode: UiMode) => Promise<void>
   }
   appearance: {
     get: () => Promise<AppearancePreference>

@@ -13,6 +13,33 @@ spike is available from the package root with its explicit
 `@maximal/maximal-design-system/styles.css` stylesheet. Parent compositions
 MUST own canvas zoom, page background, sidebar size, scroll, and compact-state
 transitions so those values survive navigation and visibility changes.
+`WorkspaceShell` is the product-agnostic composition: consumers supply tabs,
+panels, navigation, sidebars, and overlays, and `fill` sizes it to its host.
+`WorkspaceShellSpike` composes it with fixture content for Storybook and the
+desktop `spike` renderer.
+`Tab` wraps Base UI's tab trigger with Maximal styling, optional icon and close
+behavior, and MUST be rendered within a Base UI `Tabs.Root` and `Tabs.List`.
+`TabBar` composes that trigger into the workspace tab-and-panel pattern.
+`Dialog` wraps Base UI's controlled modal behavior with Maximal surface,
+backdrop, radius, elevation, spacing, and stacking tokens. Consumers MAY supply a
+portal container and MUST own the open state and action controls.
+The package root also exports Base UI-backed `Select`, `Checkbox`,
+`RadioGroup`/`Radio`, `Switch`, `Slider` (`Slide` is an alias), `NumberInput`,
+`ScrollArea`, `Avatar`, `Toast`, `Collapsible`, `Accordion`, `Menu`,
+`ContextMenu`, `Menubar`, `Tabs`, `Toolbar`, `ToggleGroup`, `Fieldset`,
+`Separator`, `Tooltip`, `Popover`, `Autocomplete`, and textarea `Field`
+components. `UnitValueInput` composes the numeric and select controls while
+consumers own canonical conversion. `Card` and `Callout` are selectable
+`role="option"` surfaces and MUST be rendered within a consumer-owned listbox.
+`Icon` presents canonical Maximal glyphs at the existing compact, standard, or
+prominent icon size roles; Base UI does not provide an icon primitive.
+These components MUST use the existing Maximal token roles; their component
+styles MUST NOT introduce new design tokens.
+Application renderers MUST load `@maximal/maximal-design-system/tokens.css`,
+`styles.css`, and `app.css`; `app.css` owns the document reset and application
+frame, and MUST NOT be imported by stories.
+`styles/patterns.css` owns interaction and surface declarations shared across
+component stylesheets; a component stylesheet MUST NOT repeat them.
 Storybook MAY import `maximal-electron` components and styles only to render
 that package's catalog stories; every new use MUST be identified as
 catalog-only and MUST NOT become a runtime dependency of design-system

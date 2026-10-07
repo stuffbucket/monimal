@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
-import { WorkspaceShellSpike } from '../compositions/workspace-shell'
+import { WorkspaceShellSpike } from '../compositions/workspace-shell-spike'
 import {
   CANVAS_ZOOM,
   normalizeCanvasZoom,
@@ -38,6 +38,22 @@ function readShellStyles(): string {
     .join('\n')
 }
 
+function gridToken(path: string): unknown {
+  let node: unknown = JSON.parse(
+    fs.readFileSync(new URL('../../tokens/grid.json', import.meta.url), 'utf8'),
+  )
+  for (const key of path.split('.')) {
+    if (typeof node !== 'object' || node === null || !(key in node)) {
+      throw new Error(`Missing grid token ${path}`)
+    }
+    node = Reflect.get(node, key)
+  }
+  if (typeof node !== 'object' || node === null || !('$value' in node)) {
+    throw new Error(`Grid token ${path} has no value`)
+  }
+  return node.$value
+}
+
 describe('Base UI spike primitives', () => {
   it('renders an accessible tab list and selected panel', () => {
     const markup = renderToStaticMarkup(
@@ -54,6 +70,7 @@ describe('Base UI spike primitives', () => {
 
     expect(markup).toContain('role="tablist"')
     expect(markup).toContain('role="tab"')
+    expect(markup).toContain('class="maximal-tab"')
     expect(markup).toContain('aria-selected="true"')
     expect(markup).toContain('role="tabpanel"')
   })
@@ -80,51 +97,27 @@ describe('Base UI spike primitives', () => {
 
   it('uses semantic macOS window radii with an unchanged generic fallback', () => {
     const css = readShellStyles()
-    const grid = JSON.parse(
-      fs.readFileSync(
-        new URL('../../tokens/grid.json', import.meta.url),
-        'utf8',
-      ),
-    ) as {
-      radius: {
-        window: {
-          outer: { $value: { value: number; unit: string } }
-          inner: { $value: { value: number; unit: string } }
-        }
-        dialog: {
-          outer: { $value: { value: number; unit: string } }
-          inner: { $value: { value: number; unit: string } }
-        }
-        platform: {
-          macos: {
-            outer: { $value: { value: number; unit: string } }
-            inner: { $value: { value: number; unit: string } }
-          }
-        }
-      }
-    }
-
-    expect(grid.radius.platform.macos.outer.$value).toEqual({
+    expect(gridToken('radius.platform.macos.outer')).toEqual({
       value: 16,
       unit: 'px',
     })
-    expect(grid.radius.platform.macos.inner.$value).toEqual({
+    expect(gridToken('radius.platform.macos.inner')).toEqual({
       value: 12,
       unit: 'px',
     })
-    expect(grid.radius.window.outer.$value).toEqual({
+    expect(gridToken('radius.window.outer')).toEqual({
       value: 13,
       unit: 'px',
     })
-    expect(grid.radius.window.inner.$value).toEqual({
+    expect(gridToken('radius.window.inner')).toEqual({
       value: 13,
       unit: 'px',
     })
-    expect(grid.radius.dialog.outer.$value).toEqual({
+    expect(gridToken('radius.dialog.outer')).toEqual({
       value: 13,
       unit: 'px',
     })
-    expect(grid.radius.dialog.inner.$value).toEqual({
+    expect(gridToken('radius.dialog.inner')).toEqual({
       value: 13,
       unit: 'px',
     })
@@ -254,34 +247,15 @@ describe('Base UI spike primitives', () => {
 
   it('uses side-specific token defaults for workspace sidebar widths', () => {
     const css = readShellStyles()
-    const grid = JSON.parse(
-      fs.readFileSync(
-        new URL('../../tokens/grid.json', import.meta.url),
-        'utf8',
-      ),
-    ) as {
-      width: {
-        sidebar: {
-          left: {
-            default: { $value: { value: number; unit: string } }
-            maximum: { $value: { value: number; unit: string } }
-          }
-          right: {
-            default: { $value: { value: number; unit: string } }
-          }
-        }
-      }
-    }
-
-    expect(grid.width.sidebar.left.default.$value).toEqual({
+    expect(gridToken('width.sidebar.left.default')).toEqual({
       value: 346,
       unit: 'px',
     })
-    expect(grid.width.sidebar.left.maximum.$value).toEqual({
+    expect(gridToken('width.sidebar.left.maximum')).toEqual({
       value: 366,
       unit: 'px',
     })
-    expect(grid.width.sidebar.right.default.$value).toEqual({
+    expect(gridToken('width.sidebar.right.default')).toEqual({
       value: 246,
       unit: 'px',
     })

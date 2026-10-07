@@ -94,6 +94,7 @@ describe('preload bridge allowlist', () => {
       'systemNotifications',
       'terminal',
       'terminalTypography',
+      'uiMode',
       'workbar',
     ])
     expect(Object.keys(bridge.appearance).sort()).toEqual([
@@ -240,6 +241,7 @@ describe('preload bridge allowlist', () => {
       'get',
       'setDismissed',
     ])
+    expect(Object.keys(bridge.uiMode).sort()).toEqual(['get', 'set'])
     expect(Object.keys(bridge.projects).sort()).toEqual([
       'addRoot',
       'onChange',
@@ -374,6 +376,8 @@ describe('preload bridge allowlist', () => {
     await bridge.generalSettings.setStartOnLogin(true)
     await bridge.providerOnboarding.get()
     await bridge.providerOnboarding.setDismissed(true)
+    await bridge.uiMode.get()
+    await bridge.uiMode.set('legacy')
     await bridge.appearance.get()
     await bridge.appearance.setVibrancyEnabled(true)
     await bridge.appearance.setBackgroundEffectsEnabled(true)
@@ -540,6 +544,8 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.generalSettingsSetStartOnLogin, true],
       [BRIDGE_CHANNELS.providerOnboardingGet],
       [BRIDGE_CHANNELS.providerOnboardingSet, true],
+      [BRIDGE_CHANNELS.uiModeGet],
+      [BRIDGE_CHANNELS.uiModeSet, 'legacy'],
       [BRIDGE_CHANNELS.appearanceGet],
       [BRIDGE_CHANNELS.appearanceSetVibrancy, true],
       [BRIDGE_CHANNELS.appearanceSetBackgroundEffects, true],

@@ -137,3 +137,36 @@ export function architecture({ kind = "service", root } = {}) {
 }
 
 export default architecture
+
+const LEGACY_SHELL_SOURCE = "/^@maximal\\/maximal-electron(\\/|$)/"
+
+/**
+ * Design-system renderer trees draw only `@maximal/maximal-design-system` UI;
+ * type-only imports stay allowed so shared state contracts can be reused.
+ * @param {{ files: string[] }} options
+ * @returns {import("eslint").Linter.Config}
+ */
+export function designSystemRendererBoundary({ files }) {
+  const message =
+    "Design-system renderer code must not import maximal-electron; use @maximal/maximal-design-system."
+  return {
+    files,
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: `ImportDeclaration[importKind!='type'][source.value=${LEGACY_SHELL_SOURCE}]`,
+          message,
+        },
+        {
+          selector: `ExportNamedDeclaration[exportKind!='type'][source.value=${LEGACY_SHELL_SOURCE}], ExportAllDeclaration[source.value=${LEGACY_SHELL_SOURCE}]`,
+          message,
+        },
+        {
+          selector: `ImportExpression[source.value=${LEGACY_SHELL_SOURCE}]`,
+          message,
+        },
+      ],
+    },
+  }
+}

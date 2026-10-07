@@ -111,6 +111,17 @@ describe('palette tokens', () => {
     )
   })
 
+  it('aliases the modal backdrop to the existing black alpha ramp', () => {
+    const { light, dark } = paletteTokens(DEFAULT_PALETTE_FIXTURE.colors)
+
+    expect(light['--maximal-color-bg-modal-backdrop']).toBe(
+      atomicAlias('black', 400),
+    )
+    expect(dark['--maximal-color-bg-modal-backdrop']).toBe(
+      atomicAlias('black', 400),
+    )
+  })
+
   it('keeps each theme seed exact', () => {
     for (const theme of PALETTE_FIXTURES) {
       const tokens = paletteTokens(theme.colors)

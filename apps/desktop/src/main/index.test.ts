@@ -175,7 +175,10 @@ const {
   }
   const fakeApp = {
     isPackaged: false,
-    commandLine: { hasSwitch: vi.fn(() => false) },
+    commandLine: {
+      hasSwitch: vi.fn(() => false),
+      getSwitchValue: vi.fn((_name: string) => ''),
+    },
     whenReady: vi.fn(() => Promise.resolve()),
     quit: vi.fn(),
     exit: vi.fn(),
@@ -230,7 +233,11 @@ const {
 
 vi.mock('electron', () => ({
   app: fakeApp,
-  BrowserWindow: { getAllWindows: () => browserWindows },
+  BrowserWindow: {
+    getAllWindows: () => browserWindows,
+    fromWebContents: (contents: unknown) =>
+      contents === fakeWindow.webContents ? fakeWindow : null,
+  },
   Notification: class {
     static isSupported = () => true
   },
@@ -297,6 +304,18 @@ const {
     updateOllamaCloudDisabledMock: vi.fn(async (disabled: boolean) => disabled),
   }
 })
+
+const { userPreferences } = vi.hoisted(() => ({
+  userPreferences: new Map<string, unknown>(),
+}))
+
+vi.mock('./preferences/user-preferences.js', () => ({
+  readUserPreferences: vi.fn(() => Promise.resolve(Object.fromEntries(userPreferences))),
+  updateUserPreferences: vi.fn((patch: Record<string, unknown>) => {
+    for (const [key, value] of Object.entries(patch)) userPreferences.set(key, value)
+    return Promise.resolve()
+  }),
+}))
 
 vi.mock('node:fs/promises', () => ({
   access: vi.fn(() => Promise.reject(new Error('not found'))),
@@ -1725,5 +1744,85 @@ describe('window-all-closed / before-quit', () => {
     expect(fakeApp.exit).not.toHaveBeenCalled()
     expect(disposeCoreControlConnectionMock).toHaveBeenCalledOnce()
     expect(killCoreMock).toHaveBeenCalledOnce()
+  })
+})
+
+describe('workspace UI mode', () => {
+  function handlerFor(channel: string): (event: unknown, ...args: unknown[]) => unknown {
+    const registration = ipcMainHandle.mock.calls.find(([name]) => name === channel)
+    if (!registration) throw new Error(`Missing ${channel} handler`)
+    return registration[1]
+  }
+
+  function loadMainRenderer(): void {
+    const options = createHostWindowMock.mock.calls.at(-1)?.[0]
+    if (!options?.loadRenderer) throw new Error('Main window renderer loader was not configured')
+    options.loadRenderer(fakeWindow)
+  }
+
+  beforeEach(() => {
+    userPreferences.clear()
+    fakeApp.commandLine.getSwitchValue.mockReset().mockReturnValue('')
+    vi.stubGlobal('MAIN_WINDOW_VITE_DEV_SERVER_URL', testRendererUrl)
+  })
+
+  it('loads the design-system entry by default in development builds', async () => {
+    await loadIndexOn('darwin')
+    fakeWindow.loadURL.mockClear()
+
+    loadMainRenderer()
+
+    expect(fakeWindow.loadURL).toHaveBeenCalledWith(`${testRendererUrl}/design-system.html`)
+    expect(handlerFor(BRIDGE_CHANNELS.uiModeGet)({})).toEqual({
+      mode: 'design-system',
+      switchable: true,
+    })
+  })
+
+  it('honours the --ui switch over the saved preference', async () => {
+    userPreferences.set('uiMode', 'design-system')
+    fakeApp.commandLine.getSwitchValue.mockImplementation((name: string) =>
+      name === 'ui' ? 'legacy' : '')
+    await loadIndexOn('darwin')
+    fakeWindow.loadURL.mockClear()
+
+    loadMainRenderer()
+
+    expect(fakeWindow.loadURL).toHaveBeenCalledWith(testRendererUrl)
+  })
+
+  it('persists a switch and reloads the requesting workspace window', async () => {
+    vi.stubEnv('MAXIMAL_UI', 'legacy')
+    await loadIndexOn('darwin')
+    fakeWindow.loadURL.mockClear()
+
+    await handlerFor(BRIDGE_CHANNELS.uiModeSet)(
+      { sender: fakeWindow.webContents },
+      'design-system',
+    )
+
+    expect(userPreferences.get('uiMode')).toBe('design-system')
+    expect(fakeWindow.loadURL).toHaveBeenCalledWith(`${testRendererUrl}/design-system.html`)
+  })
+
+  it('loads the spike entry for the spike renderer', async () => {
+    userPreferences.set('uiMode', 'spike')
+    await loadIndexOn('darwin')
+    fakeWindow.loadURL.mockClear()
+
+    loadMainRenderer()
+
+    expect(fakeWindow.loadURL).toHaveBeenCalledWith(`${testRendererUrl}/spike.html`)
+  })
+
+  it('refuses to switch in packaged builds', async () => {
+    fakeApp.isPackaged = true
+    await loadIndexOn('darwin')
+
+    await expect(handlerFor(BRIDGE_CHANNELS.uiModeSet)(
+      { sender: fakeWindow.webContents },
+      'design-system',
+    )).rejects.toThrow('not switchable')
+    expect(userPreferences.has('uiMode')).toBe(false)
   })
 })

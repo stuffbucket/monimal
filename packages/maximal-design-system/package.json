@@ -11,7 +11,9 @@
     "./color/tools": "./src/color/tools.ts",
     "./icons": "./src/icons/index.ts",
     "./theme": "./src/theme.ts",
-    "./styles.css": "./src/styles/index.css"
+    "./styles.css": "./src/styles/index.css",
+    "./app.css": "./src/styles/app.css",
+    "./tokens.css": "./dist/tokens/tokens.css"
   },
   "scripts": {
     "analyze": "bun ../maximal-core/scripts/analyze.ts",

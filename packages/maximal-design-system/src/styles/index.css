@@ -4,6 +4,8 @@
 @import './canvas-controls.css';
 @import './canvas.css';
 @import './buttons.css';
+@import './components.css';
 @import './tabs.css';
+@import './dialog.css';
 @import './shell-overlays.css';
 @import './terminal.css';

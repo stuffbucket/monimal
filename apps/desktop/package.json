@@ -37,6 +37,7 @@
     "@maximal/maximal-configurators": "workspace:*",
     "@maximal/maximal-core": "workspace:*",
     "@maximal/maximal-core-contract": "workspace:*",
+    "@maximal/maximal-design-system": "workspace:*",
     "@maximal/maximal-electron": "workspace:*",
     "@maximal/maximal-harness": "workspace:*",
     "@maximal/maximal-runner-llama-cpp": "workspace:*",

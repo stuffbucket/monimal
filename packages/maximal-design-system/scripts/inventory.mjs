@@ -452,7 +452,11 @@ export function inventoryIssues(
   for (const [name, files] of [...references].sort(([left], [right]) =>
     left.localeCompare(right),
   )) {
-    if (tokens.has(name) || runtimeDeclarations.has(name) || cssProperties.has(name)) continue;
+    if (
+      tokens.has(name)
+      || runtimeDeclarations.has(name)
+      || cssProperties.has(name)
+    ) continue;
     issues.push({
       id: `unresolved-reference:${name}`,
       kind: 'unresolved-reference',

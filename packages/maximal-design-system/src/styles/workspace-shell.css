@@ -128,3 +128,21 @@
   grid-area: main;
   background: var(--maximal-color-bg-secondary);
 }
+
+:root .maximal-workspace-shell[data-fill] {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.maximal-workspace-shell[data-fill] .maximal-tabs__chrome {
+  -webkit-app-region: drag;
+}
+
+.maximal-workspace-shell[data-fill] .maximal-tabs__chrome :is(button, [role="tab"], input) {
+  -webkit-app-region: no-drag;
+}

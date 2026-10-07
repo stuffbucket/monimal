@@ -386,6 +386,8 @@ beforeEach(() => {
   accountStatus.mockResolvedValue({ state: 'unauthenticated' })
   terminalList.mockResolvedValue([])
   browserList.mockResolvedValue([])
+  uiModeGet.mockResolvedValue({ mode: 'legacy', switchable: false })
+  uiModeSet.mockResolvedValue(undefined)
   Object.assign(window, {
     maximal: {
       shutdown: {
@@ -428,6 +430,10 @@ beforeEach(() => {
         close: vi.fn(() => Promise.resolve()),
         show: vi.fn(() => Promise.resolve()),
         onEvent: vi.fn(() => () => {}),
+      },
+      uiMode: {
+        get: uiModeGet,
+        set: uiModeSet,
       },
       projects: {
         undockWindow: vi.fn(async () => true),
@@ -472,6 +478,9 @@ afterEach(() => {
   container = null
   vi.clearAllMocks()
 })
+
+const uiModeGet = vi.fn<() => Promise<{ mode: 'legacy' | 'design-system' | 'spike'; switchable: boolean }>>()
+const uiModeSet = vi.fn<(mode: 'legacy' | 'design-system' | 'spike') => Promise<void>>()
 
 async function renderApp(): Promise<HTMLElement> {
   if (root === null || container === null) throw new Error('test root not ready')
@@ -562,6 +571,39 @@ describe('App routing', () => {
     expect(background?.getAttribute('data-enabled')).toBe('true')
     expect(background?.getAttribute('data-material')).toBe('clouds')
     expect(background?.getAttribute('data-reduced-motion')).toBe('true')
+  })
+
+  it('hides the renderer switch when the build cannot switch', async () => {
+    const shell = await renderApp()
+
+    expect(uiModeGet).toHaveBeenCalled()
+    expect(shell.querySelector('[aria-label="Renderer switch"]')).toBeNull()
+    expect(shell.querySelector('.ui-mode-strip__frame')?.hasAttribute('data-active')).toBe(false)
+  })
+
+  it('offers a development switch into the design-system renderer', async () => {
+    uiModeGet.mockResolvedValue({ mode: 'legacy', switchable: true })
+
+    const shell = await renderApp()
+    const strip = shell.querySelector('[aria-label="Renderer switch"]')
+    const actions = [...(strip?.querySelectorAll('button') ?? [])]
+    expect(actions.map((action) => action.textContent)).toEqual([
+      'Switch to Design system UI',
+      'Switch to Design system spike',
+    ])
+    await act(async () => actions[0]?.click())
+
+    expect(shell.querySelector('.ui-mode-strip__frame')?.hasAttribute('data-active')).toBe(true)
+    expect(uiModeSet).toHaveBeenCalledWith('design-system')
+  })
+
+  it('does not offer the renderer switch in a detached Projects window', async () => {
+    uiModeGet.mockResolvedValue({ mode: 'legacy', switchable: true })
+    window.history.replaceState({}, '', '/?projectsWindow=true')
+
+    const shell = await renderApp()
+
+    expect(shell.querySelector('[aria-label="Renderer switch"]')).toBeNull()
   })
 
   it('opens the workspace without requiring an authenticated account', async () => {

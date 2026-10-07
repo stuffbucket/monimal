@@ -36,6 +36,16 @@
       "$description": "Portalled popovers above menus and local overlays.",
       "$value": 20,
       "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--z-index-popover"] } }
+    },
+    "dialog-backdrop": {
+      "$description": "Modal backdrop above other portalled interface surfaces.",
+      "$value": 30,
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--z-index-dialog-backdrop"] } }
+    },
+    "dialog": {
+      "$description": "Modal dialog above its backdrop.",
+      "$value": 31,
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--z-index-dialog"] } }
     }
   }
 }

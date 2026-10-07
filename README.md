@@ -16,6 +16,8 @@ Run workspace workflows from the repository root:
 | Task | Command |
 | --- | --- |
 | Run the desktop app | `pnpm dev` |
+| Run the desktop app on the legacy UI | `pnpm dev -- --ui=legacy` or `MAXIMAL_UI=legacy pnpm dev` |
+| Run the desktop app on the design-system spike | `pnpm dev -- --ui=spike` or `MAXIMAL_UI=spike pnpm dev` |
 | Run the headless server in watch mode | `pnpm dev:server` |
 | Analyze package architecture | `pnpm analyze` |
 | Build the workspace | `pnpm build` |

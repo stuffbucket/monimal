@@ -6,7 +6,7 @@ import { afterEach, test } from "node:test"
 
 import { ESLint } from "eslint"
 
-import { architecture } from "../architecture.js"
+import { architecture, designSystemRendererBoundary } from "../architecture.js"
 import { service } from "../service.js"
 import { typescript } from "../typescript.js"
 
@@ -142,4 +142,49 @@ test("TypeScript lint rejects an entirely unused local binding", async () => {
     ),
     JSON.stringify(result.messages, null, 2),
   )
+})
+async function lintDesignSystemRenderer(source) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "design-system-renderer-"))
+  fixtureRoots.push(root)
+  fs.mkdirSync(path.join(root, "src", "renderer", "design-system"), { recursive: true })
+  fs.writeFileSync(
+    path.join(root, "tsconfig.json"),
+    JSON.stringify({ compilerOptions: { module: "esnext" }, include: ["src"] }),
+  )
+  const filePath = path.join(root, "src", "renderer", "design-system", "view.ts")
+  fs.writeFileSync(filePath, source)
+  const eslint = new ESLint({
+    cwd: root,
+    overrideConfigFile: true,
+    overrideConfig: [
+      ...typescript({ tsconfigRootDir: root, typeChecked: false }),
+      designSystemRendererBoundary({ files: ["src/renderer/design-system/**/*.ts"] }),
+    ],
+  })
+  const [result] = await eslint.lintFiles([filePath])
+  return result.messages.filter((message) => message.ruleId === "no-restricted-syntax")
+}
+
+for (const [name, source] of [
+  ["a value import", 'import { Button } from "@maximal/maximal-electron/renderer"\nexport { Button }\n'],
+  ["the package root", 'import "@maximal/maximal-electron"\n'],
+  ["a re-export", 'export { Button } from "@maximal/maximal-electron/renderer"\n'],
+  ["a star re-export", 'export * from "@maximal/maximal-electron/renderer"\n'],
+  ["a dynamic import", 'export const load = () => import("@maximal/maximal-electron/renderer")\n'],
+]) {
+  test(`design-system renderer rejects ${name} from maximal-electron`, async () => {
+    const messages = await lintDesignSystemRenderer(source)
+    assert.equal(messages.length, 1, JSON.stringify(messages, null, 2))
+    assert.match(messages[0].message, /must not import maximal-electron/)
+  })
+}
+
+test("design-system renderer allows type-only maximal-electron imports and other packages", async () => {
+  const messages = await lintDesignSystemRenderer(
+    'import type { Tab } from "@maximal/maximal-electron/renderer"\n'
+      + 'import { Button } from "@maximal/maximal-design-system"\n'
+      + 'import { other } from "@maximal/maximal-electronic"\n'
+      + "export type Pair = [Tab, typeof Button, typeof other]\n",
+  )
+  assert.deepEqual(messages, [])
 })

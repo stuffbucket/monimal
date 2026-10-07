@@ -192,6 +192,10 @@ function fakeBridge(): MaximalHost {
       get: vi.fn(async () => ({ dismissed: false })),
       setDismissed: vi.fn(async (dismissed: boolean) => ({ dismissed })),
     },
+    uiMode: {
+      get: vi.fn(async () => ({ mode: 'legacy' as const, switchable: false })),
+      set: vi.fn(async () => undefined),
+    },
     appearance: {
       get: vi.fn(async () => ({
         vibrancyEnabled: false,
