@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
@@ -146,11 +146,8 @@ describe('component token ownership', () => {
   it('resolves every new component reference inside maximal-design-system', () => {
     const files = [
       '../styles/components.css',
-      'FormControls.stories.tsx',
-      'Surfaces.stories.tsx',
-      'NavigationControls.stories.tsx',
-      'Overlays.stories.tsx',
-      'Icon.stories.tsx',
+      ...readdirSync(new URL('.', import.meta.url))
+        .filter((file) => file.endsWith('.stories.tsx')),
     ]
     const references = new Set(
       files.flatMap((file) =>

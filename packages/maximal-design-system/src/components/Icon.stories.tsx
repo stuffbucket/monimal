@@ -20,12 +20,29 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {}
 
-export const Sizes: Story = {
-  render: () => (
-    <div className="maximal-icon-story">
-      <Icon label="Compact search" size="compact"><SearchIcon /></Icon>
-      <Icon label="Standard search"><SearchIcon /></Icon>
-      <Icon label="Prominent search" size="prominent"><SearchIcon /></Icon>
-    </div>
-  ),
+export const Decorative: Story = {
+  args: {
+    label: undefined,
+  },
+}
+
+export const Compact: Story = {
+  args: {
+    label: 'Compact search',
+    size: 'compact',
+  },
+}
+
+export const Standard: Story = {
+  args: {
+    label: 'Standard search',
+    size: 'standard',
+  },
+}
+
+export const Prominent: Story = {
+  args: {
+    label: 'Prominent search',
+    size: 'prominent',
+  },
 }

@@ -35,6 +35,9 @@ consumers own canonical conversion. `Card` and `Callout` are selectable
 prominent icon size roles; Base UI does not provide an icon primitive.
 These components MUST use the existing Maximal token roles; their component
 styles MUST NOT introduce new design tokens.
+Every styled wrapper under `src/components` MUST have its own `Components/*`
+Storybook entry. Its stories MUST expose each meaningful state supported by
+the wrapper API rather than combining unrelated wrappers into a showcase.
 Application renderers MUST load `@maximal/maximal-design-system/tokens.css`,
 `styles.css`, and `app.css`; `app.css` owns the document reset and application
 frame, and MUST NOT be imported by stories.

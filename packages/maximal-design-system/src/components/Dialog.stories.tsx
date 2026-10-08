@@ -25,7 +25,19 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-function ConfirmDialog({ title }: { title: ReactNode }) {
+function ConfirmDialog({
+  title,
+  modal = true,
+  disablePointerDismissal = false,
+  showDescription = true,
+  showTitle = true,
+}: {
+  title: ReactNode
+  modal?: boolean
+  disablePointerDismissal?: boolean
+  showDescription?: boolean
+  showTitle?: boolean
+}) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -35,10 +47,12 @@ function ConfirmDialog({ title }: { title: ReactNode }) {
       </Button>
       <Dialog
         description="This removes the project and everything in it. There is no undo."
+        disablePointerDismissal={disablePointerDismissal}
+        modal={modal}
         onOpenChange={setOpen}
         open={open}
-        showDescription
-        showTitle
+        showDescription={showDescription}
+        showTitle={showTitle}
         title={title}
       >
         <div style={{ display: 'flex', gap: 'var(--spacer-2)', justifyContent: 'flex-end' }}>
@@ -52,6 +66,57 @@ function ConfirmDialog({ title }: { title: ReactNode }) {
   )
 }
 
-export const Default: Story = {
+export const Closed: Story = {
   render: ({ title }) => <ConfirmDialog title={title} />,
+}
+
+function OpenDialog({
+  modal = true,
+  disablePointerDismissal = false,
+  showDescription = true,
+  showTitle = true,
+}: {
+  modal?: boolean
+  disablePointerDismissal?: boolean
+  showDescription?: boolean
+  showTitle?: boolean
+}) {
+  return (
+    <Dialog
+      description="This removes the project and everything in it. There is no undo."
+      disablePointerDismissal={disablePointerDismissal}
+      modal={modal}
+      onOpenChange={() => undefined}
+      open
+      showDescription={showDescription}
+      showTitle={showTitle}
+      title="Delete this project"
+    >
+      <div style={{ display: 'flex', gap: 'var(--spacer-2)', justifyContent: 'flex-end' }}>
+        <Button>Cancel</Button>
+        <Button variant="danger">Delete</Button>
+      </div>
+    </Dialog>
+  )
+}
+
+export const ModalOpen: Story = {
+  render: () => <OpenDialog />,
+}
+
+export const HiddenAccessibleNaming: Story = {
+  render: () => (
+    <OpenDialog
+      showDescription={false}
+      showTitle={false}
+    />
+  ),
+}
+
+export const NonModal: Story = {
+  render: () => <OpenDialog modal={false} />,
+}
+
+export const PointerDismissDisabled: Story = {
+  render: () => <OpenDialog disablePointerDismissal />,
 }
