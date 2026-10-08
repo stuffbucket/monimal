@@ -38,6 +38,11 @@ styles MUST NOT introduce new design tokens.
 Every styled wrapper under `src/components` MUST have its own `Components/*`
 Storybook entry. Its stories MUST expose each meaningful state supported by
 the wrapper API rather than combining unrelated wrappers into a showcase.
+Grouped component implementations MUST own their stories in the same component
+family directory. `src/components/index.ts` MUST remain the package's single
+component barrel, and the package root MUST re-export that barrel.
+Consumers MAY import the same component API from the package root or the
+`@maximal/maximal-design-system/components` subpath.
 Application renderers MUST load `@maximal/maximal-design-system/tokens.css`,
 `styles.css`, and `app.css`; `app.css` owns the document reset and application
 frame, and MUST NOT be imported by stories.

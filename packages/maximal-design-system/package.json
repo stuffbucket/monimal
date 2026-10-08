@@ -9,6 +9,7 @@
     ".": "./src/index.ts",
     "./color": "./src/color/index.ts",
     "./color/tools": "./src/color/tools.ts",
+    "./components": "./src/components/index.ts",
     "./icons": "./src/icons/index.ts",
     "./theme": "./src/theme.ts",
     "./styles.css": "./src/styles/index.css",

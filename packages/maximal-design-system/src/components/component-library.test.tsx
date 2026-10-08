@@ -146,7 +146,10 @@ describe('component token ownership', () => {
   it('resolves every new component reference inside maximal-design-system', () => {
     const files = [
       '../styles/components.css',
-      ...readdirSync(new URL('.', import.meta.url))
+      ...readdirSync(new URL('.', import.meta.url), {
+        encoding: 'utf8',
+        recursive: true,
+      })
         .filter((file) => file.endsWith('.stories.tsx')),
     ]
     const references = new Set(
