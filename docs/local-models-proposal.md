@@ -1,264 +1,242 @@
 # Proposal: agent-led local model exploration
 
-This proposal explores how Maximal could help people find, set up, and manage local models, then connect to them through its proxy or a supported adapter.
+This proposal explores how Maximal could help people find, set up, and use local models through its proxy or a supported adapter.
 
-People should be able to use these models from other apps and scripts without having to view generated results in Maximal. Discovery should extend beyond general chat to image, video, 3D, audio, vision, and quick classification or decision-making. They should be able to explore these uses without first setting up the corporate frontier LLMs they already have access to.
+Most people using this will be new to local models, so discovery should start from what they want to do and what their device can handle. Frontier models are easy to reach through Substrate, so Maximal should focus on models that go beyond general chat.
 
 ## 1. Experience and interaction
 
 ### 1.1 Exploration gallery
 
-The client shows experience cards separately from model selection, so people start from what they want to do rather than from a model name. The first screen shows up to four cards and an **Explore more** action. The cards should cover different kinds of work, such as image, video, 3D, audio, vision, and quick classification or decision-making, rather than just the most popular models. Each card has a title, a one-sentence outcome, a device-fit label, and a select action. A card may also include a reviewed example image.
+The gallery is the main entry point for local models in the app. It shows experience cards, such as image, video, 3D, audio, vision, or quick classification, instead of a list of popular models. Each card has a title, a one-sentence outcome, and a device-fit label. A card may include a reviewed example image.
 
-Selecting a card starts a guided discovery conversation. It does not download or configure anything. The agent asks only the questions that change which models fit, and it asks permission before looking at any documents or repositories. The gallery must not suggest that Maximal has an editor or result viewer. Results go to the user's own apps and scripts.
+Selecting a card starts a short guided conversation. Users can skip the cards and describe their goal instead. The agent asks only the questions that change which models fit. Nothing is downloaded or configured at this stage.
 
 ### 1.2 Guided flow
 
-Selecting an experience starts this sequence:
+Selecting an experience follows these steps:
 
-1. Capture the selected experience and relevant constraints.
-2. Discover device capabilities and installed, authorized runtimes.
-3. Query authorized catalogue and corporate directory sources.
-4. Present a small, evidence-backed model shortlist.
-5. Obtain required approval for provisioning or configuration.
-6. Provision and validate the selected model and runtime.
-7. Provide connection details for the user's application or script.
-8. Offer optional, bounded calibration, which is not treated as a quality verdict.
+1. Ask what the user wants to do and what limits matter to them.
+2. Check what the device can run and which tools are already installed.
+3. Look up models the user is allowed to use, including company ones.
+4. Show a short list of good options, with reasons.
+5. Ask the user to approve before anything is installed or changed.
+6. Install and test the model.
+7. Show how to connect the user's app or script.
+8. Offer an optional speed test, which does not judge output quality.
 
-Inventory stays within configured model stores and supported runtime APIs. It never scans arbitrary filesystem roots or network ranges. Setup uses typed, validated operations only, never arbitrary shell commands or unreviewed scripts. Finding an eligible model that is already installed should happen automatically.
-
-Before any download, the user sees the artifact size, destination, and source. Standing download consent may be granted, but only within explicit resource limits. Installing a runtime, publishing an endpoint, and changing where data may go each need their own separate approval. The agent never changes usage-sharing consent. Configuration is idempotent and leaves unrelated settings alone. If setup fails, the user can recover without being left with a half-running service.
+Maximal only looks in the model stores and runtimes it is set up to use. It never scans the whole disk or the network. Setup runs only fixed, checked steps, never arbitrary shell commands. Models that are already installed and allowed are found automatically. Before any download, the user sees the size, where it goes, and where it comes from.
 
 ### 1.3 Model selection cards
 
-A shortlist shows at most three model cards. Each card names the exact model variant and shows its capability, where it runs, device fit, and a performance estimate or an explicit "unknown." It also shows download size when relevant and one primary action. Remote execution and any consent requirement are always disclosed on the card. Cards link to a dedicated model page and stay brief, so they omit full benchmark tables, provenance chains, and long descriptions.
+A shortlist shows at most three cards. Each card names the exact model variant and what it's good at, then says whether it runs on this device or elsewhere, whether it fits this device, how big the download is, and whether the user must approve anything first. Cards link to the model page for details. They also show up to two opted-in people who have loaded the model, with a **Contact** action, plus a count of any others.
 
-The primary action is **Set up**, **Connect**, or **Unavailable**. Different variants never merge into one actionable item. The agent emits structured card data, not arbitrary HTML, and chat and directory browsing use the same renderer. Cards must work with the keyboard and expose their status as text.
+The primary action is **Set up** or **Connect**. A card that can't run on this device shows **Unavailable** with a short reason, such as "Needs 32 GB memory", and no action. Different variants never merge into one item. Cards must work with the keyboard and show their status as text.
+
+A **Show all models** toggle sits above the shortlist. It is off by default. When on, models outside this device's hardware appear below the shortlist with the same reason label. Models blocked by organization policy stay hidden.
 
 ### 1.4 Dedicated model page
 
-The model page shows:
+Cards are kept short, so the model page holds the details people need before they set up or connect. It covers:
 
-- exact model, artifact, quantization, and supported runtime identities;
-- supported operations and external-client protocols;
-- model and deployment approval scope;
-- license, provenance, and artifact integrity information;
-- hardware requirements and performance evidence;
-- known limitations and setup requirements;
-- authorized deployments with status and observation freshness;
-- connection instructions and an explicit **Give feedback** action.
+- the model, its file, and how it runs;
+- what it can do and which apps can connect to it;
+- who made it, its license, and whether the file is unchanged;
+- what hardware it needs and how fast it is;
+- known limits and what setup takes;
+- where it is running and when that was last checked;
+- people who have loaded it and chose to be contacted;
+- how to connect, and a **Give feedback** button.
 
-Connection instructions name the protocol and the operations it supports. They never claim OpenAI or Anthropic compatibility for image, video, 3D, or other operations those APIs don't cover. Credentials never appear in URLs or example requests. Capability-specific adapters may expose their own APIs when standard proxy operations can't represent the workload.
+Connection instructions only claim the operations the protocol actually supports. Credentials never appear in URLs or example requests.
 
 ## 2. Recommendation evidence and authority
 
-Eligibility is checked before ranking. A model is eligible only if policy, license terms, supported operations, runtime compatibility, and resource limits all allow it. Among eligible models, recommendations combine catalogue data, runtime status, evaluations, aggregate performance, and voluntary feedback.
+Eligibility is checked before ranking. A model is eligible only if policy, license, supported operations, runtime, and resource limits all allow it. Among eligible models, ranking uses catalogue data, runtime status, evaluations, performance, and voluntary feedback.
 
-Missing evidence stays unknown. It is never treated as a negative result. Public model cards and community feedback are untrusted data. They can inform a recommendation, but they cannot become agent instructions or authorize anything. Catalogue descriptions never override what the runtime actually reports.
+Models that others in the organization have already tried are listed first among eligible models. The count combines opted-in directory listings with anonymized usage contributions, and it is shown only above the minimum cohort size. Sorting never changes eligibility, approval, or the evidence labels on a card.
 
-Approval comes from organization policy, not from a recommendation score. Ranking does not treat speed, popularity, repeat use, or request success as quality, and feedback and usage data have capped influence. Each recommendation keeps its source, revision, observation time, and confidence. The agent explains the main selection factors in plain language, and users can pick another eligible candidate. When the evidence supports it, the shortlist offers a balanced, a lightweight, and a higher-capability option. Real requests are never sent to other models for hidden comparison.
+Missing evidence stays unknown. It is never treated as negative. Public model cards and community feedback can inform a recommendation, but they can't authorize anything or act as agent instructions. Approval comes from organization policy, never from a score. Popularity and usage don't count as quality. Each recommendation shows its source and when it was observed. Real requests are never sent to other models for hidden comparison.
 
 ## 3. Device fit and performance expectations
 
 ### 3.1 Compatibility
 
-Each candidate is marked **Fits**, **Constrained**, **Unsupported**, or **Unknown**. The check considers usable memory, storage, accelerator support, runtime version, model variant, and workload preset. Unified memory is counted once, not as both RAM and VRAM. Device specifications are not proof of the capacity that is free right now. Unsupported candidates offer no local setup action. A slow but workable experience may stay discoverable with a clear warning.
+Each candidate is marked **Fits**, **Constrained**, **Unsupported**, or **Unknown**. The check looks at memory, storage, accelerator, runtime version, and model variant. Unified memory counts once. Unsupported candidates offer no setup action and always give one reason: not enough memory, not enough storage, no supported accelerator, or runtime too old. A slow but workable model can stay visible with a warning.
 
 ### 3.2 Estimates
 
-Performance is expressed in units that make sense for the experience, and each estimate names the workload preset it assumes. Download, cold load, queue wait, and warm execution time are shown separately. Cards show the most relevant execution range and a resource-impact label.
-
-Each figure is labeled **Measured here**, **Similar hardware**, or **Estimate**. Details show sample freshness, cohort size where it can be published, and confidence. When evidence is thin, the card shows unknown rather than an invented timing. Estimates depend on model variant, runtime, acceleration backend, and settings. Synthetic and real-workload measurements stay separate, and outliers or failed runs are never dropped to make speeds look better.
-
-Experience metrics:
-
-| Experience | Metric and required workload qualifier |
-| --- | --- |
-| Image | Time per image; resolution, batch size, and generation preset |
-| Video | Time per clip; duration, resolution, frame count, and preset |
-| 3D | Time to draft asset; input type and output representation |
-| System-1 | Latency or throughput; input size and batch size |
-| Audio | Processing time relative to input duration; task and preset |
+Every estimate names the workload it assumes and is labeled **Measured here**, **Similar hardware**, or **Estimate**. Download, load, queue, and run times are shown separately. When evidence is thin, the card shows unknown instead of an invented number. Failed runs are never dropped to make speeds look better.
 
 ### 3.3 Calibration
 
-Calibration is optional, bounded, cancellable, and discloses the resources it uses. It runs reviewed synthetic inputs with conservative device presets, and it measures only technical compatibility and performance. It says nothing about output quality or user satisfaction, and it never triggers a feedback prompt. Calibration results stay useful locally even when usage sharing is off.
+Calibration is optional, bounded, and cancellable. It runs reviewed synthetic inputs and measures only technical compatibility and speed. It says nothing about output quality, and it never asks for feedback.
 
 ## 4. Organization directory and availability
 
-Corporate discovery uses an organization directory that an admin configures explicitly. Users sign in with corporate identity, and the directory returns only the entries that person is authorized to see. Inference endpoints check authorization again on their own. Directory access alone is never enough.
+An admin configures the organization directory. Users sign in with corporate identity, and the directory only returns entries that person may see. Inference endpoints check authorization again, so directory access alone is never enough.
 
-Directory metadata is versioned and signed, and it has a defined expiry and revocation policy. The directory never receives inference inputs or outputs. Browsing it never loads a model or wakes a device. Health reports come only from authenticated, authorized reporters, and clients never publish their private inventory automatically.
+Browsing the directory never loads a model or wakes a device. The directory never sees prompts or outputs. Entries are signed, expire, and can be revoked. Clients never publish their device inventory automatically.
 
-Model identity, immutable artifact identity, and deployment identity stay distinct. Each deployment declares its owner, location, model binding, supported operations, access policy, retention policy, and allowed data classes. Its health includes an observation time and an expiry. Stale health shows **Unknown / stale** and never keeps an unqualified **Ready** label. A directory outage must not mark observed local models as unavailable. Revoked or expired authorization blocks new remote requests. Cached descriptions may stay browsable, labeled as stale.
+Contact listings are opt-in and off by default. A listed user chooses which fields show (person, company, and contact method) and which models they're listed for. Their client sets the listing when they load a model, and it is removed when they stop the model or opt out. Only signed-in directory users see listings, and each listing has a **Contact** action. Listings are never derived from usage contributions.
 
-The UI derives display states from separate facts: lifecycle, reachability, whether the model is loaded, capacity, and freshness.
+The UI shows one of these states:
 
-| Display state | Required meaning |
+| Display state | Meaning |
 | --- | --- |
-| Ready | Model loaded, service healthy, accepting requests |
-| Available · needs loading | Service healthy; model can be loaded |
-| Busy | Service healthy; admission capacity constrained |
-| Installed · stopped | Installation known; runtime stopped |
-| Unavailable | Fresh observation establishes failure |
+| Ready | Loaded, healthy, accepting requests |
+| Available · needs loading | Healthy; can be loaded |
+| Busy | Healthy; at capacity |
+| Installed · stopped | Installed; runtime stopped |
+| Unavailable | Fresh check shows failure |
 | Unknown / stale | Evidence missing or expired |
+
+Note that the registry's "ready" means the model files are downloaded and verified. It is not the **Ready** state above.
 
 ## 5. Local-first routing
 
-Users get a simple **Local first** toggle. It means a preference for running on this device, not on the corporate network. **Device only** is a separate, hard constraint. Routing preferences can be scoped to an experience, scenario, model, or session, but a narrower preference never weakens a privacy or organization rule.
+Users get a **Local first** toggle. It means "prefer this device," not "prefer the corporate network." **Device only** is a hard rule: if no eligible local target exists, the request fails.
 
-Routing checks eligibility first, then task fit, capacity, performance, and preferences. A device-only request fails explicitly if no eligible local target exists. Falling back to corporate infrastructure requires an allowed data destination and an applicable user policy. Local-first routing never silently introduces an external provider. Retries and failover re-check policy against the full payload being sent.
+Falling back to corporate infrastructure needs an allowed destination. Local-first never silently sends data to an external provider. Retries and fallbacks re-check policy against the full payload. Running jobs stay on their current target unless the runtime supports moving them. A requested model is never silently swapped for another. Device-only inference doesn't make external tools private; those tools enforce their own rules.
 
-Active conversations and jobs keep their selected target where possible. Running jobs don't move to another target unless the adapter explicitly supports it. Users can see which target was chosen and why. Clients can request an explicit target or a hard device-only constraint. A client-supplied model identifier is never silently replaced with an unrelated model. Every side-effecting tool enforces the task's destination policy on its own. Device-only inference doesn't prove that external tools are private.
+### 5.1 Requests to another person's device
+
+A request goes to a teammate's machine only when that model is listed for remote use, the user can see it in the directory, and the user has consented. The card says it runs elsewhere before anything is sent. The owner's machine checks access again on its side, so a listing alone never allows a request. Device only never sends a request to another machine.
+
+Organization policy checks the full request payload before it leaves the device, including on retries. Credentials go only to approved endpoints. Prompts and responses stay out of exploration telemetry and logs on both sides. Runtime events follow [the workspace logging requirement](../CHURN.md).
+
+If the owner revokes access, new requests are blocked right away, even for cached directory entries. What happens to requests already running is still open (see section 12).
 
 ## 6. Provisioning and sharing
 
-### 6.1 Artifacts and runtimes
+### 6.1 Model files and runtimes
 
-Downloads use reviewed, immutable revisions and content hashes. Corporate deployments can point at an approved internal artifact mirror. Files go to staging, pass integrity verification, and only then activate atomically. Interrupted downloads resume safely where possible. Users see progress, can cancel, and get storage checks and cleanup.
+Downloads use pinned revisions and content hashes, and can come from an approved internal mirror. Files download to staging, pass verification, and only then activate. Users see progress, can cancel, and get storage checks.
 
-Model downloads never execute model-supplied code or install runtime plugins implicitly. Runtimes install through a separate, reviewed, pinned path. Passing an integrity check doesn't mean a model is safe or approved for licensing.
+Model downloads never run model code or install plugins. Runtimes install through a separate reviewed path. A passing hash check doesn't mean a model is safe or licensed. Partial downloads restart rather than resume for now, and the UI says so.
 
 ### 6.2 Publishing
 
-Publishing an artifact and publishing an inference service are separate workflows. Each needs an accountable owner and an explicit access scope. Uploaded artifacts go through quarantine, provenance, license, and policy review. Fine-tuned models are checked for exposure of sensitive training data.
+Publishing model files and publishing a service are separate workflows. Each needs an owner and an access scope. Uploads go through quarantine and license review. Shared services enforce TLS, authentication, and quotas. A published service never exposes shell, filesystem, or agent-tool access.
 
-Shared services enforce TLS, authentication, authorization, quotas, and resource limits. Publishing a service never exposes shell, filesystem, browser, or agent-tool access. Managed team services come before personal workstation sharing. Workstation sharing stays off unless the organization separately approves it. When it is built, it must be opt-in, visibly active, time-limited, and revocable at any time.
+Managed team services come first. Personal workstation sharing stays off unless the organization approves it, and must be opt-in, visible, time-limited, and revocable.
+
+### 6.3 Sharing your machine
+
+Personal sharing is off unless the organization turns it on. When it's on, a user shares a model from its model page with a chosen audience: specific people, a team, or the directory. Sharing is a separate step from loading, and from the contact listing in section 4, so loading a model never shares it.
+
+A share is a standing setting for that model. It expires after a set period and must be renewed, and the owner can turn it off at any time. The owner sets the period, the limit on simultaneous requests, and whether requests pause while the owner is using the machine. The default period is still open (see section 12).
+
+While a model is shared, the app and tray show who it's shared with and when it ends. The owner sees request counts and timing, never prompts or responses.
+
+Before a share ends, Maximal notifies the owner and offers to extend it. Extending is the owner's choice. If the owner doesn't respond, the share expires.
+
+Turning sharing off or letting it expire blocks new requests. Requests already running follow the rule in section 12.
+
+Requests reach a shared machine only through an approved endpoint, using credentials that are scoped to that share and expire with it. The transport and token design are open decisions in section 12.
 
 ## 7. Feedback and optional usage sharing
 
 ### 7.1 Feedback
 
-Users start feedback themselves, from the model page. Maximal never asks for a verdict after calibration, and it never guesses when someone has viewed a result. The form offers four categories: worked well, setup or compatibility issue, too slow, and output-quality issue. Feedback names the model variant and runtime when known.
+Users start feedback themselves from the model page. Maximal never asks for a verdict after calibration. The form offers four categories: worked well, setup or compatibility issue, too slow, and output-quality issue. Users choose whether to attach hardware details, and the form warns against confidential content.
 
-Users choose whether to attach hardware or diagnostic measurements. Comments are optional, and the form warns against including confidential content. The form states who will see the feedback and how long it is kept. Private, organization-visible, and public feedback are separate scopes, and going public requires its own explicit consent. Moderators treat comments as untrusted content.
+Private, organization-visible, and public feedback are separate scopes. Going public needs its own explicit consent.
 
 ### 7.2 Usage sharing
 
-Usage sharing is a separate setting, off by default. It describes which payload fields are sent, where they go, why, and how long they are kept. Users can inspect a representative payload before opting in, and they can turn sharing off at any time. Turning it off also discards pending uploads. Sharing never changes access to approved models or local recommendations.
+Usage sharing is off by default. Users can preview a sample payload before opting in, and turning it off discards pending uploads. Sharing never changes access to approved models.
 
-Contributions are described as de-identified, not anonymous, unless a privacy review establishes a defensible anonymity guarantee. Only observable Maximal runtime and proxy operations are measured. Direct use outside that path is not observed.
+Only reviewed operational fields are shared: model variant, runtime version, hardware class, load and run times, success or error category, and usage counts. Prompts, responses, files, names, credentials, endpoint URLs, and exact timestamps are never shared. Small groups are suppressed in aggregates.
 
-Permitted contribution fields are limited to reviewed operational data:
-
-- model variant, runtime version, and acceleration backend;
-- coarse hardware/memory class and workload-setting buckets;
-- load time, queue wait, execution duration, and modality-specific throughput;
-- coarse resource peaks where observable;
-- success, cancellation, or bounded error category;
-- experience category and aggregate usage counts.
-
-Contributions never include:
-
-- prompts, responses, generated media, or request/response bodies;
-- filenames, repository names, document contents, or tool arguments;
-- credentials, user or device names, serial numbers, or arbitrary endpoint URLs;
-- exact usage timestamps or stable cross-session analytics identifiers.
-
-Aggregation suppresses cohorts below a privacy-reviewed minimum size, and fine-grained hardware combinations can't bypass that suppression. Collection and aggregation have rate limits and abuse controls. Authentication and transport logs have their own access and retention rules. Omitting user identifiers doesn't make data anonymous. Successful operations and repeat use are never relabeled as satisfaction, and security auditing stays separate from optional recommendation telemetry.
+Omitting user IDs doesn't make data anonymous, so contributions are described as de-identified. Successful runs are never reported as satisfaction. Contact listings (section 4) are a separate opt-in. The usage pipeline never reads them, and they never read usage data.
 
 ## 8. Privacy and compliance
 
-Organization policy decides which artifacts, runtimes, destinations, and data classes are approved. Enforcement is deterministic and does not depend on the agent's reasoning. Managed policy stays separate from user preferences, and being on the corporate network is never treated as authorization.
+Organization policy decides which model files, runtimes, destinations, and data classes are approved. Enforcement is deterministic and doesn't depend on the agent. Being on the corporate network is never treated as permission. Credentials go only to approved endpoints, and redirects never forward them. Request and response content stays out of exploration telemetry and logs. Runtime events follow [the workspace logging requirement](../CHURN.md).
 
-Endpoint credentials are bound to an approved endpoint identity. Redirects and endpoint changes never forward credentials to an unapproved destination. Directory connections and artifact fetches enforce destination and redirect rules. Request and response content is excluded from exploration telemetry and logs. Where exploration traffic flows through existing traffic observability, that system's content-retention policy applies. It isn't assumed to be content-free. Runtime events follow [the workspace logging requirement](../CHURN.md).
-
-Revoking approval blocks new activations and new requests. How active jobs are cancelled and how installed artifacts are quarantined on revocation must be defined by organization policy before rollout. The first release must be reviewed for metadata leakage, credential forwarding, untrusted manifests, artifact execution, feedback injection, and telemetry re-identification.
+Revoking approval blocks new activations and requests. How active jobs are cancelled on revocation must be defined before rollout. Contact details are shown only to authorized directory users who have opted in, and owners can remove their listing at any time. The first release needs a security review covering metadata leakage, credential forwarding, untrusted manifests, execution of downloaded files, and telemetry re-identification.
 
 ## 9. Contract evolution and ownership
 
-The implementation extends existing identities rather than creating a competing registry. Each area has one owner:
+Exploration extends the existing model, provider, and control code rather than creating a second registry. Each area has one owner:
 
-- [Model contracts](../packages/maximal-model-contract/src/index.ts) own shared
-  execution-target, operation, evidence, and runtime-neutral discovery contracts.
-- [Model catalogue](../packages/maximal-model-catalog/README.md) owns trusted
-  descriptive catalogue consumption and reconciliation.
-- [Local registry](../packages/local-model-registry/src/types.ts) owns artifact
-  registration, provisioning, and runtime assignment.
-- `packages/maximal-models` owns provider activation and gateway integration.
-- Runtime packages own execution, resource control, and worker lifecycle.
-- `packages/maximal-client` owns the gallery, recommendation cards, model pages,
-  and sidecar-backed product queries.
-- `packages/maximal-settings` owns typed preferences and managed-policy settings.
-- `apps/desktop` owns validated host adapters, preload wiring, and application
-  composition.
-- `packages/maximal-harness` owns conversational orchestration through approved
-  tools.
+- [Model contracts](../packages/maximal-model-contract/src/index.ts) and the [model catalogue](../packages/maximal-model-catalog/README.md): shared identities and descriptive metadata.
+- [Local registry](../packages/local-model-registry/src/types.ts): model files, provisioning, and runtime assignment.
+- [Provider host](../packages/maximal-models/src/host.ts) and runtime packages: activation and execution.
+- Core control: setup operations, extending the existing `localModels` methods.
+- [Harness](../packages/maximal-harness/src/host/toolsets.ts): conversation tools, with consent enforced outside the agent.
+- [Product client](../packages/maximal-client/src/shared/host.ts): gallery, cards, model pages, and Settings, sharing one set of queries.
 
-The directory service must be deployable independently of the desktop client. Its package placement, and that of the recommendation engine, needs approval before implementation. Policy authority never lives in renderer state.
+Key rules:
 
-Versioned contracts cover:
-
-- experience definitions and bounded starter presets;
-- model, artifact, and deployment identities and approval references;
-- device assessment with fit state and evidence;
-- performance observations and qualified aggregate estimates;
-- structured recommendation cards and reasons;
-- directory health, expiry, and revocation;
-- plan, approve, provision, configure, validate, connect, and cancel operations;
-- routing constraints and selected-target reports;
-- optional telemetry and explicit feedback submissions.
-
-New media operations need explicit request, result, cancellation, and progress shapes. Long-running media adapters declare their job lifecycle and how results are retrieved. 3D output gets its own representation rather than being labeled as text or image. Contracts distinguish a model's intrinsic limits from the runtime's effective limits. Existing text and System-1 clients keep working through version negotiation. Unsupported operations fail explicitly and are never silently translated. Runtime behavior is documented in code when implemented.
+- Each thing has its own ID: the model, the exact variant, the model files (by digest), the registry entry, the runtime target, the deployment, and each setup or inference operation. A display name is never an identity.
+- New versioned records cover experience definitions, device assessments, candidates, setup plans, approvals, operations, and connection descriptors. They never hold secrets or executable commands.
+- Setup reuses the registry's verification path and activates only reviewed, pinned runtime packages. A discovered model can't name executable code.
+- Media output (image, video, 3D) needs its own operation types before any gallery action is enabled. A catalogue listing alone doesn't allow setup or connection.
+- Core gets methods for plan, consent, run, read, cancel, and connection descriptors. The names are still open, so they aren't documented as existing APIs. The old `ensure` action must enforce the same approval.
+- Older sidecars show the feature as unsupported. They never return an empty list that looks like success.
+- The renderer ignores duplicate or older events by revision number.
+- If setup fails or is cancelled, only the workers it started are stopped. Unrelated settings are left alone. Every error gives a short reason and a next step.
+- External clients get a connection descriptor and manual steps. The agent never writes their config files.
 
 ## 10. Phased delivery
 
 ### Phase 1: foundations and device advisor
 
-Structured experience and model cards, typed agent setup tools, bounded local inventory, device assessment, and explicit-target connection instructions. This phase also includes local-first and device-only constraints, and a model-page feedback entry point with no automated prompts. Optional usage collection stays disabled until its privacy controls are reviewed.
+Structured cards and model pages, typed agent setup tools, bounded local inventory, device assessment, and connection instructions. This phase also adds local-first and device-only constraints and a manual feedback link. Usage sharing stays off until its privacy controls are reviewed.
+
+Gate: one supported local text or System-1 path works from setup to external use, and first-run setup doesn't require a frontier provider.
 
 ### Phase 2: corporate discovery and performance evidence
 
-SSO-filtered directory access, authenticated deployment health, stale-state handling, approved mirrors, and revocation tests. It also includes qualified performance estimates, optional local calibration, and opt-in de-identified contributions with cohort suppression.
+SSO-filtered directory access, opt-in contact listings, authenticated health checks, approved mirrors, revocation, performance estimates, optional calibration, and opt-in contributions. Feedback submission waits for audience and retention decisions. This phase depends on the decisions in section 12.
 
 ### Phase 3: exploration pilot
 
-The pilot covers System-1, image generation, and one heavier video or 3D experience. Each pilot experience has a supported runtime or adapter, an external-client example, a conservative preset, and realistic timing evidence. Marketing and actionable gallery entries wait until a supported execution path exists.
+System-1, image generation, and one heavier video or 3D experience. Each needs a supported runtime, an external-client example, and real hardware timing. Gallery actions stay off until that path exists.
 
 ### Phase 4: controlled publication
 
-Artifact nomination and managed-service registration as separate steps. Personal workstation sharing needs a separate security and operations approval.
+Model file nomination and managed-service registration as separate steps. Personal workstation sharing needs its own approval.
 
 ## 11. Acceptance criteria
 
-Implementation is complete when these facts are established:
+The feature is done when:
 
-1. A user can choose an experience and configure an eligible model without manual endpoint editing or mandatory frontier-chat onboarding.
-2. Conversation and directory cards render the same structured candidate identity.
-3. An unsupported device cannot start local provisioning from a recommendation.
-4. A weak evidence set produces an explicit unknown estimate rather than fabricated speed.
-5. Card timing refers to the chosen model variant, runtime, and workload preset.
-6. A stopped deployment cannot display Ready; expired health displays Unknown / stale.
-7. Directory browsing neither starts a runtime nor broadcasts private device inventory.
-8. An external client can invoke the pilot operation and retrieve results outside Maximal.
-9. A device-only request cannot cross a network inference boundary through retry or fallback.
-10. Explicit model selection cannot silently substitute another model.
-11. Unauthorized users cannot discover restricted deployments or invoke their endpoints.
-12. Revocation blocks new remote requests despite cached directory entries.
-13. Corrupt artifacts and unapproved runtime code cannot activate.
-14. Interrupted setup is recoverable and preserves unrelated settings.
-15. Calibration neither prompts for feedback nor labels technical success as quality.
-16. Feedback is voluntary, model-page initiated, and scoped to a disclosed audience.
-17. Disabled sharing emits no recommendation telemetry; opt-out removes queued uploads.
-18. Contribution schemas reject content, credentials, exact timestamps, and stable identifiers.
-19. Small hardware cohorts cannot expose aggregate statistics.
-20. Metadata injection and endpoint redirects cannot change policy or leak credentials.
+1. A user can pick an experience and set up an eligible model without editing endpoints or signing in to a frontier provider.
+2. An unsupported device can't start setup from a recommendation.
+3. Weak evidence shows an unknown estimate, not an invented speed.
+4. A stopped deployment never shows Ready, and stale health shows Unknown / stale.
+5. Browsing the directory starts no runtime and shares no device inventory.
+6. Device-only requests never leave the device through retry or fallback.
+7. An explicit model choice is never silently swapped.
+8. Unauthorized users can't see restricted deployments or call their endpoints.
+9. Revocation blocks new remote requests, even with cached directory entries.
+10. Corrupt model files and unapproved runtime code never activate.
+11. Interrupted setup can be recovered without touching unrelated settings.
+12. Calibration never asks for feedback or reports speed as quality.
+13. Disabled sharing sends nothing, and opting out removes queued uploads.
+14. Contribution schemas reject content, credentials, exact timestamps, and stable identifiers.
+15. Contact details appear only for opted-in users, and disappear when they opt out.
+16. Models tried within the organization sort first among eligible models, and only above the minimum cohort size.
 
-Testing follows [the existing tiered workflow](testing-in-docker.md). UI evidence covers compact cards, keyboard selection, stale states, and unknown estimates. Release evidence separates contract tests from real runtime and hardware verification.
+Testing follows [the existing tiered workflow](testing-in-docker.md). Contract tests and real hardware validation are reported separately.
 
 ## 12. Decisions required before implementation
 
-Reviewers need to resolve and record:
+Reviewers need to settle:
 
-- directory and recommendation service ownership, and the initial hosting model;
-- corporate identity integration and endpoint credential issuance;
-- metadata trust roots, version negotiation, and offline authorization expiry;
+- who owns the directory and recommendation services, and where they're hosted;
+- corporate identity and endpoint credential issuance, including how shared machines are reached and what their tokens look like;
+- trust roots, version negotiation, and offline expiry;
 - organization data classes and policy precedence;
-- initial image and video/3D runtimes, their licenses, and supported hardware;
-- non-text API and job contracts, and the pilot external clients;
-- performance preset definitions, minimum cohort size, retention, and deletion policy;
-- feedback audience, moderation, and access controls;
-- resource and standing-consent limits, and how revocation applies to active jobs;
-- whether local-first is enabled initially, and which scenarios get defaults.
+- initial image, video, and 3D runtimes, their licenses, and supported hardware;
+- non-text API shapes and pilot external clients;
+- performance presets, minimum cohort size, and retention;
+- feedback audience and moderation;
+- standing-consent limits, and how revocation applies to active jobs;
+- contact listing audience, visible fields, and retention;
+- whether local-first is on by default, and which scenarios get defaults.
 
 Unresolved decisions are not filled in with defaults chosen by the agent.
