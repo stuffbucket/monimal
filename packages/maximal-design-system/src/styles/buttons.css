@@ -96,14 +96,6 @@
   outline-offset: var(--border-width-thin);
 }
 
-.maximal-button[data-disabled],
-.maximal-control-button[data-disabled],
-.maximal-icon-button[data-disabled] {
-  color: var(--maximal-color-text-tertiary);
-  cursor: not-allowed;
-  opacity: var(--opacity-disabled);
-}
-
 .maximal-icon-button {
   position: relative;
   display: inline-flex;

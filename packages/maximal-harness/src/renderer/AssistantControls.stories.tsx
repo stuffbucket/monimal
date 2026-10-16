@@ -51,7 +51,7 @@ function AssistantControlGallery() {
     <StorySurface>
       <main className="assistant-controls">
         <header className="assistant-controls__header">
-          <span className="assistant-controls__eyebrow">Assistant controls</span>
+          <span className="maximal-assistant-spike__eyebrow">Assistant controls</span>
           <h1>Composed with the Maximal design system</h1>
           <p>
             Lorem ipsum dolor sit amet, consectetur adipiscing elit. Use these
@@ -108,6 +108,7 @@ function AssistantControlGallery() {
           </div>
           <div className="assistant-controls__composer">
             <textarea
+              className="maximal-control-copy"
               aria-label="Assistant prompt"
               defaultValue="Lorem ipsum dolor sit amet. Explain how consectetur adipiscing affects this implementation."
               rows={3}
@@ -117,7 +118,7 @@ function AssistantControlGallery() {
                 trigger={(
                   <button
                     aria-label="Attach lorem fixture"
-                    className="mh-composer__button"
+                    className="maximal-square-control mh-composer__button"
                     type="button"
                   >
                     +
@@ -130,7 +131,7 @@ function AssistantControlGallery() {
                 trigger={(
                   <button
                     aria-label="Send lorem prompt"
-                    className="mh-composer__button mh-composer__button-send"
+                    className="maximal-square-control mh-composer__button mh-composer__button-send"
                     type="button"
                   >
                     ↑

@@ -37,12 +37,6 @@
   font: var(--heading-large);
 }
 
-.assistant-controls__eyebrow {
-  color: var(--maximal-color-text-brand);
-  font: var(--body-small-strong);
-  text-transform: uppercase;
-}
-
 .assistant-controls__section {
   display: grid;
   grid-template-columns: minmax(180px, 0.7fr) minmax(0, 1.3fr);
@@ -92,8 +86,6 @@
   min-width: 0;
   resize: vertical;
   padding: var(--spacer-2);
-  color: var(--maximal-color-text-default);
-  font: var(--body-medium);
   background: transparent;
   border: 0;
   outline: 0;

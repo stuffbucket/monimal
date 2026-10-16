@@ -265,13 +265,8 @@ body,
   font: var(--body-small);
 }
 
-.mh-overlay-body .maximal-menu-item.mh-menu-item--selected {
-  color: var(--maximal-color-text-onselected);
-  background: var(--maximal-color-bg-selected);
-}
-
-.mh-overlay-body .maximal-menu-item.mh-menu-item--selected .maximal-menu-item__description,
-.mh-overlay-body .maximal-menu-item.mh-menu-item--selected .mh-menu-item__indicator {
+.mh-overlay-body .maximal-menu-item[data-selected] .maximal-menu-item__description,
+.mh-overlay-body .maximal-menu-item[data-selected] .mh-menu-item__indicator {
   color: var(--maximal-color-text-onselected);
 }
 
@@ -324,8 +319,6 @@ body,
   flex: none;
   align-self: flex-start;
   margin-top: var(--spacer-2);
-  border-radius: var(--radius-medium);
-  box-shadow: var(--elevation-200);
 }
 
 .mh-card__input::placeholder {
@@ -381,11 +374,6 @@ body,
 }
 
 .mh-composer__button {
-  display: grid;
-  width: var(--height-row-standard);
-  height: var(--height-row-standard);
-  flex: none;
-  place-items: center;
   padding: 0;
   border: 1px solid var(--maximal-color-border-default);
   border-radius: 50%;

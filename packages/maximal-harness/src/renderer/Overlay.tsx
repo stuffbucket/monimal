@@ -89,7 +89,7 @@ function overlayMenuItem({
   return (
     <MenuItem
       aria-current={selected ? 'true' : undefined}
-      className={selected ? 'mh-menu-item--selected' : undefined}
+      data-selected={selected ? '' : undefined}
       data-testid={`menu-${id}`}
       description={description}
       disabled={disabled}
@@ -1401,7 +1401,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
           }}
         >
           <img
-            className="mh-card__prompt-icon"
+            className="maximal-elevated-control mh-card__prompt-icon"
             src={TERMINAL_ICON_URLS.maximal}
             alt=""
           />
@@ -1512,7 +1512,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
             <Tooltip
               trigger={<button
                 type="button"
-                className="mh-composer__button"
+                className="maximal-square-control mh-composer__button"
                 aria-label="Attach files"
                 onClick={() => {
                   fileInput.current?.click();
@@ -1527,7 +1527,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
             <Tooltip
               trigger={<button
                 type="button"
-                className="mh-composer__button"
+                className="maximal-square-control mh-composer__button"
                 aria-label="Open conversation in terminal"
                 disabled={activeChatId === undefined || !hasAssistantResponse}
                 onClick={() => {

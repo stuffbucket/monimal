@@ -110,11 +110,6 @@
   margin-block-start: auto;
 }
 
-.maximal-workspace-shell__navigation-header svg {
-  width: var(--icon-size-prominent);
-  height: var(--icon-size-prominent);
-}
-
 .maximal-workspace-shell__navigation-default svg,
 .maximal-workspace-shell__navigation-footer svg {
   width: var(--icon-size-standard);

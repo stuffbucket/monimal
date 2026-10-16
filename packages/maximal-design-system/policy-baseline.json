@@ -3597,6 +3597,7 @@
             ".maximal-control-cluster",
             ".maximal-control-cluster__group",
             ".maximal-control-cluster__group + .maximal-control-cluster__group",
+            ".maximal-control-copy",
             ".maximal-dialog",
             ".maximal-dialog__backdrop",
             ".maximal-dialog__description",
@@ -3632,6 +3633,7 @@
             ".maximal-edge-resizer[data-overlap][data-edge=\"right\"]",
             ".maximal-edge-resizer[data-overlap][data-edge=\"top\"]",
             ".maximal-edge-resizer[data-scroll-active] .maximal-edge-resizer__thumb",
+            ".maximal-elevated-control",
             ".maximal-field",
             ".maximal-field-description",
             ".maximal-field-error",
@@ -3700,6 +3702,7 @@
             ".maximal-menu-item--footer",
             ".maximal-menu-item[data-disabled]",
             ".maximal-menu-item[data-highlighted]",
+            ".maximal-menu-item[data-selected]",
             ".maximal-menu::-webkit-scrollbar",
             ".maximal-menubar",
             ".maximal-menubar__trigger",
@@ -3793,6 +3796,7 @@
             ".maximal-scrollbar[data-orientation=\"vertical\"] .maximal-scrollbar__thumb[data-hovered]",
             ".maximal-scrollbar[data-overflowing][data-revealed]",
             ".maximal-scrollbar[data-overflowing][data-visibility=\"always\"]",
+            ".maximal-secondary-copy",
             ".maximal-select",
             ".maximal-select__icon",
             ".maximal-select:focus-visible",
@@ -3863,6 +3867,7 @@
             ".maximal-slider__thumb:has(input:focus-visible)",
             ".maximal-slider__track",
             ".maximal-slider[data-disabled] .maximal-slider__control",
+            ".maximal-square-control",
             ".maximal-status-chip",
             ".maximal-surface-cluster",
             ".maximal-surface-cluster__modes",
@@ -3999,6 +4004,7 @@
             "[data-variant=\"inverse\"]):active:not([data-disabled])",
             "[data-variant=\"inverse\"]):hover:not([data-disabled])",
             "[role=\"tab\"]",
+            "body",
             "input)"
           ]
         }

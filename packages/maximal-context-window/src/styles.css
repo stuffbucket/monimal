@@ -44,7 +44,6 @@
   display: flex;
   justify-content: space-between;
   gap: var(--spacer-2);
-  color: var(--maximal-color-text-secondary);
   font: var(--body-small);
 }
 

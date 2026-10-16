@@ -87,13 +87,6 @@
   width: 100%;
 }
 
-.maximal-sidebar__header[data-custom-content][data-has-toggle]
-  .maximal-toggle-sidebar {
-  position: absolute;
-  inset-block-start: var(--spacer-2);
-  inset-inline-end: var(--spacer-2);
-}
-
 .maximal-sidebar__header h2 {
   min-width: 0;
   flex: 1;

@@ -125,7 +125,7 @@ function ComboboxList<Value extends string>({
             key={groupIndex}
           >
             {group.label === undefined ? null : (
-              <BaseCombobox.GroupLabel className="maximal-menu__heading">
+              <BaseCombobox.GroupLabel className="maximal-secondary-copy maximal-menu__heading">
                 {group.label}
               </BaseCombobox.GroupLabel>
             )}

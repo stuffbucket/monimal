@@ -117,7 +117,7 @@ export function MenuGroup({
       className={classes('maximal-menu__group', className)}
     >
       {label === undefined ? null : (
-        <BaseMenu.GroupLabel className="maximal-menu__heading">
+        <BaseMenu.GroupLabel className="maximal-secondary-copy maximal-menu__heading">
           {label}
         </BaseMenu.GroupLabel>
       )}

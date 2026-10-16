@@ -143,14 +143,8 @@
 }
 
 .maximal-tab-search__list button {
-  display: flex;
   min-width: 0;
-  min-height: var(--height-row-standard);
-  align-items: center;
-  gap: var(--spacer-2);
-  padding-inline: var(--spacer-2);
   text-align: start;
-  border-radius: var(--radius-medium);
   cursor: pointer;
 }
 

@@ -281,7 +281,7 @@ function ContextCapacitySummary({
         percent={percent}
         tone={capacityTone(level)}
       />
-      <div className="mcw-capacity-footer">
+      <div className="maximal-secondary-copy mcw-capacity-footer">
         <span>{formatPercent(usedRatio)} full</span>
         <span>
           {formatTokensCompact(usedTokens)} used ·{" "}

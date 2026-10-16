@@ -6,12 +6,6 @@ body,
   overflow: hidden;
 }
 
-body {
-  color: var(--maximal-color-text-default);
-  font: var(--body-medium);
-  background: var(--maximal-color-bg-default);
-}
-
 .maximal-app-frame {
   display: flex;
   height: 100%;

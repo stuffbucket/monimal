@@ -106,8 +106,6 @@
   align-items: center;
   gap: var(--spacer-1);
   padding-inline: var(--spacer-2);
-  color: var(--maximal-color-text-default);
-  font: var(--body-medium);
   background: transparent;
 }
 
@@ -156,12 +154,6 @@
 }
 
 .maximal-zoom-menu__item {
-  display: flex;
-  min-height: var(--height-row-standard);
-  align-items: center;
-  gap: var(--spacer-2);
-  padding-inline: var(--spacer-2);
-  border-radius: var(--radius-medium);
   cursor: default;
   outline: none;
 }
@@ -341,8 +333,6 @@
 .maximal-canvas-inspector [data-color-style] {
   width: var(--spacer-3);
   height: var(--spacer-3);
-  background: var(--maximal-color-bg-brand);
-  border-radius: var(--radius-full);
 }
 
 .maximal-canvas-inspector [data-color-style="sage"] {
