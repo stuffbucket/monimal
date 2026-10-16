@@ -45,7 +45,9 @@ export const Default: Story = {
     await expect(activity).toHaveFocus()
     await userEvent.keyboard('{Enter}')
     await expect(activity).toHaveAttribute('aria-selected', 'true')
-    await expect(canvas.getByRole('tabpanel')).toHaveTextContent('Project activity panel')
+    await expect(canvas.getByRole('tabpanel', {
+      name: 'Activity',
+    })).toHaveTextContent('Project activity panel')
   },
 }
 
