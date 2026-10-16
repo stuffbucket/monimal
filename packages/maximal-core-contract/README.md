@@ -7,7 +7,7 @@ only: its runtime dependencies are `zod` and
 | Entry point | Contents |
 | --- | --- |
 | `./settings` | Zod schemas and inferred types for the Settings API (ADR-0005), including the `AuthStatus` union (ADR-0006). |
-| `./control` | The JSON-RPC control-plane envelope, error codes, and local-model operation types. |
+| `./control` | The JSON-RPC control-plane envelope, error codes, local-model operation types, and the versioned local-model exploration records (`local-model-exploration.ts`). |
 
 Core republishes both entry points as `@maximal/maximal-core/settings-types`
 and `@maximal/maximal-core/control-contract`. Workspace consumers import

@@ -1,3 +1,12 @@
+import type { ModelEndpointReference } from "./endpoint.ts"
+
+import { assertCredentialFreeEndpoint } from "./endpoint.ts"
+
+export {
+  assertCredentialFreeEndpoint,
+  type ModelEndpointReference,
+} from "./endpoint.ts"
+
 /** An HTTP operation a provider can serve through the gateway. */
 export const MODEL_OPERATIONS = Object.freeze([
   "messages",
@@ -171,12 +180,6 @@ export interface ModelRunnerReference {
 /** Where the runner endpoint executes relative to Maximal. */
 export type ModelExecutionLocation = "device" | "lan" | "cloud"
 
-/** A credential-free endpoint identity used by an execution target. */
-export interface ModelEndpointReference {
-  readonly id: string
-  readonly url?: string
-}
-
 /** The adapter used to invoke one operation on an execution target. */
 export interface ModelOperationAdapterReference {
   readonly id: string
@@ -321,16 +324,6 @@ function effectiveProviderLimits(
     contextTokens: descriptor.contextWindowTokens,
     outputTokens: descriptor.maxOutputTokens,
   })
-}
-
-function assertCredentialFreeEndpoint(endpoint: ModelEndpointReference): void {
-  if (endpoint.url === undefined) return
-  const url = new URL(endpoint.url)
-  if (url.username !== "" || url.password !== "") {
-    throw new TypeError(
-      `Execution target endpoint "${endpoint.id}" must not contain credentials.`,
-    )
-  }
 }
 
 function intrinsicLimitProvenance(

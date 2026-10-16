@@ -136,6 +136,7 @@ export type TerminalScopeRevokeResult = z.infer<
   typeof TerminalScopeRevokeResult
 >
 
+export * from "./local-model-exploration.ts"
 export {
   errorResponse,
   type JsonRpcErrorObject,
