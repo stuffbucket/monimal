@@ -104,8 +104,30 @@ export function readIconMetrics(file = ICON_METRICS_PATH) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
 }
 
-function mergeTokenSource(target, source, file) {
+function assertSafeTokenKeys(source, file) {
+  if (source === null || typeof source !== 'object') return;
   for (const [key, value] of Object.entries(source)) {
+    if (
+      key === '__proto__'
+      || key === 'constructor'
+      || key === 'prototype'
+    ) {
+      throw new Error(`Unsafe design token key ${key} in ${file}.`);
+    }
+    assertSafeTokenKeys(value, file);
+  }
+}
+
+function mergeTokenSource(target, source, file) {
+  assertSafeTokenKeys(source, file);
+  for (const [key, value] of Object.entries(source)) {
+    if (
+      key === '__proto__'
+      || key === 'constructor'
+      || key === 'prototype'
+    ) {
+      throw new Error(`Unsafe design token key ${key} in ${file}.`);
+    }
     const existing = target[key];
     if (existing === undefined) {
       target[key] = value;

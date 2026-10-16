@@ -18,6 +18,7 @@ import {
   isTokenInventorySource,
   inventoryIssues,
   ratchetChanges,
+  readDesignTokens,
   readIconMetrics,
   scanTokenSources,
   runtimePropertyDeclarations,
@@ -32,6 +33,26 @@ test('token inventory excludes non-runtime design-system tooling', () => {
     isTokenInventorySource('packages/maximal-client/src/renderer/theme.css'),
     true,
   );
+});
+
+test('design-token sources reject prototype-polluting keys', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'maximal-token-keys-'));
+  try {
+    for (const key of ['__proto__', 'constructor', 'prototype']) {
+      writeFileSync(
+        path.join(root, 'unsafe.json'),
+        JSON.stringify({ group: { [key]: { polluted: true } } }),
+      );
+
+      assert.throws(
+        () => readDesignTokens(root),
+        new RegExp(`Unsafe design token key ${key}`),
+      );
+      assert.equal(Object.prototype.polluted, undefined);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('DTCG inventory preserves CSS identity and observed declarations', () => {

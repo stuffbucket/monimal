@@ -20,6 +20,24 @@ async function fixture() {
   return root;
 }
 
+test('rejects long custom component targets without regex backtracking', async () => {
+  await expect(probePulseBindingOnPage(
+    {},
+    {
+      event: 'click',
+      reactProp: 'onClick',
+      target: 'A'.repeat(100_000),
+      line: 1,
+      handler: 'handleClick',
+    },
+    {},
+    { kind: 'response' },
+  )).resolves.toEqual({
+    state: 'skipped',
+    reason: 'custom component target has no DOM selector',
+  });
+});
+
 test('discovers a story that directly imports the implementation', async () => {
   const root = await fixture();
   const source = path.join(root, 'src');

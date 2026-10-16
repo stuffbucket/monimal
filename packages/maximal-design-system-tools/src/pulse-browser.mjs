@@ -435,10 +435,26 @@ async function startCatalog(catalogRoot, config) {
 }
 
 function targetSelector(binding) {
-  const parsed = /^([A-Za-z][A-Za-z0-9]*)(.*)$/u.exec(binding.target);
-  if (parsed === null) return undefined;
-  const [, target, qualifiers] = parsed;
-  if (target === undefined || qualifiers === undefined) return undefined;
+  if (typeof binding.target !== 'string' || binding.target.length === 0) {
+    return undefined;
+  }
+  const first = binding.target.charCodeAt(0);
+  if (!(
+    (first >= 65 && first <= 90)
+    || (first >= 97 && first <= 122)
+  )) return undefined;
+  let end = 1;
+  while (end < binding.target.length) {
+    const code = binding.target.charCodeAt(end);
+    if (!(
+      (code >= 48 && code <= 57)
+      || (code >= 65 && code <= 90)
+      || (code >= 97 && code <= 122)
+    )) break;
+    end += 1;
+  }
+  const target = binding.target.slice(0, end);
+  const qualifiers = binding.target.slice(end);
   if (/^[a-z][a-z0-9-]*$/u.test(target)) return `${target}${qualifiers}`;
   if (target.endsWith('Button')) return `button${qualifiers}`;
   if (target.endsWith('Dialog')) return `[role="dialog"]${qualifiers}`;
