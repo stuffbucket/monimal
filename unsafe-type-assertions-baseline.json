@@ -110,11 +110,6 @@
     "count": 1
   },
   {
-    "path": "packages/maximal-context-window/tests/architecture.test.ts",
-    "kind": "unvalidated-json-parse",
-    "count": 1
-  },
-  {
     "path": "packages/maximal-core/scripts/analysis/duplicates.ts",
     "kind": "unvalidated-response-json",
     "count": 1
@@ -825,21 +820,6 @@
     "count": 1
   },
   {
-    "path": "packages/maximal-runner-llama-cpp/src/host/llama-protocol.ts",
-    "kind": "double-assertion",
-    "count": 1
-  },
-  {
-    "path": "packages/maximal-runner-llama-cpp/src/worker/index.ts",
-    "kind": "double-assertion",
-    "count": 1
-  },
-  {
-    "path": "packages/maximal-runner-llama-cpp/tests/architecture.test.ts",
-    "kind": "unvalidated-json-parse",
-    "count": 1
-  },
-  {
     "path": "packages/maximal-models/scripts/compiled-bun-entry.ts",
     "kind": "unvalidated-json-parse",
     "count": 1
@@ -890,9 +870,14 @@
     "count": 1
   },
   {
-    "path": "packages/maximal-observability/tests/architecture.test.ts",
+    "path": "packages/maximal-provider-decision-model/tests/evaluation.test.ts",
     "kind": "unvalidated-json-parse",
     "count": 1
+  },
+  {
+    "path": "packages/maximal-provider-decision-model/tests/profiles.test.ts",
+    "kind": "unvalidated-json-parse",
+    "count": 4
   },
   {
     "path": "packages/maximal-recording/e2e/demo/edit.ts",
@@ -915,14 +900,19 @@
     "count": 1
   },
   {
-    "path": "packages/maximal-provider-decision-model/tests/evaluation.test.ts",
-    "kind": "unvalidated-json-parse",
+    "path": "packages/maximal-runner-llama-cpp/src/host/llama-protocol.ts",
+    "kind": "double-assertion",
     "count": 1
   },
   {
-    "path": "packages/maximal-provider-decision-model/tests/profiles.test.ts",
+    "path": "packages/maximal-runner-llama-cpp/src/worker/index.ts",
+    "kind": "double-assertion",
+    "count": 1
+  },
+  {
+    "path": "packages/maximal-runner-llama-cpp/tests/architecture.test.ts",
     "kind": "unvalidated-json-parse",
-    "count": 4
+    "count": 1
   },
   {
     "path": "packages/maximal-terminal/src/renderer/useDetachedTerminals.ts",

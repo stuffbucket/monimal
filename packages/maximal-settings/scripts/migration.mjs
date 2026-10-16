@@ -13,6 +13,7 @@ const defaultPatterns = [
 // These process values are runtime inputs rather than application settings.
 const nonSettingsEnvironmentReaders = new Set([
   "apps/desktop/src/main/adapters/harness.ts::environment:MAXIMAL_DISABLE_GLOBAL_KEYBOARD_HOOK",
+  "apps/desktop/src/main/index.ts::environment:*",
   "apps/desktop/src/main/index.ts::environment:MAXIMAL_DEV_PROFILE",
   "apps/desktop/src/main/native/ghostty-fonts.ts::environment:*",
   "apps/desktop/src/main/native/recording.ts::environment:*",
@@ -21,6 +22,16 @@ const nonSettingsEnvironmentReaders = new Set([
   "packages/maximal-harness/src/host/agent.ts::environment:STUFFBUCKET_PROVIDER_API_KEY",
   "packages/maximal-core/src/lib/platform/paths.ts::environment:COPILOT_API_CREDENTIAL_HOME",
   "packages/project-catalog/src/node.ts::environment:*",
+])
+// Portable design-system tools read their own quality config and forward the
+// process environment to child Storybook processes; neither is app settings.
+const nonApplicationSettingsReaders = new Set([
+  "packages/maximal-design-system-tools/src/policy.mjs::settings-file",
+  "packages/maximal-design-system-tools/src/pulse-browser.mjs::environment:*",
+  "packages/maximal-design-system-tools/src/pulse-browser.mjs::settings-file",
+  "packages/maximal-design-system-tools/src/source-quality.mjs::settings-file",
+  "packages/maximal-design-system-tools/src/storybook-check.mjs::environment:*",
+  "packages/maximal-design-system-tools/src/storybook-check.mjs::settings-file",
 ])
 // Each settings adapter may hand the environment object to maximal-settings
 // once. A second access with the same identity remains visible to the ratchet.
@@ -134,8 +145,13 @@ export function scanSettingsReaders({ root, patterns = defaultPatterns }) {
         const allowedEnvironmentReader =
           nonSettingsEnvironmentReaders.has(key)
           || settingsEnvironmentAdapters.has(key)
-        if (allowedEnvironmentReader && !exempted.has(key)) exempted.add(key)
-        else entries[key] = (entries[key] ?? 0) + 1
+        if (nonApplicationSettingsReaders.has(key)) {
+          // Tool-owned quality config may be checked and then read.
+        } else if (allowedEnvironmentReader && !exempted.has(key)) {
+          exempted.add(key)
+        } else {
+          entries[key] = (entries[key] ?? 0) + 1
+        }
       }
       ts.forEachChild(node, visit)
     }
