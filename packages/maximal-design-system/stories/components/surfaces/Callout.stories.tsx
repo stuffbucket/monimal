@@ -18,7 +18,7 @@ const meta = {
     <div
       aria-label="Callout options"
       role="listbox"
-      style={{ width: 'var(--width-content-standard)' }}
+      style={{ width: 'min(100%, var(--width-content-standard))' }}
     >
       <Callout {...args} />
     </div>
