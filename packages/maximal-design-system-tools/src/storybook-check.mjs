@@ -427,6 +427,10 @@ async function writeReport({
   await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
 }
 
+export function storybookBaseUrl(port) {
+  return `http://127.0.0.1:${String(port)}`;
+}
+
 export async function runStorybookCheck({
   root = process.cwd(),
   argv = [],
@@ -436,7 +440,7 @@ export async function runStorybookCheck({
   );
   const options = parseOptions(argv, config);
   const port = config.browser.port ?? DEFAULT_PORT;
-  const baseUrl = `http://127.0.0.1:${String(port)}`;
+  const baseUrl = storybookBaseUrl(port);
   const cli = path.join(root, 'node_modules/storybook/dist/bin/dispatcher.js');
   const reportPath = path.resolve(
     root,

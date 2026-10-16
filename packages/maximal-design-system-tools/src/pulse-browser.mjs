@@ -14,6 +14,7 @@ import ts from 'typescript';
 
 import {
   assertServerRunning,
+  storybookBaseUrl,
   storyRenderResultWithNavigationRetry,
   storyUrl,
   waitForServer,
@@ -403,7 +404,7 @@ async function existingIndex(baseUrl) {
 
 async function startCatalog(catalogRoot, config) {
   const port = config.browser.port ?? 6008;
-  const baseUrl = `http://127.0.0.1:${String(port)}`;
+  const baseUrl = storybookBaseUrl(port);
   const running = await existingIndex(baseUrl);
   if (running !== undefined) {
     return { baseUrl, index: running, server: undefined, serverError: { value: '' } };
