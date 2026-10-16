@@ -73,7 +73,7 @@ async function render(capability: SettingsCapabilities, onSetup = vi.fn()): Prom
 describe('ProviderOnboarding', () => {
   it('offers setup only when no provider is configured and the prompt is not dismissed', async () => {
     const empty = capabilities()
-    const shell = await render(empty.value)
+    await render(empty.value)
     expect(document.querySelector('[data-testid="provider-onboarding"]')).not.toBeNull()
 
     act(() => root?.unmount())
@@ -94,7 +94,7 @@ describe('ProviderOnboarding', () => {
 
   it('closes without persisting when the user declines', async () => {
     const capability = capabilities()
-    const shell = await render(capability.value)
+    await render(capability.value)
     const decline = [...document.querySelectorAll('button')].find(
       (button) => button.textContent === 'Not now',
     )
@@ -109,7 +109,7 @@ describe('ProviderOnboarding', () => {
   it('persists do-not-ask before navigating to provider setup', async () => {
     const capability = capabilities()
     const onSetup = vi.fn()
-    const shell = await render(capability.value, onSetup)
+    await render(capability.value, onSetup)
     const checkbox = document.querySelector<HTMLInputElement>('input[type="checkbox"]')
     const setup = [...document.querySelectorAll('button')].find(
       (button) => button.textContent === 'Set up a provider',

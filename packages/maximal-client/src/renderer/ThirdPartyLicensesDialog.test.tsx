@@ -60,7 +60,6 @@ describe('ThirdPartyLicensesDialog', () => {
       )
     })
     if (openLicenses.listener === null) throw new Error('License menu listener was not installed')
-    const mountedContainer = container
 
     await act(async () => {
       openLicenses.listener?.()
