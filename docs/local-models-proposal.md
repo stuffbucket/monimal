@@ -1,5 +1,8 @@
 # Proposal: agent-led local model exploration
 
+- **Author:** Oleg Melnychuk
+- **Date:** 2026-10-16
+
 This proposal explores how Maximal could help people find, set up, and use local models through its proxy or a supported adapter.
 
 Most people using this will be new to local models, so discovery should start from what they want to do and what their device can handle. Frontier models are easy to reach through Substrate, so Maximal should focus on models that go beyond general chat.
@@ -29,7 +32,7 @@ Maximal only looks in the model stores and runtimes it is set up to use. It neve
 
 ### 1.3 Model selection cards
 
-A shortlist shows at most three cards. Each card names the exact model variant and what it's good at, then says whether it runs on this device or elsewhere, whether it fits this device, how big the download is, and whether the user must approve anything first. Cards link to the model page for details. They also show up to two opted-in people who have loaded the model, with a **Contact** action, plus a count of any others.
+A shortlist shows at most three cards. Each card names the exact model variant and what it's good at, then says whether it runs on this device or elsewhere, whether it fits this device, how big the download is, and whether the user must approve anything first. Cards link to the model page for details. They also have a slot for up to two opted-in people who have loaded the model, with a **Contact** action, plus a count of any others. The slot is reserved in Phase 1 and stays empty until the directory exists (Phase 2).
 
 The primary action is **Set up** or **Connect**. A card that can't run on this device shows **Unavailable** with a short reason, such as "Needs 32 GB memory", and no action. Different variants never merge into one item. Cards must work with the keyboard and show their status as text.
 
@@ -45,8 +48,8 @@ Cards are kept short, so the model page holds the details people need before the
 - what hardware it needs and how fast it is;
 - known limits and what setup takes;
 - where it is running and when that was last checked;
-- people who have loaded it and chose to be contacted;
-- how to connect, and a **Give feedback** button.
+- a reserved slot for people who have loaded it and chose to be contacted, empty until the directory exists (Phase 2);
+- how to connect, and a **Give feedback** button, reserved and empty until the feedback audience is decided (section 12).
 
 Connection instructions only claim the operations the protocol actually supports. Credentials never appear in URLs or example requests.
 
@@ -184,7 +187,7 @@ Key rules:
 
 ### Phase 1: foundations and device advisor
 
-Structured cards and model pages, typed agent setup tools, bounded local inventory, device assessment, and connection instructions. This phase also adds local-first and device-only constraints and a manual feedback link. Usage sharing stays off until its privacy controls are reviewed.
+Structured cards and model pages, typed agent setup tools, bounded local inventory, device assessment, and connection instructions. This phase also adds local-first and device-only constraints. It reserves the contact and feedback slots described in sections 1.3 and 1.4, which stay empty until the directory and the feedback audience are decided. Usage sharing stays off until its privacy controls are reviewed.
 
 Gate: one supported local text or System-1 path works from setup to external use, and first-run setup doesn't require a frontier provider.
 
