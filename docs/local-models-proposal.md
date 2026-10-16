@@ -167,14 +167,14 @@ Exploration extends the existing model, provider, and control code rather than c
 - [Model contracts](../packages/maximal-model-contract/src/index.ts) and the [model catalogue](../packages/maximal-model-catalog/README.md): shared identities and descriptive metadata.
 - [Local registry](../packages/local-model-registry/src/types.ts): model files, provisioning, and runtime assignment.
 - [Provider host](../packages/maximal-models/src/host.ts) and runtime packages: activation and execution.
-- Core control: setup operations, extending the existing `localModels` methods.
+- Core control: setup planning, plan digests, approval checks, and operations, extending the existing `localModels` methods. Shared wire records live in [the Core control contract](../packages/maximal-core-contract/src/local-model-exploration.ts).
 - [Harness](../packages/maximal-harness/src/host/toolsets.ts): conversation tools, with consent enforced outside the agent.
 - [Product client](../packages/maximal-client/src/shared/host.ts): gallery, cards, model pages, and Settings, sharing one set of queries.
 
 Key rules:
 
 - Each thing has its own ID: the model, the exact variant, the model files (by digest), the registry entry, the runtime target, the deployment, and each setup or inference operation. A display name is never an identity.
-- New versioned records cover experience definitions, device assessments, candidates, setup plans, approvals, operations, and connection descriptors. They never hold secrets or executable commands.
+- New versioned records cover experience definitions, device assessments, candidates, setup plans, approvals, operations, and connection descriptors. They never hold secrets or executable commands. Approval binds the exact model variant, file digests, and pinned runtime package to the plan digest; changing any of them requires new approval.
 - Setup reuses the registry's verification path and activates only reviewed, pinned runtime packages. A discovered model can't name executable code.
 - Media output (image, video, 3D) needs its own operation types before any gallery action is enabled. A catalogue listing alone doesn't allow setup or connection.
 - Core gets methods for plan, consent, run, read, cancel, and connection descriptors. The names are still open, so they aren't documented as existing APIs. The old `ensure` action must enforce the same approval.
@@ -243,3 +243,30 @@ Reviewers need to settle:
 - whether local-first is on by default, and which scenarios get defaults.
 
 Unresolved decisions are not filled in with defaults chosen by the agent.
+
+## 13. Implementation checkpoint and remaining work
+
+### Stage 1: contracts and setup helpers
+
+The first implementation slice contains:
+
+- strict, versioned [wire schemas](../packages/maximal-core-contract/src/local-model-exploration.ts) for experiences, device assessments, candidates, plans, approvals, operations, and connection descriptors;
+- Core-owned [setup helpers](../packages/maximal-core/src/lib/local-model-setup/plan.ts) that validate candidate and step compatibility, require file verification before runtime execution, and return detached, deeply immutable snapshots;
+- canonical SHA-256 plan digests covering the model and variant IDs, exact files, pinned runtime package, source, destination, and steps;
+- approval matching and digest-integrity checks, with regression tests for changed plans, invalid steps, and nested mutation.
+
+These are contracts and in-process helpers, not a usable setup feature. They do not run downloads, enforce organization policy, authenticate consent, or expose control methods. An approval record alone is not authorization. Phase 1's end-to-end gate in section 10 remains open.
+
+### Remaining Phase 1 work, in implementation order
+
+1. **Device advisor and bounded inventory.** Inventory MUST inspect only configured stores and runtimes. Assessment MUST compute Fits, Constrained, Unsupported, or Unknown from variant-specific requirements and observed resources. Unified memory MUST count once. Reviewers MUST settle whether Unknown assessments permit setup before enabling that action; the current helper permits them.
+2. **One reviewed local execution path.** The first vertical slice MUST select one pinned local text or System-1 model and runtime. Setup MUST resolve references through the existing registry and reviewed runtime packages, rather than treating candidate metadata as authority. Model files MUST pass the registry's verification path before activation.
+3. **Trusted setup control and consent.** Core MUST add plan, consent, run, read, cancel, and connection-descriptor operations with explicit feature/version negotiation. The control layer MUST obtain real consent outside the agent, keep authoritative plan and approval state, and re-check eligibility and policy before side effects. Legacy `ensure` MUST use the same consent gate. Older sidecars MUST report unsupported.
+4. **Execution lifecycle and recovery.** Operations MUST publish monotonically revisioned snapshots. Cancellation and failure MUST affect only resources started by that operation. Recovery MUST preserve unrelated settings and report a reason and next step. Lifecycle and health MUST remain distinct from the registry's downloaded-and-verified state.
+5. **Routing and external use.** Device-only constraints MUST hold across dispatch, retry, and fallback. An explicit model choice MUST remain unchanged. Connection descriptors MUST describe only the target's supported operations and refer to credentials without including their values. One external-client example MUST exercise the selected local path.
+6. **Agent and product surfaces.** Typed harness tools MUST call the trusted control layer. Gallery cards, model pages, and Settings MUST share the product client's queries and revision handling. First-run setup MUST work without frontier-provider sign-in. Contact and feedback slots MUST stay empty as specified for Phase 1.
+7. **Phase 1 acceptance.** Verification MUST cover the full setup-to-external-use path, unsupported-device rejection, consent bypass attempts, corrupt artifacts, cancellation/recovery, and device-only retry/fallback. Real-hardware results MUST be reported separately from contract tests, following the workflow in section 11.
+
+The GLiNER runner's standalone CPU and CUDA demo runs are external-runtime evidence only. They MUST NOT be counted as Maximal end-to-end setup acceptance or promoted into general performance estimates.
+
+Phases 2–4 remain scoped by section 10 and gated by the applicable decisions in section 12. Stage 1 does not authorize directory, sharing, telemetry, or media work ahead of those decisions.
