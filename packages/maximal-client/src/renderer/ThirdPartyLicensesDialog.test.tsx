@@ -9,9 +9,6 @@ const { getLicenseText, openLicenses } = vi.hoisted(() => ({
 }))
 
 vi.mock('@maximal/maximal-electron/renderer', () => ({
-  Button: ({ children, onClick }: { children: ReactNode; onClick: () => void }) => (
-    <button onClick={onClick}>{children}</button>
-  ),
   Dialog: ({ children, open }: { children: ReactNode; open: boolean }) => open ? (
     <div role="dialog">{children}</div>
   ) : null,
@@ -69,23 +66,23 @@ describe('ThirdPartyLicensesDialog', () => {
       openLicenses.listener?.()
     })
     await vi.waitFor(() => {
-      expect(mountedContainer.querySelector('[role="dialog"]')?.textContent).toContain(
+      expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
         'Example dependency',
       )
     })
 
     expect(getLicenseText).toHaveBeenCalledOnce()
-    expect(mountedContainer.querySelector('.license-dialog__reader')).not.toBeNull()
-    const licenseText = mountedContainer.querySelector('.license-dialog__text')
+    expect(document.querySelector('.license-dialog__reader')).not.toBeNull()
+    const licenseText = document.querySelector('.license-dialog__text')
     expect(licenseText?.tagName).toBe('PRE')
     expect(licenseText?.getAttribute('data-shell-selectable')).toBe('true')
 
-    const close = [...mountedContainer.querySelectorAll('button')].find(
+    const close = [...document.querySelectorAll('button')].find(
       (button) => button.textContent === 'Close',
     )
     if (close === undefined) throw new Error('Close button was not rendered')
     act(() => close.click())
 
-    expect(mountedContainer.querySelector('[role="dialog"]')).toBeNull()
+    expect(document.querySelector('[role="dialog"]')).toBeNull()
   })
 })

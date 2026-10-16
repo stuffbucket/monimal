@@ -1,16 +1,13 @@
+import { Button, Switch, TextInput } from '@maximal/maximal-design-system'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useState, type ReactElement } from 'react'
 
 import {
-  Button,
-  FormField,
   Note,
   SettingsActions,
   SettingsDisclosure,
   SettingsDisclosureList,
   SettingsSection,
-  Switch,
-  TextInput,
 } from '@maximal/maximal-electron/renderer'
 import type { DiscoveryRoot, ProjectCatalogSnapshot } from '@maximal/project-catalog'
 
@@ -41,49 +38,43 @@ function RootSettings({
     >
       <div className="project-root-controls">
         <Switch
-          label={`Discover projects under ${root.path}`}
-          displayLabel="Discover subtrees"
+          aria-label={`Discover projects under ${root.path}`}
+          label="Discover subtrees"
           checked={root.enabled}
-          onChange={(enabled) => void update({ enabled })}
+          onCheckedChange={(enabled) => void update({ enabled })}
         />
         <Switch
-          label={`Trust ${root.path}`}
-          displayLabel="Trust this folder"
+          aria-label={`Trust ${root.path}`}
+          label="Trust this folder"
           checked={root.trusted}
-          onChange={(trusted) => void update({ trusted })}
+          onCheckedChange={(trusted) => void update({ trusted })}
         />
         <Switch
-          label={`Trust projects below ${root.path}`}
-          displayLabel="Trust subtrees"
+          aria-label={`Trust projects below ${root.path}`}
+          label="Trust subtrees"
           checked={root.trustSubtrees}
           disabled={!root.trusted}
-          onChange={(trustSubtrees) => void update({ trustSubtrees })}
+          onCheckedChange={(trustSubtrees) => void update({ trustSubtrees })}
         />
-        <FormField
+        <TextInput
+          aria-label={`Excluded directories for ${root.path}`}
+          description="Separate names with commas. These directories are skipped anywhere below this root."
           label="Excluded directory names"
-          hint="Separate names with commas. These directories are skipped anywhere below this root."
-        >
-          {(field) => (
-            <TextInput
-              {...field}
-              aria-label={`Excluded directories for ${root.path}`}
-              value={exclusions}
-              placeholder="node_modules, vendor, generated"
-              onChange={setExclusions}
-              onBlur={() => {
-                const values = exclusions.split(',').map((value) => value.trim()).filter(Boolean)
-                void update({ exclusions: [...new Set(values)] })
-              }}
-            />
-          )}
-        </FormField>
+          value={exclusions}
+          placeholder="node_modules, vendor, generated"
+          onChange={(event) => setExclusions(event.currentTarget.value)}
+          onBlur={() => {
+            const values = exclusions.split(',').map((value) => value.trim()).filter(Boolean)
+            void update({ exclusions: [...new Set(values)] })
+          }}
+        />
       </div>
       <SettingsActions>
-        <Button size="sm" onClick={() =>
+        <Button onClick={() =>
           void perform(() => capabilities.projects.refresh(root.id))}>
           Refresh
         </Button>
-        <Button size="sm" variant="danger" onClick={() =>
+        <Button variant="danger" onClick={() =>
           void perform(() => capabilities.projects.removeRoot(root.id))}>
           Remove
         </Button>
@@ -144,11 +135,11 @@ export function ProjectsSection({
           opening it in a terminal; trusting subtrees extends that permission to projects below it.
         </Note>
         <SettingsActions>
-          <Button size="sm" variant="primary" onClick={() =>
+          <Button variant="primary" onClick={() =>
             void perform(() => capabilities.projects.addRoot())}>
             Add folder
           </Button>
-          <Button size="sm" onClick={() =>
+          <Button onClick={() =>
             void perform(() => capabilities.projects.refresh())}>
             Refresh all
           </Button>

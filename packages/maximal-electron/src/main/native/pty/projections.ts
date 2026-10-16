@@ -15,7 +15,7 @@ import type { PtyEvents } from './handlers.js';
 type ProjectionLaunch = Parameters<TmuxProjectionOwners<BrowserWindow>['reserve']>[2];
 
 /** What a projection needs from the registry that hosts it. */
-export interface PtyProjectionHooks {
+interface PtyProjectionHooks {
   events: PtyEvents;
   onWindowClosed(window: BrowserWindow): void;
   trackViewerSize(id: string, window: BrowserWindow, cols: number, rows: number): void;

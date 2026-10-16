@@ -269,7 +269,7 @@ function Palette() {
 }
 
 const meta = {
-  title: 'Foundation/Tokens',
+  title: 'Deprecated/Tokens',
   component: Palette,
   parameters: { layout: 'padded' },
 } satisfies Meta<typeof Palette>;

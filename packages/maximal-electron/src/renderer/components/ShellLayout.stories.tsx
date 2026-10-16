@@ -21,7 +21,7 @@ import { ShellLayout } from './ShellLayout.js';
  * case, where `Dialog` builds one.
  */
 const meta = {
-  title: 'Shell/ShellLayout',
+  title: 'Deprecated/ShellLayout',
   component: ShellLayout,
   parameters: { layout: 'fullscreen' },
   decorators: [

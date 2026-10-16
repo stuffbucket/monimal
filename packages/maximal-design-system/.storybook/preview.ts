@@ -125,11 +125,16 @@ const preview: Preview = {
        */
       config: {
         rules: [
+          { id: 'bypass', enabled: false },
           { id: 'landmark-one-main', enabled: false },
           { id: 'page-has-heading-one', enabled: false },
           { id: 'region', enabled: false },
         ],
       },
+    },
+    options: {
+      /* Folders and components sort alphabetically; stories keep their authored order within a component. */
+      storySort: { method: 'alphabetical' },
     },
     layout: 'padded',
     controls: { expanded: true },

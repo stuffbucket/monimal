@@ -334,7 +334,7 @@ describe('ModelsSection', () => {
   it('keeps disabled provider models visible and offers to enable access', async () => {
     const { capabilities, accounts } = fakeCapabilities(async () => catalogue)
     const surface = await renderModels(capabilities)
-    const toggle = surface.querySelector<HTMLButtonElement>(
+    const toggle = surface.querySelector<HTMLElement>(
       '[data-testid="cloud-provider-github-copilot"]',
     )
     if (toggle === null) throw new Error('GitHub Copilot toggle was not rendered')
@@ -365,7 +365,7 @@ describe('ModelsSection', () => {
     const { capabilities, ollamaSettings, ollamaRuntime } =
       fakeCapabilities(async () => catalogue)
     const surface = await renderModels(capabilities)
-    const toggle = surface.querySelector<HTMLButtonElement>(
+    const toggle = surface.querySelector<HTMLElement>(
       '[data-testid="cloud-provider-ollama"]',
     )
     if (toggle === null) throw new Error('Ollama Cloud toggle was not rendered')
@@ -396,7 +396,7 @@ describe('ModelsSection', () => {
       { localOllamaAvailable: true, ollamaHasApiKey: false },
     )
     const surface = await renderModels(capabilities)
-    const toggle = surface.querySelector<HTMLButtonElement>(
+    const toggle = surface.querySelector<HTMLElement>(
       '[data-testid="cloud-provider-ollama"]',
     )
     if (toggle === null) throw new Error('Ollama Cloud toggle was not rendered')
@@ -427,12 +427,12 @@ describe('ModelsSection', () => {
       { localOllamaAvailable: true, ollamaHasApiKey: false },
     )
     const surface = await renderModels(capabilities)
-    const toggle = surface.querySelector<HTMLButtonElement>(
+    const toggle = surface.querySelector<HTMLElement>(
       '[data-testid="cloud-provider-ollama"]',
     )
     if (toggle === null) throw new Error('Ollama Cloud toggle was not rendered')
 
-    expect(toggle.disabled).toBe(false)
+    expect(toggle.hasAttribute('data-disabled')).toBe(false)
     expect(toggle.getAttribute('aria-checked')).toBe('false')
     expect(surface.textContent).toContain(
       'Unavailable · Add an API key or sign in through the Ollama application',
@@ -451,12 +451,12 @@ describe('ModelsSection', () => {
       { githubAvailable: false },
     )
     const surface = await renderModels(capabilities, navigate)
-    const toggle = surface.querySelector<HTMLButtonElement>(
+    const toggle = surface.querySelector<HTMLElement>(
       '[data-testid="cloud-provider-github-copilot"]',
     )
     if (toggle === null) throw new Error('GitHub Copilot toggle was not rendered')
 
-    expect(toggle.disabled).toBe(false)
+    expect(toggle.hasAttribute('data-disabled')).toBe(false)
     expect(toggle.getAttribute('aria-checked')).toBe('false')
     await act(async () => toggle.click())
 

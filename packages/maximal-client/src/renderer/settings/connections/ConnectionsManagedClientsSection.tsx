@@ -1,15 +1,18 @@
-import type { ReactElement } from 'react'
-
 import {
   Button,
   CopyButton,
-  Field,
-  FieldList,
+  Property,
+  PropertyList,
+  Switch,
+  Tooltip,
+} from '@maximal/maximal-design-system'
+import type { ReactElement } from 'react'
+
+import {
   Note,
   SettingsGroup,
   SettingsItem,
   SettingsSection,
-  Switch,
 } from '@maximal/maximal-electron/renderer'
 
 import type {
@@ -54,20 +57,20 @@ function ManagedCredentialField({
   if (!credential) return null
 
   return (
-    <Field
+    <Property
       label="Credential"
       value={
         <>
           <span>Managed · {credential.enabled ? 'Enabled' : 'Disabled'}</span>
           {revealedKey === undefined ? (
-            <Button size="sm" disabled={busy} onClick={() => onRevealCredential(connection)}>
+            <Button disabled={busy} onClick={() => onRevealCredential(connection)}>
               {busyAction === `reveal:${credential.id}` ? 'Revealing…' : 'Reveal'}
             </Button>
           ) : (
             <>
               <code>{revealedKey}</code>
               <CopyButton text={revealedKey} about={`the ${connection.name} credential`} />
-              <Button size="sm" onClick={() => onHideCredential(credential.id)}>
+              <Button onClick={() => onHideCredential(credential.id)}>
                 Hide
               </Button>
             </>
@@ -99,26 +102,30 @@ function ManagedConnectionItem({
       title={connection.name}
       description={STATUS_LABELS[connection.status]}
       control={
-        <Switch
-          label={`Maximal manages ${connection.name}`}
-          displayLabel={null}
-          tooltip={
+        <Tooltip
+          trigger={(
+            <Switch
+              aria-label={`Maximal manages ${connection.name}`}
+              label={null}
+              checked={checked}
+              disabled={busy || toggleAction === null}
+              data-testid={`connection-${connection.id}-toggle`}
+              onCheckedChange={() => {
+                if (toggleAction !== null) onConnectionAction(connection, toggleAction)
+              }}
+            />
+          )}
+        >
+          {
             checked
               ? `${connection.name} is managed by Maximal`
               : `${connection.name} is not managed by Maximal`
           }
-          layout="compact"
-          checked={checked}
-          disabled={busy || toggleAction === null}
-          testId={`connection-${connection.id}-toggle`}
-          onChange={() => {
-            if (toggleAction !== null) onConnectionAction(connection, toggleAction)
-          }}
-        />
+        </Tooltip>
       }
     >
-      <FieldList>
-        <Field
+      <PropertyList>
+        <Property
           label="Client"
           value={
             installation?.client_path ? (
@@ -131,7 +138,7 @@ function ManagedConnectionItem({
             )
           }
         />
-        <Field
+        <Property
           label="Configuration"
           value={
             configurationPath ? (
@@ -145,7 +152,7 @@ function ManagedConnectionItem({
           }
         />
         {connection.ownership ? (
-          <Field
+          <Property
             label="Owner"
             value={`${connection.ownership.configurator_id}, process ${connection.ownership.pid}`}
           />
@@ -158,7 +165,7 @@ function ManagedConnectionItem({
           onRevealCredential={onRevealCredential}
           onHideCredential={onHideCredential}
         />
-      </FieldList>
+      </PropertyList>
       <div className="settings-list__content">
         {connection.detail ? (
           <span className="settings-list__detail">{connection.detail}</span>

@@ -33,8 +33,8 @@ import { SHELL_PANEL_SIZES, type PanelSize } from '../lib/panel-sizes.js';
 
 export type { PanelSize };
 
-export type ShellPanel = 'left' | 'right';
-export type PanelToggleSubscription = (
+type ShellPanel = 'left' | 'right';
+type PanelToggleSubscription = (
   listener: (panel: ShellPanel) => void,
 ) => () => void;
 

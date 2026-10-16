@@ -1,0 +1,17 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "entry": [
+    "bin/*.{mjs,mts}",
+    "src/*.mjs",
+    "test/*.{test.mjs,test.ts}"
+  ],
+  "project": [
+    "bin/*.{mjs,mts}",
+    "src/*.{mjs,ts}",
+    "test/*.{test.mjs,test.ts}"
+  ],
+  "ignoreDependencies": [
+    "@stryker-mutator/command-runner"
+  ],
+  "ignoreExportsUsedInFile": true
+}

@@ -1,7 +1,7 @@
+import { Button } from '@maximal/maximal-design-system'
 import { type ReactElement } from 'react'
 
 import {
-  Button,
   Note,
   SettingsItem,
 } from '@maximal/maximal-electron/renderer'
@@ -120,7 +120,7 @@ export function CopilotPlanDetails({
       title={planLabel(usage?.copilot_plan)}
       description="GitHub Copilot entitlement and quota."
       actions={
-        <Button size="sm" onClick={onRefresh} disabled={loading}>
+        <Button onClick={onRefresh} disabled={loading}>
           {loading ? 'Refreshing…' : 'Refresh'}
         </Button>
       }
@@ -160,7 +160,7 @@ export function CopilotPlanDetails({
         />
         <DetailRow label="Codebase Semantic Index" value="Not available" />
         <DetailRow label="Session Sync" value="Not available" />
-        <Button size="sm" onClick={onOpenInsights}>
+        <Button onClick={onOpenInsights}>
           Show insights
         </Button>
       </div>

@@ -1,9 +1,5 @@
-import {
-  SettingsGroup,
-  SettingsItem,
-  SettingsSection,
-  Switch,
-} from "@maximal/maximal-electron/renderer";
+import { Switch, Tooltip } from "@maximal/maximal-design-system";
+import { SettingsGroup, SettingsItem, SettingsSection } from "@maximal/maximal-electron/renderer";
 
 import type { SettingsCapabilities } from "../capabilities";
 
@@ -40,14 +36,19 @@ export function OllamaProviderSection({
           }
           actions={
             settings && runtime?.installed ? (
-              <Switch
-                label={providerToggleLabel}
-                displayLabel={null}
-                tooltip={providerToggleLabel}
-                checked={settings.local_enabled ?? true}
-                onChange={(enabled) => void provider.updateEnabled(enabled)}
-                testId="local-models-enable-ollama"
-              />
+              <Tooltip
+                trigger={(
+                  <Switch
+                    aria-label={providerToggleLabel}
+                    label={null}
+                    checked={settings.local_enabled ?? true}
+                    onCheckedChange={(enabled) => void provider.updateEnabled(enabled)}
+                    data-testid="local-models-enable-ollama"
+                  />
+                )}
+              >
+                {providerToggleLabel}
+              </Tooltip>
             ) : undefined
           }
         >
@@ -59,11 +60,11 @@ export function OllamaProviderSection({
             description="When available locally and in the cloud, use the local copy."
             control={
               <Switch
-                label="Prefer local"
-                displayLabel={null}
+                aria-label="Prefer local"
+                label={null}
                 checked={settings.prefer_local_models}
-                onChange={(next) => void provider.updatePreference(next)}
-                testId="local-models-prefer-ollama-local"
+                onCheckedChange={(next) => void provider.updatePreference(next)}
+                data-testid="local-models-prefer-ollama-local"
               />
             }
           />

@@ -64,7 +64,7 @@ const TYPEFACE_CONTROLS_STYLES = `
 }
 `;
 
-export interface TypefaceSelectField {
+interface TypefaceSelectField {
   label: string;
   ariaLabel?: string;
   value: string;
@@ -73,7 +73,7 @@ export interface TypefaceSelectField {
   onChange: (value: string) => void;
 }
 
-export interface TypefaceWeightField {
+interface TypefaceWeightField {
   label?: string;
   ariaLabel?: string;
   value: number;

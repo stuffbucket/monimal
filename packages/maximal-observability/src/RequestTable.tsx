@@ -1,6 +1,6 @@
 import type { TrafficRequestSummary } from "@maximal/maximal-observability-contract"
 
-import { StatusChip } from "@maximal/maximal-electron/renderer"
+import { StatusChip } from "@maximal/maximal-design-system"
 
 import { formatCount, formatDuration, formatTimestamp } from "./format.ts"
 

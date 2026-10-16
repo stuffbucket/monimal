@@ -5,6 +5,10 @@ including the color ramps, OKLab utilities, icon metrics, and inventory rules.
 Product theme presets and application-level theme selection MUST remain with
 their consuming application.
 
+[docs/quality.md](./docs/quality.md) MUST own the package quality and release
+standard. [docs/storybook.md](./docs/storybook.md) MUST own Storybook-specific
+requirements.
+
 Headless component behavior MAY use Base UI. Component appearance MUST come
 from this package's generated tokens and CSS; components MUST NOT import shell
 tokens or styles from `maximal-electron`. The Base UI shell, tab, terminal,
@@ -23,6 +27,16 @@ behavior, and MUST be rendered within a Base UI `Tabs.Root` and `Tabs.List`.
 `Dialog` wraps Base UI's controlled modal behavior with Maximal surface,
 backdrop, radius, elevation, spacing, and stacking tokens. Consumers MAY supply a
 portal container and MUST own the open state and action controls.
+`AlertDialog` shares that surface through Base UI's alert-dialog root. It MUST
+remain modal with a visible title and description and MUST ignore outside
+presses. A confirmation places Cancel first, any `tertiaryActions` next, and
+its primary `action` last, starts focus on Cancel, and closes itself only on
+cancel. The primary action MUST use the `primary` or `danger` `Button` variant;
+tertiary actions MUST use an existing lower-emphasis variant such as
+`secondary-danger` or `ghost`. Each action MUST close the dialog when its
+response completes. An acknowledgement omits `action`, offers only OK, and
+starts focus there. Escape takes the dismiss response unless `pending`
+is set.
 The package root also exports Base UI-backed `Select`, `Checkbox`,
 `RadioGroup`/`Radio`, `Switch`, `Slider` (`Slide` is an alias), `NumberInput`,
 `ScrollArea`, `Avatar`, `Toast`, `Collapsible`, `Accordion`, `Menu`,
@@ -31,18 +45,39 @@ The package root also exports Base UI-backed `Select`, `Checkbox`,
 components. `UnitValueInput` composes the numeric and select controls while
 consumers own canonical conversion. `Card` and `Callout` are selectable
 `role="option"` surfaces and MUST be rendered within a consumer-owned listbox.
+`Scrollbar` MUST own scrollbar presentation on both axes: a transparent track
+inset half a spacer from the scroller's edge, a translucent
+`bg-scrollbar` thumb whose length is clamped between the compact control
+height and the heading row height, and a hovered or dragged thumb that grows
+to the full track and takes `bg-scrollbar-hover`. An `auto` scrollbar eases
+out when its scroller is hovered, scrolled, or dragged and eases in after the
+`duration-dwell`; reduced motion removes the transitions. Scroll containers
+MUST hide native scrollbars and render `Scrollbar` in a positioned element
+that shares the scroller's box; `ScrollArea` and menus do this, and
+`scrollbars="hidden"` omits it.
+`StatusChip` MUST own neutral status presentation. `InspectorPanel` MUST own
+inspector chrome. `PropertyList`/`Property` MUST own read-only description-list
+presentation.
 `Icon` presents canonical Maximal glyphs at the existing compact, standard, or
 prominent icon size roles; Base UI does not provide an icon primitive.
 These components MUST use the existing Maximal token roles; their component
 styles MUST NOT introduce new design tokens.
-Every styled wrapper under `src/components` MUST have its own `Components/*`
-Storybook entry. Its stories MUST expose each meaningful state supported by
-the wrapper API rather than combining unrelated wrappers into a showcase.
-Grouped component implementations MUST own their stories in the same component
-family directory. `src/components/index.ts` MUST remain the package's single
-component barrel, and the package root MUST re-export that barrel.
+Every styled wrapper under `src/components` MUST have its own matching
+`stories/components` Storybook entry. Its stories MUST expose each meaningful
+state supported by the wrapper API rather than combining unrelated wrappers
+into a showcase. Story files MUST remain outside `src`.
+Every runtime `index.ts` MUST be a barrel and MUST NOT contain component
+implementations. `src/components/index.ts` MUST remain the package's single
+component barrel, and the package root MUST re-export the component,
+composition, primitive, and utility barrels.
 Consumers MAY import the same component API from the package root or the
 `@maximal/maximal-design-system/components` subpath.
+`api-surface.json` MUST record the reviewed public TypeScript API. Package
+builds MUST fail when an export or public signature changes until the baseline
+is deliberately updated with `pnpm api:check --update`.
+Component APIs MUST use native React element attributes for their primary
+element and typed element-slot props for composite internals. They MUST NOT
+invent camel-cased aliases for `aria-*` or `data-*` attributes.
 Application renderers MUST load `@maximal/maximal-design-system/tokens.css`,
 `styles.css`, and `app.css`; `app.css` owns the document reset and application
 frame, and MUST NOT be imported by stories.
@@ -52,6 +87,9 @@ Storybook MAY import `maximal-electron` components and styles only to render
 that package's catalog stories; every new use MUST be identified as
 catalog-only and MUST NOT become a runtime dependency of design-system
 components.
+`maximal-electron` catalog stories MUST be titled `Deprecated/<Component>` so
+the remaining legacy surface is visible; a story leaves `Deprecated` only by
+being retired with its component.
 The workspace shell spike MUST expose distinct expanded and compact canvas
 states. Expanded state includes navigation and both sidebars; compact state
 removes those layout columns and presents floating project, collaboration,
@@ -120,6 +158,18 @@ The ratchet tracks:
 - references with no declaration in tracked workspace sources;
 - known gaps between the pinned Style Dictionary release and DTCG 2025.10.
 
+`pnpm quality:source` MUST reject invented DOM-like prop aliases, literal
+colors, literal spatial dimensions other than the one-pixel visually-hidden
+technique, literal stacking levels, literal motion durations, and `!important`
+declarations in runtime design-system source.
+
+`pnpm storybook:check` MUST be a required CI gate. It MUST run every
+design-system-owned story in both light and dark themes, fail render and play
+errors, require generated token styles, fail browser console and page errors, require
+Axe to run, and enforce zero Axe violations and zero unresolved incomplete
+results. Passing the automated gate MUST NOT be described as complete WCAG
+conformance.
+
 Style Dictionary MUST remain pinned to the full upstream commit SHA in
 `package.json` and the matching `pnpm-workspace.yaml` build allowlist.
 
@@ -180,7 +230,9 @@ properties and nested JSON under `dist/tokens/`. `pnpm tokens:build` MUST be
 the single generation command.
 
 This package MUST own the workspace Storybook catalog, preview decorators,
-browser checks, and developer commands. Shared story authoring, test APIs, and
+quality configuration, reviewed baselines, and developer commands. Reusable
+source, API, React-state, and browser-quality engines MUST come from
+`@maximal/maximal-design-system-tools`. Shared story authoring, test APIs, and
 the multi-catalog server launcher MUST come from `@maximal/maximal-storybook`.
 
 ## Icon optical balance skill

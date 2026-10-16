@@ -24,36 +24,6 @@
   padding-block-end: var(--spacer-2);
 }
 
-.maximal-horizontal-scroll-area__track {
-  position: absolute;
-  inset-block-end: 0;
-  inset-inline: var(--spacer-1);
-  height: var(--spacer-2);
-}
-
-.maximal-horizontal-scroll-area:hover
-  .maximal-horizontal-scroll-area__track,
-.maximal-horizontal-scroll-area__track[data-scroll-active] {
-  opacity: var(--opacity-affordance);
-}
-
-.maximal-horizontal-scroll-area__thumb {
-  position: absolute;
-  inset-block-end: var(--spacer-1);
-  inset-inline-start: 0;
-  height: var(--spacer-1);
-  cursor: grab;
-  touch-action: none;
-}
-
-.maximal-horizontal-scroll-area__thumb:active {
-  cursor: grabbing;
-}
-
-.maximal-horizontal-scroll-area__thumb:focus-visible {
-  outline-offset: var(--border-width-thin);
-}
-
 .maximal-surface-cluster {
   display: flex;
   flex-wrap: wrap;
@@ -222,10 +192,10 @@
 
 .maximal-zoom-menu__check[data-checked]::after {
   position: absolute;
-  inset-block-start: 2px;
-  inset-inline-start: 5px;
-  width: 4px;
-  height: 8px;
+  inset-block-start: calc(var(--border-width-thin) + var(--border-width-thin));
+  inset-inline-start: calc(var(--spacer-1) + var(--border-width-thin));
+  width: var(--spacer-1);
+  height: var(--spacer-2);
   border: solid currentcolor;
   border-width: 0 var(--border-width-thin) var(--border-width-thin) 0;
   content: "";

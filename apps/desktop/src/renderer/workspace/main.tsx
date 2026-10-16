@@ -6,6 +6,8 @@ import { createRoot } from 'react-dom/client'
 // before first paint.
 import '@maximal/maximal-client/renderer/theme'
 import '@maximal/maximal-client/renderer/base'
+import '@maximal/maximal-design-system/tokens.css'
+import '@maximal/maximal-design-system/styles.css'
 import '@maximal/maximal-electron/renderer/styles.css'
 import '@maximal/maximal-browser/styles.css'
 import '@maximal/maximal-observability/styles.css'

@@ -371,7 +371,7 @@ export interface FieldControl {
   'aria-invalid': boolean | undefined;
 }
 
-export interface SliderOption {
+interface SliderOption {
   value: number;
   label: string;
 }

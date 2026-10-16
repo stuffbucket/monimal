@@ -27,15 +27,6 @@ export const allowedAdhocStyles = new Map([
   ['packages/maximal-design-system/src/color/ColorApplications.tsx', { inlineAttributes: 7 }],
   ['packages/maximal-design-system/src/color/ColorSheet.tsx', { inlineAttributes: 11 }],
   ['packages/maximal-design-system/src/color/palette.ts', { injectors: 1 }],
-  // Scroll thumbs follow pointer-driven geometry.
-  [
-    'packages/maximal-design-system/src/components/edge-resizer.tsx',
-    { inlineAttributes: 1 },
-  ],
-  [
-    'packages/maximal-design-system/src/components/sidebar-sections.tsx',
-    { inlineAttributes: 1 },
-  ],
   [
     'packages/maximal-client/src/renderer/frame/WorkspaceRail.tsx',
     { inlineAttributes: 1 },

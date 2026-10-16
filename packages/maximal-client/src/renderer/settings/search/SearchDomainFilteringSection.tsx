@@ -1,8 +1,8 @@
 import { type ReactElement } from 'react'
 import { Info } from 'lucide-react'
 
+import { IconButton, Tooltip } from '@maximal/maximal-design-system'
 import {
-  IconButton,
   SettingsSection,
 } from '@maximal/maximal-electron/renderer'
 
@@ -59,13 +59,18 @@ export function SearchDomainFilteringSection({
                     disabled={busy}
                     error={settingFieldError(field, value)}
                     labelAction={
-                      <IconButton
-                        label={`About ${field.label.toLowerCase()}`}
-                        tooltip={DOMAIN_HELP[field.key]}
-                        className="search-behavior__help"
+                      <Tooltip
+                        trigger={(
+                          <IconButton
+                            label={`About ${field.label.toLowerCase()}`}
+                            className="search-behavior__help"
+                          >
+                            <Info size={12} />
+                          </IconButton>
+                        )}
                       >
-                        <Info size={12} />
-                      </IconButton>
+                        {DOMAIN_HELP[field.key]}
+                      </Tooltip>
                     }
                     onChange={(next) => onGlobalChange(field.key, next)}
                   />

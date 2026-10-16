@@ -9,6 +9,7 @@ import type {
   LocalModelOperationEvent,
   SettingsCapabilities,
 } from './capabilities'
+import { selectedLabel } from '../fixtures/select'
 import { LocalModelsSection } from './LocalModelsSection'
 
 class NoopResizeObserver implements ResizeObserver {
@@ -353,61 +354,25 @@ describe('LocalModelsSection', () => {
     expect(actions?.querySelector('.settings__item-actions')).toBeNull()
   })
 
-  it('uses stepped context lengths and saves the selected value', async () => {
+  it('offers stepped context lengths and saves the selected value', async () => {
     const { capabilities, ollamaRuntime } = fakeCapabilities()
     const surface = await renderLocalModels(capabilities)
-    const slider = surface.querySelector<HTMLElement>(
-      '[role="slider"]',
+    const trigger = surface.querySelector<HTMLElement>(
+      '[data-testid="ollama-context-length"]',
     )
-    if (slider === null) throw new Error('context length slider was not rendered')
+    if (trigger === null) throw new Error('context length select was not rendered')
 
-    expect(slider.getAttribute('aria-valuemin')).toBe('4096')
-    expect(slider.getAttribute('aria-valuemax')).toBe('262144')
-    expect(slider.getAttribute('aria-valuenow')).toBe('4096')
-    expect(slider.getAttribute('aria-valuetext')).toBe('4k')
-    const marks = [...surface.querySelectorAll<HTMLElement>('.slider__mark')]
-    const labels = [...surface.querySelectorAll<HTMLElement>('.slider__label')]
-    expect(labels.map((label) => label.textContent)).toEqual([
-      '4k',
-      '8k',
-      '16k',
-      '32k',
-      '64k',
-      '128k',
-      '256k',
-    ])
-    expect(marks.map((mark) => mark.style.left)).toEqual(
-      labels.map((label) => label.style.left),
-    )
-    expect(marks.map((mark) => mark.hidden)).toEqual([
-      true,
-      false,
-      false,
-      false,
-      false,
-      false,
-      false,
-    ])
+    expect(selectedLabel(trigger)).toBe('4k')
     expect(surface.querySelector('input[type="number"]')).toBeNull()
-
-    await act(async () => {
-      slider.dispatchEvent(new KeyboardEvent('keydown', {
-        key: 'ArrowRight',
-        bubbles: true,
-      }))
-      await Promise.resolve()
-    })
+    await act(async () => trigger.click())
+    expect(
+      [...document.querySelectorAll('[role="option"]')].map((option) => option.textContent),
+    ).toEqual(['4k', '8k', '16k', '32k', '64k', '128k', '256k'])
+    const eightK = [...document.querySelectorAll<HTMLElement>('[role="option"]')]
+      .find((option) => option.textContent === '8k')
+    await act(async () => eightK?.click())
 
     expect(ollamaRuntime.updateContextLength).toHaveBeenCalledWith(8_192)
-    expect(slider.getAttribute('aria-valuetext')).toBe('8k')
-    expect(marks.map((mark) => mark.hidden)).toEqual([
-      true,
-      true,
-      false,
-      false,
-      false,
-      false,
-      false,
-    ])
+    expect(selectedLabel(trigger)).toBe('8k')
   })
 })

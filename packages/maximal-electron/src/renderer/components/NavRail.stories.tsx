@@ -145,7 +145,7 @@ function FleetRail({ collapsed }: { collapsed: boolean }) {
 }
 
 const meta = {
-  title: 'Layout/NavRail',
+  title: 'Deprecated/NavRail',
   component: AppRail,
   args: { collapsed: false },
   argTypes: { collapsed: { control: 'boolean' } },

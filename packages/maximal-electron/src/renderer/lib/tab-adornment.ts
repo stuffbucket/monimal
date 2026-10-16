@@ -14,7 +14,7 @@
 /** How a tab carries a signal the dot is the wrong size for. */
 export const TAB_EMPHASIS = ['attention', 'busy'] as const;
 
-export type TabEmphasis = (typeof TAB_EMPHASIS)[number];
+type TabEmphasis = (typeof TAB_EMPHASIS)[number];
 
 /**
  * The icons the shell sources.
@@ -67,7 +67,7 @@ export const EMPHASIS_LABELS: ReadonlyMap<TabEmphasis | undefined, string> = new
 ]);
 
 /** Which of the three the one slot draws. */
-export type TabSlot = 'custom' | 'status' | 'icon' | 'none';
+type TabSlot = 'custom' | 'status' | 'icon' | 'none';
 
 /**
  * What goes before the label, given whether the caller supplied a component.

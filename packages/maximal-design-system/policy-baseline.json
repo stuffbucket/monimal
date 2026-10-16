@@ -1,0 +1,4658 @@
+{
+  "version": 1,
+  "api": {
+    "version": 1,
+    "subpaths": [
+      {
+        "subpath": ".",
+        "target": "src/index.ts",
+        "kind": "typescript",
+        "exports": [
+          {
+            "name": "Accordion",
+            "declarations": [
+              "<Value extends string>({ items, className, ...props }: AccordionProps<Value>): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "AccordionItem",
+            "declarations": [
+              "export interface AccordionItem<Value extends string = string> { value: Value title: ReactNode content: ReactNode disabled?: boolean }"
+            ]
+          },
+          {
+            "name": "AccordionProps",
+            "declarations": [
+              "export interface AccordionProps<Value extends string = string> extends Omit<ComponentPropsWithRef<typeof BaseAccordion.Root>, 'children' | 'className'> { items: readonly AccordionItem<Value>[] className?: string }"
+            ]
+          },
+          {
+            "name": "AiIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "AlertDialog",
+            "declarations": [
+              "(props: AlertDialogProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "AlertDialogAcknowledgementProps",
+            "declarations": [
+              "export interface AlertDialogAcknowledgementProps extends AlertDialogBaseProps { action?: never tertiaryActions?: never cancelLabel?: never onCancel?: never acknowledgeLabel?: ReactNode /** Called when the dialog is acknowledged by its control or Escape. */ onAcknowledge?: () => void }"
+            ]
+          },
+          {
+            "name": "AlertDialogConfirmationProps",
+            "declarations": [
+              "export interface AlertDialogConfirmationProps extends AlertDialogBaseProps { /** * The primary response, placed last. Use a `primary` or `danger` `Button`, * and call `onOpenChange(false)` when its response completes. */ action: ReactNode /** * Lower-priority responses, placed between Cancel and the primary response. * Use a lower-emphasis `Button` variant such as `secondary-danger` or `ghost`. */ tertiaryActions?: ReactNode cancelLabel?: ReactNode /** Called when the dialog is cancelled by its cancel control or Escape. */ onCancel?: () => void acknowledgeLabel?: never onAcknowledge?: never }"
+            ]
+          },
+          {
+            "name": "AlertDialogProps",
+            "declarations": [
+              "export type AlertDialogProps = | AlertDialogConfirmationProps | AlertDialogAcknowledgementProps"
+            ]
+          },
+          {
+            "name": "alphaRamp",
+            "declarations": [
+              "(base: \"white\" | \"black\" | \"cream\"): Ramp"
+            ]
+          },
+          {
+            "name": "anchoredRamp",
+            "declarations": [
+              "(anchorHex: string, mode: ColorMode): Ramp"
+            ]
+          },
+          {
+            "name": "applyPalette",
+            "declarations": [
+              "(seeds: PaletteSeeds, target?: Document): void"
+            ]
+          },
+          {
+            "name": "applyTheme",
+            "declarations": [
+              "(theme: DesignSystemTheme, target?: Document, matchMedia?: ThemeMatchMedia | undefined): void"
+            ]
+          },
+          {
+            "name": "Autocomplete",
+            "declarations": [
+              "({ label, items, value, defaultValue, onValueChange, placeholder, disabled, className, containerProps, inputProps, popupProps, }: AutocompleteProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "AutocompleteProps",
+            "declarations": [
+              "export interface AutocompleteProps { label: ReactNode items: readonly string[] value?: string defaultValue?: string onValueChange?: (value: string) => void placeholder?: string disabled?: boolean className?: string containerProps?: Omit<ComponentPropsWithRef<'div'>, 'children'> & DataAttributes inputProps?: ComponentPropsWithRef<typeof BaseAutocomplete.Input> & DataAttributes popupProps?: Omit< ComponentPropsWithRef<typeof BaseAutocomplete.Popup>, 'children' > & DataAttributes }"
+            ]
+          },
+          {
+            "name": "Avatar",
+            "declarations": [
+              "({ src, alt, fallback, className, ...props }: AvatarProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "AvatarProps",
+            "declarations": [
+              "export interface AvatarProps extends Omit<ComponentPropsWithRef<typeof BaseAvatar.Root>, 'children' | 'className'> { src?: string alt: string fallback?: ReactNode className?: string }"
+            ]
+          },
+          {
+            "name": "BellIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "BRAND_COLOR",
+            "declarations": [
+              "Oklch"
+            ]
+          },
+          {
+            "name": "BRAND_CREAM_COLOR",
+            "declarations": [
+              "Oklch"
+            ]
+          },
+          {
+            "name": "BRAND_CREAM_HEX",
+            "declarations": [
+              "string"
+            ]
+          },
+          {
+            "name": "BRAND_CREAM_SOURCE_HEX",
+            "declarations": [
+              "\"#f2ead6\""
+            ]
+          },
+          {
+            "name": "BRAND_HEX",
+            "declarations": [
+              "string"
+            ]
+          },
+          {
+            "name": "BRAND_RAMP",
+            "declarations": [
+              "\"crimson\""
+            ]
+          },
+          {
+            "name": "BRAND_SOURCE_HEX",
+            "declarations": [
+              "\"#b8404d\""
+            ]
+          },
+          {
+            "name": "brandHueRamp",
+            "declarations": [
+              "(mode: ColorMode): Ramp"
+            ]
+          },
+          {
+            "name": "Button",
+            "declarations": [
+              "({ variant, className, children, ...props }: ButtonProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ButtonProps",
+            "declarations": [
+              "export interface ButtonProps extends Omit<ComponentPropsWithRef<typeof BaseButton>, 'className'> { variant?: ButtonVariant className?: string children: ReactNode }"
+            ]
+          },
+          {
+            "name": "ButtonVariant",
+            "declarations": [
+              "export type ButtonVariant = | 'primary' | 'secondary' | 'danger' | 'secondary-danger' | 'inverse' | 'link' | 'ghost'"
+            ]
+          },
+          {
+            "name": "Callout",
+            "declarations": [
+              "({ title, selected, onSelect, className, children, ...props }: CalloutProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CalloutProps",
+            "declarations": [
+              "export interface CalloutProps extends SelectableOptionProps { title: ReactNode }"
+            ]
+          },
+          {
+            "name": "CANVAS_ZOOM",
+            "declarations": [
+              "{ readonly default: 100; readonly maximum: 200; readonly minimum: 25; readonly presets: readonly [50, 100, 200]; readonly step: 10; }"
+            ]
+          },
+          {
+            "name": "CanvasInspectorSections",
+            "declarations": [
+              "(): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CanvasToolbar",
+            "declarations": [
+              "({ showSecondary, }: CanvasToolbarProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CanvasToolbarProps",
+            "declarations": [
+              "export interface CanvasToolbarProps { showSecondary?: boolean }"
+            ]
+          },
+          {
+            "name": "Card",
+            "declarations": [
+              "({ selected, onSelect, className, children, ...props }: CardProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CardProps",
+            "declarations": [
+              "export interface CardProps extends SelectableOptionProps {}"
+            ]
+          },
+          {
+            "name": "Checkbox",
+            "declarations": [
+              "({ label, className, ...props }: CheckboxProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CheckboxProps",
+            "declarations": [
+              "export interface CheckboxProps extends Omit<ComponentPropsWithRef<typeof BaseCheckbox.Root>, 'children' | 'className'> { label: ReactNode className?: string }"
+            ]
+          },
+          {
+            "name": "ChevronDownIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CloseIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CodeIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CollaboratorPopover",
+            "declarations": [
+              "(): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "Collapsible",
+            "declarations": [
+              "({ title, children, className, ...props }: CollapsibleProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CollapsibleProps",
+            "declarations": [
+              "export interface CollapsibleProps extends Omit< ComponentPropsWithRef<typeof BaseCollapsible.Root>, 'children' | 'title' > { title: ReactNode children: ReactNode className?: string }"
+            ]
+          },
+          {
+            "name": "COLOR_HUES",
+            "declarations": [
+              "readonly [\"blue\", \"purple\", \"pink\", \"red\", \"orange\", \"yellow\", \"green\", \"violet\", \"teal\", \"persimmon\"]"
+            ]
+          },
+          {
+            "name": "COLOR_STEPS",
+            "declarations": [
+              "readonly [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]"
+            ]
+          },
+          {
+            "name": "ColorHue",
+            "declarations": [
+              "export type ColorHue = ReferenceHue"
+            ]
+          },
+          {
+            "name": "ColorMode",
+            "declarations": [
+              "export type ColorMode = 'light' | 'dark'"
+            ]
+          },
+          {
+            "name": "ColorStep",
+            "declarations": [
+              "export type ColorStep = (typeof COLOR_STEPS)[number]"
+            ]
+          },
+          {
+            "name": "Combobox",
+            "declarations": [
+              "<Value extends string>({ label, options, groups, value, defaultValue, onValueChange, inputValue, defaultInputValue, onInputValueChange, placeholder, description, error, loading, loadingMessage, emptyMessage, disabled, inline, open, defaultOpen, onOpenChange, leading, showLabel, className, container, inputProps, popupProps, }: ComboboxProps<Value>): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ComboboxGroup",
+            "declarations": [
+              "export interface ComboboxGroup<Value extends string = string> { label: ReactNode options: readonly ComboboxOption<Value>[] }"
+            ]
+          },
+          {
+            "name": "ComboboxOption",
+            "declarations": [
+              "export interface ComboboxOption<Value extends string = string> { value: Value label: ReactNode textValue: string description?: ReactNode metadata?: ReactNode icon?: ReactNode keywords?: readonly string[] disabled?: boolean }"
+            ]
+          },
+          {
+            "name": "ComboboxProps",
+            "declarations": [
+              "export type ComboboxProps<Value extends string = string> = ComboboxSharedProps<Value> & ( | FlatComboboxProps<Value> | GroupedComboboxProps<Value> )"
+            ]
+          },
+          {
+            "name": "CommandIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CommentIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CompactControlCluster",
+            "declarations": [
+              "({ label, className, children, }: CompactControlClusterProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CompactControlClusterProps",
+            "declarations": [
+              "export interface CompactControlClusterProps { label: string className?: string children: ReactNode }"
+            ]
+          },
+          {
+            "name": "CompactControlGroup",
+            "declarations": [
+              "({ label, children, }: CompactControlGroupProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CompactControlGroupProps",
+            "declarations": [
+              "export interface CompactControlGroupProps { label: string children: ReactNode }"
+            ]
+          },
+          {
+            "name": "CompactProjectCluster",
+            "declarations": [
+              "({ onOpen }: { onOpen: () => void; }): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ContextMenu",
+            "declarations": [
+              "({ children, items, popupProps, ...props }: ContextMenuProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ContextMenuProps",
+            "declarations": [
+              "export interface ContextMenuProps extends Omit<ComponentPropsWithRef<typeof BaseContextMenu.Root>, 'children'> { children: ReactElement items: readonly MenuEntry[] popupProps?: Omit< ComponentPropsWithRef<typeof BaseContextMenu.Popup>, 'children' > & DataAttributes }"
+            ]
+          },
+          {
+            "name": "ControlButton",
+            "declarations": [
+              "({ className, ...props }: ControlButtonProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ControlButtonProps",
+            "declarations": [
+              "export interface ControlButtonProps extends Omit<ComponentPropsWithRef<typeof BaseButton>, 'className'> { className?: string }"
+            ]
+          },
+          {
+            "name": "CopyButton",
+            "declarations": [
+              "({ text, about, label, copiedLabel, disabled, className, onCopied, }: CopyButtonProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CopyButtonProps",
+            "declarations": [
+              "export interface CopyButtonProps { /** The text written to the clipboard. */ text: string /** What is being copied, appended to the label for the tooltip and accessible name. */ about?: string | undefined label?: string | undefined copiedLabel?: string | undefined disabled?: boolean | undefined className?: string | undefined onCopied?: (() => void) | undefined }"
+            ]
+          },
+          {
+            "name": "createThemeManager",
+            "declarations": [
+              "(environment?: ThemeEnvironment): ThemeManager"
+            ]
+          },
+          {
+            "name": "createToastManager",
+            "declarations": [
+              "<Data extends object = any>() => import(\"@base-ui/react\").ToastManager<Data>"
+            ]
+          },
+          {
+            "name": "deltaEOk",
+            "declarations": [
+              "(left: Oklch, right: Oklch): number"
+            ]
+          },
+          {
+            "name": "DesignIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "DesignSystemTheme",
+            "declarations": [
+              "export interface DesignSystemTheme { appearance: ThemeMode colors: PaletteSeeds }"
+            ]
+          },
+          {
+            "name": "Dialog",
+            "declarations": [
+              "({ open, onOpenChange, title, description, children, className, overlayClassName, viewportClassName, modal, disablePointerDismissal, onEscapeKeyDown, onKeyDown, onPointerDownOutside, initialFocus, finalFocus, showTitle, showDescription, popupProps, container, }: DialogProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "DialogFramePopupProps",
+            "declarations": [
+              "export type DialogFramePopupProps = Omit< DialogPopupProps, 'children' | 'finalFocus' | 'initialFocus' | 'onKeyDown' > & DataAttributes"
+            ]
+          },
+          {
+            "name": "DialogPortalContainer",
+            "declarations": [
+              "export type DialogPortalContainer = | HTMLElement | ShadowRoot | RefObject<HTMLElement | ShadowRoot | null> | null"
+            ]
+          },
+          {
+            "name": "DialogProps",
+            "declarations": [
+              "export interface DialogProps { open: boolean onOpenChange?: (open: boolean) => void title: ReactNode description?: ReactNode children: ReactNode className?: string overlayClassName?: string viewportClassName?: string modal?: DialogRootProps['modal'] disablePointerDismissal?: boolean onEscapeKeyDown?: (event: KeyboardEvent) => void onKeyDown?: DialogPopupProps['onKeyDown'] onPointerDownOutside?: (event: Event) => void initialFocus?: DialogPopupProps['initialFocus'] finalFocus?: DialogPopupProps['finalFocus'] showTitle?: boolean showDescription?: boolean popupProps?: DialogFramePopupProps container?: DialogPortalContainer }"
+            ]
+          },
+          {
+            "name": "EdgeResizer",
+            "declarations": [
+              "({ edge, resizeTargetRef, onResize, scrollTargetRef, overlap, label, keyboardStep, }: EdgeResizerProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "EdgeResizerProps",
+            "declarations": [
+              "export interface EdgeResizerProps { edge: ResizerEdge resizeTargetRef: RefObject<HTMLElement | null> onResize: (size: number) => void scrollTargetRef?: RefObject<HTMLElement | null> overlap?: boolean label?: string keyboardStep?: number }"
+            ]
+          },
+          {
+            "name": "EyeIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "Field",
+            "declarations": [
+              "({ label, description, error, className, textareaProps, ...props }: FieldProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "FieldProps",
+            "declarations": [
+              "export interface FieldProps extends Omit<ComponentPropsWithRef<typeof BaseField.Root>, 'children' | 'className'> { label: ReactNode description?: ReactNode error?: ReactNode className?: string textareaProps?: Omit< ComponentPropsWithRef<'textarea'>, 'aria-describedby' | 'aria-invalid' | 'className' > & DataAttributes }"
+            ]
+          },
+          {
+            "name": "Fieldset",
+            "declarations": [
+              "({ legend, children, className, ...props }: FieldsetProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "FieldsetProps",
+            "declarations": [
+              "export interface FieldsetProps extends Omit<ComponentPropsWithRef<typeof BaseFieldset.Root>, 'children' | 'className'> { legend: ReactNode children: ReactNode className?: string }"
+            ]
+          },
+          {
+            "name": "FolderIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "gamutMap",
+            "declarations": [
+              "(color: Oklch): Oklch"
+            ]
+          },
+          {
+            "name": "GridIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "HandIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "HelpIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "hexFromOklch",
+            "declarations": [
+              "(color: Oklch): string"
+            ]
+          },
+          {
+            "name": "HomeIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "hueRamp",
+            "declarations": [
+              "(hue: ColorHue, mode: ColorMode): Ramp"
+            ]
+          },
+          {
+            "name": "Icon",
+            "declarations": [
+              "({ children, label, size, className, ...props }: IconComponentProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ICON_SETS",
+            "declarations": [
+              "{ readonly compact: { readonly canvas: 16; readonly count: 133; readonly height: 3296; readonly namespaces: readonly [\"icon.16\"]; readonly source: \"compact/icons.sheet.svg\"; readonly width: 5312; }; readonly prominent: { readonly canvas: 24; readonly count: 634; readonly height: 6944; readonly namespaces: readonly [\"icon.24\", \"icon.16\"]; readonly source: \"prominent/icons.sheet.svg\"; readonly width: 8000; }; readonly 'stroke-endpoints': { readonly canvas: 16; readonly count: 34; readonly height: 1632; readonly namespaces: readonly [\"icon.16.stroke\"]; readonly source: \"stroke-endpoints/icons.sheet.svg\"; readonly width: 3968; }; }"
+            ]
+          },
+          {
+            "name": "IconButton",
+            "declarations": [
+              "({ label, variant, selected, className, children, ...props }: IconButtonProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "IconButtonProps",
+            "declarations": [
+              "export interface IconButtonProps extends Omit<ComponentPropsWithRef<typeof BaseButton>, 'aria-label' | 'className'> { label: string variant?: IconButtonVariant selected?: boolean className?: string children: ReactNode }"
+            ]
+          },
+          {
+            "name": "IconButtonVariant",
+            "declarations": [
+              "export type IconButtonVariant = 'default' | 'toggle' | 'grounded'"
+            ]
+          },
+          {
+            "name": "IconComponentProps",
+            "declarations": [
+              "export interface IconComponentProps extends Omit<ComponentPropsWithoutRef<'span'>, 'children'> { children: ReactElement<ComponentPropsWithoutRef<'svg'>> label?: string size?: IconSize }"
+            ]
+          },
+          {
+            "name": "IconProps",
+            "declarations": [
+              "export interface IconProps extends Omit<ComponentPropsWithoutRef<'svg'>, 'children' | 'viewBox'> { size?: number | string }"
+            ]
+          },
+          {
+            "name": "IconSetName",
+            "declarations": [
+              "export type IconSetName = keyof typeof ICON_SETS"
+            ]
+          },
+          {
+            "name": "IconSize",
+            "declarations": [
+              "export type IconSize = 'compact' | 'standard' | 'prominent'"
+            ]
+          },
+          {
+            "name": "InspectorPanel",
+            "declarations": [
+              "({ title, children, className, bodyClassName, ...props }: InspectorPanelProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "InspectorPanelProps",
+            "declarations": [
+              "export interface InspectorPanelProps extends Omit<ComponentPropsWithRef<'section'>, 'children' | 'title'> { title: ReactNode children: ReactNode bodyClassName?: string }"
+            ]
+          },
+          {
+            "name": "maxChroma",
+            "declarations": [
+              "(l: number, h: number): number"
+            ]
+          },
+          {
+            "name": "MaximalMarkIcon",
+            "declarations": [
+              "({ size, ...props }: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MaximizeIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MeasurementUnit",
+            "declarations": [
+              "export interface MeasurementUnit<Unit extends string = string> { value: Unit label: string aliases?: readonly string[] step: number fromCanonical: (value: number) => number toCanonical: (value: number) => number }"
+            ]
+          },
+          {
+            "name": "Menu",
+            "declarations": [
+              "({ variant, className, ...props }: MenuProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "Menubar",
+            "declarations": [
+              "({ menus, className, ...props }: MenubarProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MenubarMenu",
+            "declarations": [
+              "export interface MenubarMenu { label: ReactNode items: readonly MenuEntry[] }"
+            ]
+          },
+          {
+            "name": "MenubarProps",
+            "declarations": [
+              "export interface MenubarProps extends Omit<ComponentPropsWithRef<typeof BaseMenubar>, 'children' | 'className'> { menus: readonly MenubarMenu[] className?: string }"
+            ]
+          },
+          {
+            "name": "MenuCheckboxItem",
+            "declarations": [
+              "({ children, leading, description, trailing, indicatorPosition, className, ...props }: MenuCheckboxItemProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MenuCheckboxItemProps",
+            "declarations": [
+              "export interface MenuCheckboxItemProps extends Omit< ComponentPropsWithRef<typeof BaseMenu.CheckboxItem>, 'children' | 'className' >, Omit<MenuItemContentProps, 'leading' | 'trailing'> { leading?: ReactNode trailing?: ReactNode indicatorPosition?: 'leading' | 'trailing' className?: string }"
+            ]
+          },
+          {
+            "name": "MenuEntry",
+            "declarations": [
+              "export interface MenuEntry { label: ReactNode onSelect?: () => void disabled?: boolean }"
+            ]
+          },
+          {
+            "name": "MenuFooter",
+            "declarations": [
+              "({ className, ...props }: MenuFooterProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MenuFooterProps",
+            "declarations": [
+              "export interface MenuFooterProps extends Omit<ComponentPropsWithRef<typeof BaseMenu.Group>, 'className'> { className?: string }"
+            ]
+          },
+          {
+            "name": "MenuGroup",
+            "declarations": [
+              "({ label, className, children, ...props }: MenuGroupProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MenuGroupProps",
+            "declarations": [
+              "export interface MenuGroupProps extends Omit<ComponentPropsWithRef<typeof BaseMenu.Group>, 'className'> { label?: ReactNode className?: string }"
+            ]
+          },
+          {
+            "name": "MenuItem",
+            "declarations": [
+              "({ children, leading, description, trailing, className, ...props }: MenuItemProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MenuItemContent",
+            "declarations": [
+              "({ children, leading, description, trailing, }: MenuItemContentProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MenuItemContentProps",
+            "declarations": [
+              "export interface MenuItemContentProps { children: ReactNode leading?: ReactNode description?: ReactNode trailing?: ReactNode }"
+            ]
+          },
+          {
+            "name": "MenuItemProps",
+            "declarations": [
+              "export interface MenuItemProps extends Omit< ComponentPropsWithRef<typeof BaseMenu.Item>, 'children' | 'className' >, MenuItemContentProps { className?: string }"
+            ]
+          },
+          {
+            "name": "MenuProps",
+            "declarations": [
+              "export interface MenuProps extends HTMLAttributes<HTMLDivElement>, DataAttributes { variant?: MenuVariant }"
+            ]
+          },
+          {
+            "name": "MenuRadioGroup",
+            "declarations": [
+              "(props: MenuRadioGroupProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MenuRadioGroupProps",
+            "declarations": [
+              "export interface MenuRadioGroupProps extends ComponentPropsWithRef<typeof BaseMenu.RadioGroup> {}"
+            ]
+          },
+          {
+            "name": "MenuRadioItem",
+            "declarations": [
+              "({ children, description, trailing, className, ...props }: MenuRadioItemProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MenuRadioItemProps",
+            "declarations": [
+              "export interface MenuRadioItemProps extends Omit< ComponentPropsWithRef<typeof BaseMenu.RadioItem>, 'children' | 'className' >, Omit<MenuItemContentProps, 'leading'> { className?: string }"
+            ]
+          },
+          {
+            "name": "MenuRoot",
+            "declarations": [
+              "({ trigger, children, align, side, sideOffset, container, popupProps, loopFocus, ...props }: MenuRootProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MenuRootProps",
+            "declarations": [
+              "export interface MenuRootProps extends Omit<ComponentPropsWithRef<typeof BaseMenu.Root>, 'children'> { trigger: ReactElement children: ReactNode align?: ComponentPropsWithRef<typeof BaseMenu.Positioner>['align'] side?: ComponentPropsWithRef<typeof BaseMenu.Positioner>['side'] sideOffset?: number container?: | HTMLElement | ShadowRoot | RefObject<HTMLElement | ShadowRoot | null> | null popupProps?: MenuPopupProps }"
+            ]
+          },
+          {
+            "name": "MenuSeparator",
+            "declarations": [
+              "({ className, ...props }: MenuSeparatorProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MenuSeparatorProps",
+            "declarations": [
+              "export interface MenuSeparatorProps extends HTMLAttributes<HTMLHRElement> {}"
+            ]
+          },
+          {
+            "name": "MenuSubmenu",
+            "declarations": [
+              "({ label, children, leading, disabled, popupProps, }: MenuSubmenuProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MenuSubmenuProps",
+            "declarations": [
+              "export interface MenuSubmenuProps { label: ReactNode children: ReactNode leading?: ReactNode disabled?: boolean popupProps?: MenuPopupProps }"
+            ]
+          },
+          {
+            "name": "MenuVariant",
+            "declarations": [
+              "export type MenuVariant = 'default' | 'search'"
+            ]
+          },
+          {
+            "name": "MinimizeIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "mixOklab",
+            "declarations": [
+              "(from: Oklch, to: Oklch, amount: number): Oklch"
+            ]
+          },
+          {
+            "name": "MoveIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "neutralRamp",
+            "declarations": [
+              "(backgroundHex: string, textHex: string, mode: ColorMode): Ramp"
+            ]
+          },
+          {
+            "name": "normalizeCanvasZoom",
+            "declarations": [
+              "(value: number): number"
+            ]
+          },
+          {
+            "name": "NumberInput",
+            "declarations": [
+              "({ label, onCommit, className, inputProps, ...props }: NumberInputProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "NumberInputProps",
+            "declarations": [
+              "export interface NumberInputProps extends Omit< ComponentPropsWithRef<typeof NumberField.Root>, 'children' | 'className' | 'onValueCommitted' > { label: ReactNode onCommit?: (value: number | null) => void className?: string inputProps?: ComponentPropsWithRef<typeof NumberField.Input> & DataAttributes }"
+            ]
+          },
+          {
+            "name": "Oklch",
+            "declarations": [
+              "export interface Oklch { l: number c: number h: number }"
+            ]
+          },
+          {
+            "name": "oklchFromHex",
+            "declarations": [
+              "(hex: string): Oklch"
+            ]
+          },
+          {
+            "name": "PageControls",
+            "declarations": [
+              "({ color, onColorChange, visible, onVisibleChange, }: PageControlsProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "PageControlsProps",
+            "declarations": [
+              "export interface PageControlsProps { color: string onColorChange: (color: string) => void visible: boolean onVisibleChange: (visible: boolean) => void }"
+            ]
+          },
+          {
+            "name": "paleRamp",
+            "declarations": [
+              "(hue: ColorHue): Ramp"
+            ]
+          },
+          {
+            "name": "PALETTE_STYLE_ID",
+            "declarations": [
+              "\"maximal-palette\""
+            ]
+          },
+          {
+            "name": "paletteCss",
+            "declarations": [
+              "(seeds: PaletteSeeds): string"
+            ]
+          },
+          {
+            "name": "PaletteSeed",
+            "declarations": [
+              "export interface PaletteSeed { background: string surface: string text: string accent: string /* Pins icon-onbrand, such as to a brand mark's colour, regardless of contrast. */ accentIcon?: string }"
+            ]
+          },
+          {
+            "name": "PaletteSeeds",
+            "declarations": [
+              "export interface PaletteSeeds { light: PaletteSeed dark: PaletteSeed }"
+            ]
+          },
+          {
+            "name": "paletteTokens",
+            "declarations": [
+              "(seeds: PaletteSeeds): Record<ColorMode, PaletteTokens>"
+            ]
+          },
+          {
+            "name": "PaletteTokens",
+            "declarations": [
+              "export type PaletteTokens = Record<`--${string}`, string>"
+            ]
+          },
+          {
+            "name": "PenIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "PersonIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "PlayIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "PlusIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "Popover",
+            "declarations": [
+              "({ trigger, title, description, children, popupProps, ...props }: PopoverProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "PopoverProps",
+            "declarations": [
+              "export interface PopoverProps extends Omit<ComponentPropsWithRef<typeof BasePopover.Root>, 'children'> { trigger: ReactElement title?: ReactNode description?: ReactNode children: ReactNode popupProps?: Omit< ComponentPropsWithRef<typeof BasePopover.Popup>, 'children' > & DataAttributes }"
+            ]
+          },
+          {
+            "name": "ProjectDetails",
+            "declarations": [
+              "(): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ProjectNavigation",
+            "declarations": [
+              "({ pagesHeight, onPagesHeightChange, }: ProjectNavigationProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ProjectNavigationProps",
+            "declarations": [
+              "export interface ProjectNavigationProps { pagesHeight?: number onPagesHeightChange?: (height: number) => void }"
+            ]
+          },
+          {
+            "name": "Property",
+            "declarations": [
+              "({ label, value, className, ...props }: PropertyProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "PropertyList",
+            "declarations": [
+              "({ children, className, ...props }: PropertyListProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "PropertyListProps",
+            "declarations": [
+              "export interface PropertyListProps extends Omit<ComponentPropsWithRef<'dl'>, 'children'> { children: ReactNode }"
+            ]
+          },
+          {
+            "name": "PropertyProps",
+            "declarations": [
+              "export interface PropertyProps extends Omit<ComponentPropsWithRef<'div'>, 'children'> { label: ReactNode value: ReactNode }"
+            ]
+          },
+          {
+            "name": "Radio",
+            "declarations": [
+              "({ label, className, ...props }: RadioProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "RadioGroup",
+            "declarations": [
+              "<Value extends string>({ options, className, ...props }: RadioGroupProps<Value>): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "RadioGroupProps",
+            "declarations": [
+              "export interface RadioGroupProps<Value extends string = string> extends Omit<ComponentPropsWithRef<typeof BaseRadioGroup<Value>>, 'children' | 'className'> { options: readonly RadioOption<Value>[] className?: string }"
+            ]
+          },
+          {
+            "name": "RadioOption",
+            "declarations": [
+              "export interface RadioOption<Value extends string = string> { value: Value label: ReactNode disabled?: boolean }"
+            ]
+          },
+          {
+            "name": "RadioProps",
+            "declarations": [
+              "export interface RadioProps extends Omit<ComponentPropsWithRef<typeof BaseRadio.Root>, 'children' | 'className'> { label: ReactNode className?: string }"
+            ]
+          },
+          {
+            "name": "Ramp",
+            "declarations": [
+              "export type Ramp = Record<ColorStep, string>"
+            ]
+          },
+          {
+            "name": "REFERENCE_BLACK_ALPHA",
+            "declarations": [
+              "readonly [0.05, 0.1, 0.2, 0.3, 0.5, 0.8, 0.85, 0.9, 0.95, 1]"
+            ]
+          },
+          {
+            "name": "REFERENCE_HUES",
+            "declarations": [
+              "readonly [\"blue\", \"purple\", \"pink\", \"red\", \"orange\", \"yellow\", \"green\", \"violet\", \"teal\", \"persimmon\"]"
+            ]
+          },
+          {
+            "name": "REFERENCE_PALE_HUES",
+            "declarations": [
+              "readonly [\"blue\", \"purple\", \"pink\", \"red\", \"yellow\", \"green\", \"violet\", \"teal\", \"persimmon\"]"
+            ]
+          },
+          {
+            "name": "REFERENCE_PALE_RAMPS",
+            "declarations": [
+              "Record<\"blue\" | \"purple\" | \"pink\" | \"red\" | \"yellow\" | \"green\" | \"violet\" | \"teal\" | \"persimmon\", ReferenceRamp>"
+            ]
+          },
+          {
+            "name": "REFERENCE_PALETTE_SEEDS",
+            "declarations": [
+              "PaletteSeeds"
+            ]
+          },
+          {
+            "name": "REFERENCE_RAMPS",
+            "declarations": [
+              "{ readonly light: Record<\"blue\" | \"purple\" | \"pink\" | \"red\" | \"orange\" | \"yellow\" | \"green\" | \"violet\" | \"teal\" | \"persimmon\" | \"grey\", ReferenceRamp>; readonly dark: Record<\"blue\" | \"purple\" | \"pink\" | \"red\" | \"orange\" | \"yellow\" | \"green\" | \"violet\" | \"teal\" | \"persimmon\" | \"grey\", ReferenceRamp>; }"
+            ]
+          },
+          {
+            "name": "REFERENCE_WHITE_ALPHA",
+            "declarations": [
+              "readonly [0.05, 0.1, 0.2, 0.4, 0.7, 0.8, 0.85, 0.9, 0.95, 1]"
+            ]
+          },
+          {
+            "name": "referenceGreyRamp",
+            "declarations": [
+              "(mode: ColorMode): Ramp"
+            ]
+          },
+          {
+            "name": "ReferenceHue",
+            "declarations": [
+              "export type ReferenceHue = (typeof REFERENCE_HUES)[number]"
+            ]
+          },
+          {
+            "name": "ReferencePaleHue",
+            "declarations": [
+              "export type ReferencePaleHue = (typeof REFERENCE_PALE_HUES)[number]"
+            ]
+          },
+          {
+            "name": "ReferenceRamp",
+            "declarations": [
+              "export type ReferenceRamp = readonly [string, string, string, string, string, string, string, string, string, string]"
+            ]
+          },
+          {
+            "name": "ResizerEdge",
+            "declarations": [
+              "export type ResizerEdge = 'top' | 'right' | 'bottom' | 'left'"
+            ]
+          },
+          {
+            "name": "resolvePaletteToken",
+            "declarations": [
+              "(tokens: PaletteTokens, name: `--${string}`): string"
+            ]
+          },
+          {
+            "name": "resolveThemeMode",
+            "declarations": [
+              "(mode: ThemeMode, matchMedia?: ThemeMatchMedia | undefined): ColorMode"
+            ]
+          },
+          {
+            "name": "ScrollArea",
+            "declarations": [
+              "({ children, className, viewportClassName, contentClassName, scrollbars, ...props }: ScrollAreaProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ScrollAreaProps",
+            "declarations": [
+              "export interface ScrollAreaProps extends Omit<ComponentPropsWithRef<typeof BaseScrollArea.Root>, 'children' | 'className'> { children: ReactNode className?: string viewportClassName?: string contentClassName?: string /** `hidden` keeps the content scrollable without drawing scrollbars. */ scrollbars?: ScrollbarVisibility | 'hidden' }"
+            ]
+          },
+          {
+            "name": "Scrollbar",
+            "declarations": [
+              "({ scroller, orientation, visibility, label, className, }: ScrollbarProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ScrollbarOrientation",
+            "declarations": [
+              "export type ScrollbarOrientation = 'vertical' | 'horizontal'"
+            ]
+          },
+          {
+            "name": "ScrollbarProps",
+            "declarations": [
+              "export interface ScrollbarProps { /** The native scroll container the scrollbar reports and controls. */ scroller: RefObject<HTMLElement | null> orientation?: ScrollbarOrientation visibility?: ScrollbarVisibility /** * Names a keyboard-operable scrollbar. Omit it where the scroller is * already keyboard-scrollable, such as a menu, to keep the thumb out of the * tab order and the accessibility tree. */ label?: string | undefined className?: string | undefined }"
+            ]
+          },
+          {
+            "name": "ScrollbarVisibility",
+            "declarations": [
+              "export type ScrollbarVisibility = 'auto' | 'always'"
+            ]
+          },
+          {
+            "name": "SearchIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SectionIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "Select",
+            "declarations": [
+              "<Value extends string>({ value, defaultValue, onValueChange, options, placeholder, label, disabled, required, name, className, triggerProps, popupProps, }: SelectProps<Value>): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SelectOption",
+            "declarations": [
+              "export interface SelectOption<Value extends string = string> { value: Value label: ReactNode disabled?: boolean }"
+            ]
+          },
+          {
+            "name": "SelectProps",
+            "declarations": [
+              "export interface SelectProps<Value extends string = string> { value?: Value defaultValue?: Value onValueChange?: (value: Value) => void options: readonly SelectOption<Value>[] placeholder?: ReactNode label?: ReactNode disabled?: boolean required?: boolean name?: string className?: string triggerProps?: SelectTriggerProps popupProps?: SelectPopupProps }"
+            ]
+          },
+          {
+            "name": "Separator",
+            "declarations": [
+              "({ className, ...props }: SeparatorProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SeparatorProps",
+            "declarations": [
+              "export interface SeparatorProps extends Omit<ComponentPropsWithRef<typeof BaseSeparator>, 'className'> { className?: string }"
+            ]
+          },
+          {
+            "name": "SettingsIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ShapesIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ShellStatusControls",
+            "declarations": [
+              "({ zoom, onZoomChange, showNotification, }: ShellStatusControlsProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ShellStatusControlsProps",
+            "declarations": [
+              "export interface ShellStatusControlsProps { zoom: number onZoomChange: (zoom: number) => void showNotification?: boolean }"
+            ]
+          },
+          {
+            "name": "Sidebar",
+            "declarations": [
+              "({ id, side, title, label, headerContent, open, onOpenChange, children, resizable, overlapResizer, showToggle, toggleLabel, collapsedContent, size, onSizeChange, scrollTop, onScrollTopChange, bodyScrollable, }: SidebarProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SidebarIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SidebarProps",
+            "declarations": [
+              "export interface SidebarProps { id: string side: SidebarSide title?: string label?: string headerContent?: ReactNode open: boolean onOpenChange: (open: boolean) => void children: ReactNode resizable?: boolean overlapResizer?: boolean showToggle?: boolean toggleLabel?: string collapsedContent?: ReactNode size?: number onSizeChange?: (size: number) => void scrollTop?: number onScrollTopChange?: (scrollTop: number) => void bodyScrollable?: boolean }"
+            ]
+          },
+          {
+            "name": "SidebarSection",
+            "declarations": [
+              "({ title, leading, actions, children, className, scroll, label, }: SidebarSectionProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SidebarSectionProps",
+            "declarations": [
+              "export interface SidebarSectionProps { title?: string leading?: ReactNode actions?: ReactNode children: ReactNode className?: string scroll?: 'none' | 'horizontal' label?: string }"
+            ]
+          },
+          {
+            "name": "SidebarSectionSplit",
+            "declarations": [
+              "({ primary, secondary, primarySize, onPrimarySizeChange, label, }: SidebarSectionSplitProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SidebarSectionSplitProps",
+            "declarations": [
+              "export interface SidebarSectionSplitProps { primary: ReactNode secondary: ReactNode primarySize?: number onPrimarySizeChange?: (size: number) => void label?: string }"
+            ]
+          },
+          {
+            "name": "SidebarSide",
+            "declarations": [
+              "export type SidebarSide = 'left' | 'right'"
+            ]
+          },
+          {
+            "name": "Slider",
+            "declarations": [
+              "({ label, className, ...props }: SliderProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SliderProps",
+            "declarations": [
+              "export interface SliderProps extends Omit<ComponentPropsWithRef<typeof BaseSlider.Root<number>>, 'children' | 'className'> { label: ReactNode className?: string }"
+            ]
+          },
+          {
+            "name": "StampIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "StatusChip",
+            "declarations": [
+              "({ status, label, className, ...props }: StatusChipProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "StatusChipProps",
+            "declarations": [
+              "export interface StatusChipProps extends Omit<ComponentPropsWithRef<'span'>, 'children'> { status: string label: ReactNode }"
+            ]
+          },
+          {
+            "name": "stepCanvasZoom",
+            "declarations": [
+              "(value: number, direction: -1 | 1): number"
+            ]
+          },
+          {
+            "name": "StickyIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SubmenuIndicator",
+            "declarations": [
+              "({ children }: SubmenuIndicatorProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SubmenuIndicatorProps",
+            "declarations": [
+              "export interface SubmenuIndicatorProps { children: ReactNode }"
+            ]
+          },
+          {
+            "name": "SurfaceCanvasCluster",
+            "declarations": [
+              "({ compact, value, onValueChange, }: SurfaceCanvasClusterProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SurfaceCanvasClusterProps",
+            "declarations": [
+              "export interface SurfaceCanvasClusterProps extends ZoomMenuProps { compact?: boolean }"
+            ]
+          },
+          {
+            "name": "Switch",
+            "declarations": [
+              "({ label, className, ...props }: SwitchProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SwitchProps",
+            "declarations": [
+              "export interface SwitchProps extends Omit<ComponentPropsWithRef<typeof BaseSwitch.Root>, 'children' | 'className'> { label: ReactNode className?: string }"
+            ]
+          },
+          {
+            "name": "Tab",
+            "declarations": [
+              "({ label, icon, active, closable, onClose, className, onAuxClick, onKeyDown, ...props }: TabProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "TabBar",
+            "declarations": [
+              "({ items, value, onValueChange, onClose, renderPanel, label, leading, trailing, }: TabBarProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "TabBarItem",
+            "declarations": [
+              "export interface TabBarItem { id: string label: string icon?: ReactNode disabled?: boolean /** `false` hides the active tab's close glyph and ignores close gestures. */ closable?: boolean /** Keeps the panel's content mounted while another tab is active. */ keepMounted?: boolean }"
+            ]
+          },
+          {
+            "name": "TabBarProps",
+            "declarations": [
+              "export interface TabBarProps { items: readonly TabBarItem[] value: string onValueChange: (value: string) => void /** Delete, Backspace, middle-click, or the active tab's close glyph. */ onClose?: (value: string) => void renderPanel: (item: TabBarItem) => ReactNode label?: string leading?: ReactNode trailing?: ReactNode }"
+            ]
+          },
+          {
+            "name": "TableIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "TabProps",
+            "declarations": [
+              "export interface TabProps extends Omit<BaseTabProps, 'children' | 'className'> { label: ReactNode icon?: ReactNode active?: boolean closable?: boolean onClose?: () => void className?: string }"
+            ]
+          },
+          {
+            "name": "Tabs",
+            "declarations": [
+              "<Value extends string>({ items, value, defaultValue, className, ...props }: TabsProps<Value>): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "TabSearch",
+            "declarations": [
+              "({ tabs, activeTab, onActiveTabChange, }: TabSearchProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "TabSearchProps",
+            "declarations": [
+              "export interface TabSearchProps { tabs: readonly TabBarItem[] activeTab: string onActiveTabChange: (tab: string) => void }"
+            ]
+          },
+          {
+            "name": "TabsItem",
+            "declarations": [
+              "export interface TabsItem<Value extends string = string> { value: Value label: ReactNode icon?: ReactNode content: ReactNode disabled?: boolean }"
+            ]
+          },
+          {
+            "name": "TabsProps",
+            "declarations": [
+              "export interface TabsProps<Value extends string = string> extends Omit<ComponentPropsWithRef<typeof BaseTabs.Root>, 'children' | 'className'> { items: readonly TabsItem<Value>[] className?: string }"
+            ]
+          },
+          {
+            "name": "Terminal",
+            "declarations": [
+              "({ label, lines }: TerminalProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "TerminalLine",
+            "declarations": [
+              "export interface TerminalLine { id: string content: string tone?: TerminalLineTone }"
+            ]
+          },
+          {
+            "name": "TerminalLineTone",
+            "declarations": [
+              "export type TerminalLineTone = 'command' | 'output' | 'success' | 'muted'"
+            ]
+          },
+          {
+            "name": "TerminalProps",
+            "declarations": [
+              "export interface TerminalProps { label: string lines: readonly TerminalLine[] }"
+            ]
+          },
+          {
+            "name": "TextIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "TextInput",
+            "declarations": [
+              "({ label, description, error, leading, trailing, showLabel, className, inputClassName, ...props }: TextInputProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "TextInputProps",
+            "declarations": [
+              "export interface TextInputProps extends Omit<ComponentPropsWithRef<typeof BaseInput>, 'className'> { label: ReactNode description?: ReactNode error?: ReactNode leading?: ReactNode trailing?: ReactNode showLabel?: boolean className?: string inputClassName?: string }"
+            ]
+          },
+          {
+            "name": "ThemeManager",
+            "declarations": [
+              "export interface ThemeManager { setTheme(theme: DesignSystemTheme): void dispose(): void }"
+            ]
+          },
+          {
+            "name": "ThemeMatchMedia",
+            "declarations": [
+              "export type ThemeMatchMedia = (query: string) => ThemeMediaQuery"
+            ]
+          },
+          {
+            "name": "ThemeMediaQuery",
+            "declarations": [
+              "export interface ThemeMediaQuery { readonly matches: boolean addEventListener(type: 'change', listener: () => void): void removeEventListener(type: 'change', listener: () => void): void }"
+            ]
+          },
+          {
+            "name": "ThemeMode",
+            "declarations": [
+              "export type ThemeMode = ColorMode | 'system'"
+            ]
+          },
+          {
+            "name": "ToastProvider",
+            "declarations": [
+              "({ children, ...props }: ToastProviderProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ToastProviderProps",
+            "declarations": [
+              "export interface ToastProviderProps extends ComponentPropsWithRef<typeof BaseToast.Provider> { children: ReactNode }"
+            ]
+          },
+          {
+            "name": "ToastViewport",
+            "declarations": [
+              "(): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ToggleButton",
+            "declarations": [
+              "({ selected, ...props }: ToggleButtonProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ToggleButtonProps",
+            "declarations": [
+              "export interface ToggleButtonProps extends Omit<ControlButtonProps, 'aria-pressed'> { selected: boolean }"
+            ]
+          },
+          {
+            "name": "ToggleGroup",
+            "declarations": [
+              "<Value extends string>({ options, className, ...props }: ToggleGroupProps<Value>): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ToggleGroupOption",
+            "declarations": [
+              "export interface ToggleGroupOption<Value extends string = string> { value: Value label: ReactNode disabled?: boolean }"
+            ]
+          },
+          {
+            "name": "ToggleGroupProps",
+            "declarations": [
+              "export interface ToggleGroupProps<Value extends string = string> extends Omit<ComponentPropsWithRef<typeof BaseToggleGroup<Value>>, 'children' | 'className'> { options: readonly ToggleGroupOption<Value>[] className?: string }"
+            ]
+          },
+          {
+            "name": "ToggleSidebar",
+            "declarations": [
+              "({ side, open, onPressedChange, label, controls, }: ToggleSidebarProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ToggleSidebarProps",
+            "declarations": [
+              "export interface ToggleSidebarProps { side: SidebarSide open: boolean onPressedChange: (open: boolean) => void label?: string controls?: string }"
+            ]
+          },
+          {
+            "name": "Toolbar",
+            "declarations": [
+              "({ children, className, ...props }: ToolbarProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ToolbarButton",
+            "declarations": [
+              "({ className, ...props }: ToolbarButtonProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ToolbarButtonProps",
+            "declarations": [
+              "export interface ToolbarButtonProps extends Omit<ComponentPropsWithRef<typeof BaseToolbar.Button>, 'className'> { className?: string }"
+            ]
+          },
+          {
+            "name": "ToolbarGroup",
+            "declarations": [
+              "({ children, className, ...props }: ToolbarGroupProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ToolbarGroupProps",
+            "declarations": [
+              "export interface ToolbarGroupProps extends Omit<ComponentPropsWithRef<typeof BaseToolbar.Group>, 'children' | 'className'> { children: ReactNode className?: string }"
+            ]
+          },
+          {
+            "name": "ToolbarProps",
+            "declarations": [
+              "export interface ToolbarProps extends Omit<ComponentPropsWithRef<typeof BaseToolbar.Root>, 'children' | 'className'> { children: ReactNode className?: string }"
+            ]
+          },
+          {
+            "name": "Tooltip",
+            "declarations": [
+              "({ trigger, children, side, popupProps, ...props }: TooltipProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "TooltipProps",
+            "declarations": [
+              "export interface TooltipProps extends Omit<ComponentPropsWithRef<typeof BaseTooltip.Root>, 'children'> { trigger: ReactElement children: ReactNode /** Which side of the trigger the tooltip opens on; defaults to above it. */ side?: ComponentPropsWithRef<typeof BaseTooltip.Positioner>['side'] popupProps?: Omit< ComponentPropsWithRef<typeof BaseTooltip.Popup>, 'children' > & DataAttributes }"
+            ]
+          },
+          {
+            "name": "UnitValueInput",
+            "declarations": [
+              "<Unit extends string>({ label, value, units, defaultUnit, minimum, maximum, canonicalStep, disabled, onCommit, className, numberInputProps, unitSelectTriggerProps, unitSelectPopupProps, ...containerProps }: UnitValueInputProps<Unit>): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "UnitValueInputProps",
+            "declarations": [
+              "export interface UnitValueInputProps<Unit extends string = string> extends Omit<ComponentPropsWithRef<'div'>, 'children' | 'className'> { label: ReactNode value: number units: readonly MeasurementUnit<Unit>[] defaultUnit: Unit minimum?: number maximum?: number canonicalStep?: number disabled?: boolean onCommit: (value: number) => void className?: string numberInputProps?: NumberInputProps['inputProps'] unitSelectTriggerProps?: SelectProps<Unit>['triggerProps'] unitSelectPopupProps?: SelectProps<Unit>['popupProps'] }"
+            ]
+          },
+          {
+            "name": "useToastManager",
+            "declarations": [
+              "<Data extends object = any>() => import(\"@base-ui/react\").UseToastManagerReturnValue<Data>"
+            ]
+          },
+          {
+            "name": "wcagContrast",
+            "declarations": [
+              "(left: string, right: string): number"
+            ]
+          },
+          {
+            "name": "WidgetIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "WindowControls",
+            "declarations": [
+              "({ native, onClose, onMinimize, onMaximize, }: WindowControlsProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "WindowControlsProps",
+            "declarations": [
+              "export interface WindowControlsProps { /** Reserves the controls' footprint for platform-drawn window buttons. */ native?: boolean onClose?: () => void onMinimize?: () => void onMaximize?: () => void }"
+            ]
+          },
+          {
+            "name": "WorkspaceNavigationSlot",
+            "declarations": [
+              "export interface WorkspaceNavigationSlot { label?: string header?: ReactNode items?: ReactNode footer?: ReactNode }"
+            ]
+          },
+          {
+            "name": "WorkspaceShell",
+            "declarations": [
+              "({ tabs, activeTab, onActiveTabChange, renderPanel, onCloseTab, tabLeading, tabTrailing, navigation, leftSidebar, rightSidebar, sidebarsOpen, onSidebarsOpenChange, compactContent, mainOverlay, mainRef, backgroundVisible, fill, children, }: WorkspaceShellProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "WorkspaceShellProps",
+            "declarations": [
+              "export interface WorkspaceShellProps { tabs: readonly TabBarItem[] activeTab: string onActiveTabChange: (tab: string) => void renderPanel: (item: TabBarItem) => ReactNode onCloseTab?: (tab: string) => void tabLeading?: ReactNode tabTrailing?: ReactNode navigation?: WorkspaceNavigationSlot leftSidebar?: WorkspaceSidebarSlot rightSidebar?: WorkspaceSidebarSlot sidebarsOpen: boolean onSidebarsOpenChange: (open: boolean) => void /** Main-area content shown only while the sidebars are collapsed. */ compactContent?: ReactNode /** Main-area content drawn above the tab panels. */ mainOverlay?: ReactNode mainRef?: Ref<HTMLElement> backgroundVisible?: boolean /** Fills the host viewport instead of drawing a floating window frame. */ fill?: boolean children?: ReactNode }"
+            ]
+          },
+          {
+            "name": "WorkspaceShellSpike",
+            "declarations": [
+              "({ defaultMode, showNotification, showSecondaryToolbar, fill, nativeWindowControls, }: WorkspaceShellSpikeProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "WorkspaceShellSpikeProps",
+            "declarations": [
+              "export interface WorkspaceShellSpikeProps { defaultMode?: 'expanded' | 'compact' showNotification?: boolean showSecondaryToolbar?: boolean /** Fills the host window instead of drawing a floating frame. */ fill?: boolean /** Reserves space for platform-drawn window controls instead of drawing them. */ nativeWindowControls?: boolean }"
+            ]
+          },
+          {
+            "name": "WorkspaceSidebarSlot",
+            "declarations": [
+              "export interface WorkspaceSidebarSlot { label: string header?: ReactNode content: ReactNode toggleLabel?: string bodyScrollable?: boolean }"
+            ]
+          },
+          {
+            "name": "ZoomMenu",
+            "declarations": [
+              "({ value, onValueChange }: ZoomMenuProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ZoomMenuProps",
+            "declarations": [
+              "export interface ZoomMenuProps { value: number onValueChange: (value: number) => void }"
+            ]
+          }
+        ]
+      },
+      {
+        "subpath": "./app.css",
+        "target": "src/styles/app.css",
+        "kind": "css",
+        "surface": {
+          "files": [
+            "src/styles/app.css"
+          ],
+          "customProperties": [],
+          "selectors": [
+            ".maximal-app-alert",
+            ".maximal-app-banner",
+            ".maximal-app-banner :is(button",
+            ".maximal-app-frame",
+            ".maximal-app-frame > .maximal-workspace-shell",
+            ".maximal-panel-placeholder",
+            ".maximal-panel-placeholder h2",
+            ".maximal-panel-placeholder p",
+            "#root",
+            "a)",
+            "body",
+            "html"
+          ]
+        }
+      },
+      {
+        "subpath": "./color",
+        "target": "src/color/index.ts",
+        "kind": "typescript",
+        "exports": [
+          {
+            "name": "alphaRamp",
+            "declarations": [
+              "(base: \"white\" | \"black\" | \"cream\"): Ramp"
+            ]
+          },
+          {
+            "name": "anchoredRamp",
+            "declarations": [
+              "(anchorHex: string, mode: ColorMode): Ramp"
+            ]
+          },
+          {
+            "name": "applyPalette",
+            "declarations": [
+              "(seeds: PaletteSeeds, target?: Document): void"
+            ]
+          },
+          {
+            "name": "BRAND_COLOR",
+            "declarations": [
+              "Oklch"
+            ]
+          },
+          {
+            "name": "BRAND_CREAM_COLOR",
+            "declarations": [
+              "Oklch"
+            ]
+          },
+          {
+            "name": "BRAND_CREAM_HEX",
+            "declarations": [
+              "string"
+            ]
+          },
+          {
+            "name": "BRAND_CREAM_SOURCE_HEX",
+            "declarations": [
+              "\"#f2ead6\""
+            ]
+          },
+          {
+            "name": "BRAND_HEX",
+            "declarations": [
+              "string"
+            ]
+          },
+          {
+            "name": "BRAND_RAMP",
+            "declarations": [
+              "\"crimson\""
+            ]
+          },
+          {
+            "name": "BRAND_SOURCE_HEX",
+            "declarations": [
+              "\"#b8404d\""
+            ]
+          },
+          {
+            "name": "brandHueRamp",
+            "declarations": [
+              "(mode: ColorMode): Ramp"
+            ]
+          },
+          {
+            "name": "COLOR_HUES",
+            "declarations": [
+              "readonly [\"blue\", \"purple\", \"pink\", \"red\", \"orange\", \"yellow\", \"green\", \"violet\", \"teal\", \"persimmon\"]"
+            ]
+          },
+          {
+            "name": "COLOR_STEPS",
+            "declarations": [
+              "readonly [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]"
+            ]
+          },
+          {
+            "name": "ColorHue",
+            "declarations": [
+              "export type ColorHue = ReferenceHue"
+            ]
+          },
+          {
+            "name": "ColorMode",
+            "declarations": [
+              "export type ColorMode = 'light' | 'dark'"
+            ]
+          },
+          {
+            "name": "ColorStep",
+            "declarations": [
+              "export type ColorStep = (typeof COLOR_STEPS)[number]"
+            ]
+          },
+          {
+            "name": "deltaEOk",
+            "declarations": [
+              "(left: Oklch, right: Oklch): number"
+            ]
+          },
+          {
+            "name": "gamutMap",
+            "declarations": [
+              "(color: Oklch): Oklch"
+            ]
+          },
+          {
+            "name": "hexFromOklch",
+            "declarations": [
+              "(color: Oklch): string"
+            ]
+          },
+          {
+            "name": "hueRamp",
+            "declarations": [
+              "(hue: ColorHue, mode: ColorMode): Ramp"
+            ]
+          },
+          {
+            "name": "maxChroma",
+            "declarations": [
+              "(l: number, h: number): number"
+            ]
+          },
+          {
+            "name": "mixOklab",
+            "declarations": [
+              "(from: Oklch, to: Oklch, amount: number): Oklch"
+            ]
+          },
+          {
+            "name": "neutralRamp",
+            "declarations": [
+              "(backgroundHex: string, textHex: string, mode: ColorMode): Ramp"
+            ]
+          },
+          {
+            "name": "Oklch",
+            "declarations": [
+              "export interface Oklch { l: number c: number h: number }"
+            ]
+          },
+          {
+            "name": "oklchFromHex",
+            "declarations": [
+              "(hex: string): Oklch"
+            ]
+          },
+          {
+            "name": "paleRamp",
+            "declarations": [
+              "(hue: ColorHue): Ramp"
+            ]
+          },
+          {
+            "name": "PALETTE_STYLE_ID",
+            "declarations": [
+              "\"maximal-palette\""
+            ]
+          },
+          {
+            "name": "paletteCss",
+            "declarations": [
+              "(seeds: PaletteSeeds): string"
+            ]
+          },
+          {
+            "name": "PaletteSeed",
+            "declarations": [
+              "export interface PaletteSeed { background: string surface: string text: string accent: string /* Pins icon-onbrand, such as to a brand mark's colour, regardless of contrast. */ accentIcon?: string }"
+            ]
+          },
+          {
+            "name": "PaletteSeeds",
+            "declarations": [
+              "export interface PaletteSeeds { light: PaletteSeed dark: PaletteSeed }"
+            ]
+          },
+          {
+            "name": "paletteTokens",
+            "declarations": [
+              "(seeds: PaletteSeeds): Record<ColorMode, PaletteTokens>"
+            ]
+          },
+          {
+            "name": "PaletteTokens",
+            "declarations": [
+              "export type PaletteTokens = Record<`--${string}`, string>"
+            ]
+          },
+          {
+            "name": "Ramp",
+            "declarations": [
+              "export type Ramp = Record<ColorStep, string>"
+            ]
+          },
+          {
+            "name": "REFERENCE_BLACK_ALPHA",
+            "declarations": [
+              "readonly [0.05, 0.1, 0.2, 0.3, 0.5, 0.8, 0.85, 0.9, 0.95, 1]"
+            ]
+          },
+          {
+            "name": "REFERENCE_HUES",
+            "declarations": [
+              "readonly [\"blue\", \"purple\", \"pink\", \"red\", \"orange\", \"yellow\", \"green\", \"violet\", \"teal\", \"persimmon\"]"
+            ]
+          },
+          {
+            "name": "REFERENCE_PALE_HUES",
+            "declarations": [
+              "readonly [\"blue\", \"purple\", \"pink\", \"red\", \"yellow\", \"green\", \"violet\", \"teal\", \"persimmon\"]"
+            ]
+          },
+          {
+            "name": "REFERENCE_PALE_RAMPS",
+            "declarations": [
+              "Record<\"blue\" | \"purple\" | \"pink\" | \"red\" | \"yellow\" | \"green\" | \"violet\" | \"teal\" | \"persimmon\", ReferenceRamp>"
+            ]
+          },
+          {
+            "name": "REFERENCE_PALETTE_SEEDS",
+            "declarations": [
+              "PaletteSeeds"
+            ]
+          },
+          {
+            "name": "REFERENCE_RAMPS",
+            "declarations": [
+              "{ readonly light: Record<\"blue\" | \"purple\" | \"pink\" | \"red\" | \"orange\" | \"yellow\" | \"green\" | \"violet\" | \"teal\" | \"persimmon\" | \"grey\", ReferenceRamp>; readonly dark: Record<\"blue\" | \"purple\" | \"pink\" | \"red\" | \"orange\" | \"yellow\" | \"green\" | \"violet\" | \"teal\" | \"persimmon\" | \"grey\", ReferenceRamp>; }"
+            ]
+          },
+          {
+            "name": "REFERENCE_WHITE_ALPHA",
+            "declarations": [
+              "readonly [0.05, 0.1, 0.2, 0.4, 0.7, 0.8, 0.85, 0.9, 0.95, 1]"
+            ]
+          },
+          {
+            "name": "referenceGreyRamp",
+            "declarations": [
+              "(mode: ColorMode): Ramp"
+            ]
+          },
+          {
+            "name": "ReferenceHue",
+            "declarations": [
+              "export type ReferenceHue = (typeof REFERENCE_HUES)[number]"
+            ]
+          },
+          {
+            "name": "ReferencePaleHue",
+            "declarations": [
+              "export type ReferencePaleHue = (typeof REFERENCE_PALE_HUES)[number]"
+            ]
+          },
+          {
+            "name": "ReferenceRamp",
+            "declarations": [
+              "export type ReferenceRamp = readonly [string, string, string, string, string, string, string, string, string, string]"
+            ]
+          },
+          {
+            "name": "resolvePaletteToken",
+            "declarations": [
+              "(tokens: PaletteTokens, name: `--${string}`): string"
+            ]
+          },
+          {
+            "name": "wcagContrast",
+            "declarations": [
+              "(left: string, right: string): number"
+            ]
+          }
+        ]
+      },
+      {
+        "subpath": "./color/tools",
+        "target": "src/color/tools.ts",
+        "kind": "typescript",
+        "exports": [
+          {
+            "name": "ApplicationSheet",
+            "declarations": [
+              "({ title, seeds, entries, sample, children, }: { title: string; seeds: PaletteSeeds; entries: readonly Entry[]; sample: (entry: Entry, tokens: PaletteTokens, colors: Chrome, mode: ColorMode) => ReactNode; children: ReactNode; }): ReactElement"
+            ]
+          },
+          {
+            "name": "Canvas",
+            "declarations": [
+              "export type Canvas = 'light' | 'dark'"
+            ]
+          },
+          {
+            "name": "chrome",
+            "declarations": [
+              "(tokens: PaletteTokens, mode: ColorMode): Chrome"
+            ]
+          },
+          {
+            "name": "Chrome",
+            "declarations": [
+              "export interface Chrome { panel: string pill: string border: string heading: string label: string muted: string }"
+            ]
+          },
+          {
+            "name": "ColorStyleIcon",
+            "declarations": [
+              "({ color }: { color: string; }): ReactElement"
+            ]
+          },
+          {
+            "name": "Entry",
+            "declarations": [
+              "export interface Entry { name: string description: ReactNode }"
+            ]
+          },
+          {
+            "name": "FILL_ROLES",
+            "declarations": [
+              "readonly [\"brand\", \"component\", \"assistive\", \"danger\", \"warning\", \"success\"]"
+            ]
+          },
+          {
+            "name": "FillRole",
+            "declarations": [
+              "export type FillRole = (typeof FILL_ROLES)[number]"
+            ]
+          },
+          {
+            "name": "Foliage",
+            "declarations": [
+              "({ canvas, tokens }: { canvas: Canvas; tokens: PaletteTokens; }): ReactElement"
+            ]
+          },
+          {
+            "name": "HEAVY_STROKE_SIZE",
+            "declarations": [
+              "48"
+            ]
+          },
+          {
+            "name": "lucideStroke",
+            "declarations": [
+              "(size: number): Pick<LucideProps, \"size\" | \"strokeWidth\" | \"absoluteStrokeWidth\">"
+            ]
+          },
+          {
+            "name": "ModePanel",
+            "declarations": [
+              "({ mode, tokens, width, edge, children, }: { mode: ColorMode; tokens: PaletteTokens; width: number; edge: string; children: (colors: Chrome) => ReactNode; }): ReactElement"
+            ]
+          },
+          {
+            "name": "MODES",
+            "declarations": [
+              "readonly [\"light\", \"dark\"]"
+            ]
+          },
+          {
+            "name": "prose",
+            "declarations": [
+              "CSSProperties"
+            ]
+          },
+          {
+            "name": "RAMP_PANEL_WIDTH",
+            "declarations": [
+              "number"
+            ]
+          },
+          {
+            "name": "RampSheet",
+            "declarations": [
+              "({ title, seeds, panel, panelWidth, children, }: { title: string; seeds: PaletteSeeds; panelWidth?: number; panel: (mode: ColorMode, tokens: PaletteTokens, colors: Chrome) => ReactNode; children: ReactNode; }): ReactElement"
+            ]
+          },
+          {
+            "name": "semantic",
+            "declarations": [
+              "(tokens: PaletteTokens, name: string): string"
+            ]
+          },
+          {
+            "name": "StylePill",
+            "declarations": [
+              "({ name, color, colors }: { name: string; color: string; colors: Chrome; }): ReactElement"
+            ]
+          },
+          {
+            "name": "SWATCH",
+            "declarations": [
+              "20"
+            ]
+          },
+          {
+            "name": "THEME_PANEL_WIDTH",
+            "declarations": [
+              "480"
+            ]
+          },
+          {
+            "name": "tokenName",
+            "declarations": [
+              "(ramp: string, step: number): `--${string}`"
+            ]
+          },
+          {
+            "name": "value",
+            "declarations": [
+              "(tokens: PaletteTokens, ramp: string, step: number): string"
+            ]
+          }
+        ]
+      },
+      {
+        "subpath": "./components",
+        "target": "src/components/index.ts",
+        "kind": "typescript",
+        "exports": [
+          {
+            "name": "Accordion",
+            "declarations": [
+              "<Value extends string>({ items, className, ...props }: AccordionProps<Value>): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "AccordionItem",
+            "declarations": [
+              "export interface AccordionItem<Value extends string = string> { value: Value title: ReactNode content: ReactNode disabled?: boolean }"
+            ]
+          },
+          {
+            "name": "AccordionProps",
+            "declarations": [
+              "export interface AccordionProps<Value extends string = string> extends Omit<ComponentPropsWithRef<typeof BaseAccordion.Root>, 'children' | 'className'> { items: readonly AccordionItem<Value>[] className?: string }"
+            ]
+          },
+          {
+            "name": "AlertDialog",
+            "declarations": [
+              "(props: AlertDialogProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "AlertDialogAcknowledgementProps",
+            "declarations": [
+              "export interface AlertDialogAcknowledgementProps extends AlertDialogBaseProps { action?: never tertiaryActions?: never cancelLabel?: never onCancel?: never acknowledgeLabel?: ReactNode /** Called when the dialog is acknowledged by its control or Escape. */ onAcknowledge?: () => void }"
+            ]
+          },
+          {
+            "name": "AlertDialogConfirmationProps",
+            "declarations": [
+              "export interface AlertDialogConfirmationProps extends AlertDialogBaseProps { /** * The primary response, placed last. Use a `primary` or `danger` `Button`, * and call `onOpenChange(false)` when its response completes. */ action: ReactNode /** * Lower-priority responses, placed between Cancel and the primary response. * Use a lower-emphasis `Button` variant such as `secondary-danger` or `ghost`. */ tertiaryActions?: ReactNode cancelLabel?: ReactNode /** Called when the dialog is cancelled by its cancel control or Escape. */ onCancel?: () => void acknowledgeLabel?: never onAcknowledge?: never }"
+            ]
+          },
+          {
+            "name": "AlertDialogProps",
+            "declarations": [
+              "export type AlertDialogProps = | AlertDialogConfirmationProps | AlertDialogAcknowledgementProps"
+            ]
+          },
+          {
+            "name": "Autocomplete",
+            "declarations": [
+              "({ label, items, value, defaultValue, onValueChange, placeholder, disabled, className, containerProps, inputProps, popupProps, }: AutocompleteProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "AutocompleteProps",
+            "declarations": [
+              "export interface AutocompleteProps { label: ReactNode items: readonly string[] value?: string defaultValue?: string onValueChange?: (value: string) => void placeholder?: string disabled?: boolean className?: string containerProps?: Omit<ComponentPropsWithRef<'div'>, 'children'> & DataAttributes inputProps?: ComponentPropsWithRef<typeof BaseAutocomplete.Input> & DataAttributes popupProps?: Omit< ComponentPropsWithRef<typeof BaseAutocomplete.Popup>, 'children' > & DataAttributes }"
+            ]
+          },
+          {
+            "name": "Avatar",
+            "declarations": [
+              "({ src, alt, fallback, className, ...props }: AvatarProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "AvatarProps",
+            "declarations": [
+              "export interface AvatarProps extends Omit<ComponentPropsWithRef<typeof BaseAvatar.Root>, 'children' | 'className'> { src?: string alt: string fallback?: ReactNode className?: string }"
+            ]
+          },
+          {
+            "name": "Callout",
+            "declarations": [
+              "({ title, selected, onSelect, className, children, ...props }: CalloutProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CalloutProps",
+            "declarations": [
+              "export interface CalloutProps extends SelectableOptionProps { title: ReactNode }"
+            ]
+          },
+          {
+            "name": "CanvasInspectorSections",
+            "declarations": [
+              "(): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CanvasToolbar",
+            "declarations": [
+              "({ showSecondary, }: CanvasToolbarProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CanvasToolbarProps",
+            "declarations": [
+              "export interface CanvasToolbarProps { showSecondary?: boolean }"
+            ]
+          },
+          {
+            "name": "Card",
+            "declarations": [
+              "({ selected, onSelect, className, children, ...props }: CardProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CardProps",
+            "declarations": [
+              "export interface CardProps extends SelectableOptionProps {}"
+            ]
+          },
+          {
+            "name": "Checkbox",
+            "declarations": [
+              "({ label, className, ...props }: CheckboxProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CheckboxProps",
+            "declarations": [
+              "export interface CheckboxProps extends Omit<ComponentPropsWithRef<typeof BaseCheckbox.Root>, 'children' | 'className'> { label: ReactNode className?: string }"
+            ]
+          },
+          {
+            "name": "CollaboratorPopover",
+            "declarations": [
+              "(): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "Collapsible",
+            "declarations": [
+              "({ title, children, className, ...props }: CollapsibleProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CollapsibleProps",
+            "declarations": [
+              "export interface CollapsibleProps extends Omit< ComponentPropsWithRef<typeof BaseCollapsible.Root>, 'children' | 'title' > { title: ReactNode children: ReactNode className?: string }"
+            ]
+          },
+          {
+            "name": "Combobox",
+            "declarations": [
+              "<Value extends string>({ label, options, groups, value, defaultValue, onValueChange, inputValue, defaultInputValue, onInputValueChange, placeholder, description, error, loading, loadingMessage, emptyMessage, disabled, inline, open, defaultOpen, onOpenChange, leading, showLabel, className, container, inputProps, popupProps, }: ComboboxProps<Value>): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ComboboxGroup",
+            "declarations": [
+              "export interface ComboboxGroup<Value extends string = string> { label: ReactNode options: readonly ComboboxOption<Value>[] }"
+            ]
+          },
+          {
+            "name": "ComboboxOption",
+            "declarations": [
+              "export interface ComboboxOption<Value extends string = string> { value: Value label: ReactNode textValue: string description?: ReactNode metadata?: ReactNode icon?: ReactNode keywords?: readonly string[] disabled?: boolean }"
+            ]
+          },
+          {
+            "name": "ComboboxProps",
+            "declarations": [
+              "export type ComboboxProps<Value extends string = string> = ComboboxSharedProps<Value> & ( | FlatComboboxProps<Value> | GroupedComboboxProps<Value> )"
+            ]
+          },
+          {
+            "name": "CompactControlCluster",
+            "declarations": [
+              "({ label, className, children, }: CompactControlClusterProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CompactControlClusterProps",
+            "declarations": [
+              "export interface CompactControlClusterProps { label: string className?: string children: ReactNode }"
+            ]
+          },
+          {
+            "name": "CompactControlGroup",
+            "declarations": [
+              "({ label, children, }: CompactControlGroupProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CompactControlGroupProps",
+            "declarations": [
+              "export interface CompactControlGroupProps { label: string children: ReactNode }"
+            ]
+          },
+          {
+            "name": "CompactProjectCluster",
+            "declarations": [
+              "({ onOpen }: { onOpen: () => void; }): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ContextMenu",
+            "declarations": [
+              "({ children, items, popupProps, ...props }: ContextMenuProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ContextMenuProps",
+            "declarations": [
+              "export interface ContextMenuProps extends Omit<ComponentPropsWithRef<typeof BaseContextMenu.Root>, 'children'> { children: ReactElement items: readonly MenuEntry[] popupProps?: Omit< ComponentPropsWithRef<typeof BaseContextMenu.Popup>, 'children' > & DataAttributes }"
+            ]
+          },
+          {
+            "name": "CopyButton",
+            "declarations": [
+              "({ text, about, label, copiedLabel, disabled, className, onCopied, }: CopyButtonProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CopyButtonProps",
+            "declarations": [
+              "export interface CopyButtonProps { /** The text written to the clipboard. */ text: string /** What is being copied, appended to the label for the tooltip and accessible name. */ about?: string | undefined label?: string | undefined copiedLabel?: string | undefined disabled?: boolean | undefined className?: string | undefined onCopied?: (() => void) | undefined }"
+            ]
+          },
+          {
+            "name": "createToastManager",
+            "declarations": [
+              "<Data extends object = any>() => import(\"@base-ui/react\").ToastManager<Data>"
+            ]
+          },
+          {
+            "name": "Dialog",
+            "declarations": [
+              "({ open, onOpenChange, title, description, children, className, overlayClassName, viewportClassName, modal, disablePointerDismissal, onEscapeKeyDown, onKeyDown, onPointerDownOutside, initialFocus, finalFocus, showTitle, showDescription, popupProps, container, }: DialogProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "DialogFramePopupProps",
+            "declarations": [
+              "export type DialogFramePopupProps = Omit< DialogPopupProps, 'children' | 'finalFocus' | 'initialFocus' | 'onKeyDown' > & DataAttributes"
+            ]
+          },
+          {
+            "name": "DialogPortalContainer",
+            "declarations": [
+              "export type DialogPortalContainer = | HTMLElement | ShadowRoot | RefObject<HTMLElement | ShadowRoot | null> | null"
+            ]
+          },
+          {
+            "name": "DialogProps",
+            "declarations": [
+              "export interface DialogProps { open: boolean onOpenChange?: (open: boolean) => void title: ReactNode description?: ReactNode children: ReactNode className?: string overlayClassName?: string viewportClassName?: string modal?: DialogRootProps['modal'] disablePointerDismissal?: boolean onEscapeKeyDown?: (event: KeyboardEvent) => void onKeyDown?: DialogPopupProps['onKeyDown'] onPointerDownOutside?: (event: Event) => void initialFocus?: DialogPopupProps['initialFocus'] finalFocus?: DialogPopupProps['finalFocus'] showTitle?: boolean showDescription?: boolean popupProps?: DialogFramePopupProps container?: DialogPortalContainer }"
+            ]
+          },
+          {
+            "name": "EdgeResizer",
+            "declarations": [
+              "({ edge, resizeTargetRef, onResize, scrollTargetRef, overlap, label, keyboardStep, }: EdgeResizerProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "EdgeResizerProps",
+            "declarations": [
+              "export interface EdgeResizerProps { edge: ResizerEdge resizeTargetRef: RefObject<HTMLElement | null> onResize: (size: number) => void scrollTargetRef?: RefObject<HTMLElement | null> overlap?: boolean label?: string keyboardStep?: number }"
+            ]
+          },
+          {
+            "name": "Field",
+            "declarations": [
+              "({ label, description, error, className, textareaProps, ...props }: FieldProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "FieldProps",
+            "declarations": [
+              "export interface FieldProps extends Omit<ComponentPropsWithRef<typeof BaseField.Root>, 'children' | 'className'> { label: ReactNode description?: ReactNode error?: ReactNode className?: string textareaProps?: Omit< ComponentPropsWithRef<'textarea'>, 'aria-describedby' | 'aria-invalid' | 'className' > & DataAttributes }"
+            ]
+          },
+          {
+            "name": "Fieldset",
+            "declarations": [
+              "({ legend, children, className, ...props }: FieldsetProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "FieldsetProps",
+            "declarations": [
+              "export interface FieldsetProps extends Omit<ComponentPropsWithRef<typeof BaseFieldset.Root>, 'children' | 'className'> { legend: ReactNode children: ReactNode className?: string }"
+            ]
+          },
+          {
+            "name": "Icon",
+            "declarations": [
+              "({ children, label, size, className, ...props }: IconComponentProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "IconComponentProps",
+            "declarations": [
+              "export interface IconComponentProps extends Omit<ComponentPropsWithoutRef<'span'>, 'children'> { children: ReactElement<ComponentPropsWithoutRef<'svg'>> label?: string size?: IconSize }"
+            ]
+          },
+          {
+            "name": "IconSize",
+            "declarations": [
+              "export type IconSize = 'compact' | 'standard' | 'prominent'"
+            ]
+          },
+          {
+            "name": "InspectorPanel",
+            "declarations": [
+              "({ title, children, className, bodyClassName, ...props }: InspectorPanelProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "InspectorPanelProps",
+            "declarations": [
+              "export interface InspectorPanelProps extends Omit<ComponentPropsWithRef<'section'>, 'children' | 'title'> { title: ReactNode children: ReactNode bodyClassName?: string }"
+            ]
+          },
+          {
+            "name": "MeasurementUnit",
+            "declarations": [
+              "export interface MeasurementUnit<Unit extends string = string> { value: Unit label: string aliases?: readonly string[] step: number fromCanonical: (value: number) => number toCanonical: (value: number) => number }"
+            ]
+          },
+          {
+            "name": "Menu",
+            "declarations": [
+              "({ variant, className, ...props }: MenuProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "Menubar",
+            "declarations": [
+              "({ menus, className, ...props }: MenubarProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MenubarMenu",
+            "declarations": [
+              "export interface MenubarMenu { label: ReactNode items: readonly MenuEntry[] }"
+            ]
+          },
+          {
+            "name": "MenubarProps",
+            "declarations": [
+              "export interface MenubarProps extends Omit<ComponentPropsWithRef<typeof BaseMenubar>, 'children' | 'className'> { menus: readonly MenubarMenu[] className?: string }"
+            ]
+          },
+          {
+            "name": "MenuCheckboxItem",
+            "declarations": [
+              "({ children, leading, description, trailing, indicatorPosition, className, ...props }: MenuCheckboxItemProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MenuCheckboxItemProps",
+            "declarations": [
+              "export interface MenuCheckboxItemProps extends Omit< ComponentPropsWithRef<typeof BaseMenu.CheckboxItem>, 'children' | 'className' >, Omit<MenuItemContentProps, 'leading' | 'trailing'> { leading?: ReactNode trailing?: ReactNode indicatorPosition?: 'leading' | 'trailing' className?: string }"
+            ]
+          },
+          {
+            "name": "MenuEntry",
+            "declarations": [
+              "export interface MenuEntry { label: ReactNode onSelect?: () => void disabled?: boolean }"
+            ]
+          },
+          {
+            "name": "MenuFooter",
+            "declarations": [
+              "({ className, ...props }: MenuFooterProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MenuFooterProps",
+            "declarations": [
+              "export interface MenuFooterProps extends Omit<ComponentPropsWithRef<typeof BaseMenu.Group>, 'className'> { className?: string }"
+            ]
+          },
+          {
+            "name": "MenuGroup",
+            "declarations": [
+              "({ label, className, children, ...props }: MenuGroupProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MenuGroupProps",
+            "declarations": [
+              "export interface MenuGroupProps extends Omit<ComponentPropsWithRef<typeof BaseMenu.Group>, 'className'> { label?: ReactNode className?: string }"
+            ]
+          },
+          {
+            "name": "MenuItem",
+            "declarations": [
+              "({ children, leading, description, trailing, className, ...props }: MenuItemProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MenuItemContent",
+            "declarations": [
+              "({ children, leading, description, trailing, }: MenuItemContentProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MenuItemContentProps",
+            "declarations": [
+              "export interface MenuItemContentProps { children: ReactNode leading?: ReactNode description?: ReactNode trailing?: ReactNode }"
+            ]
+          },
+          {
+            "name": "MenuItemProps",
+            "declarations": [
+              "export interface MenuItemProps extends Omit< ComponentPropsWithRef<typeof BaseMenu.Item>, 'children' | 'className' >, MenuItemContentProps { className?: string }"
+            ]
+          },
+          {
+            "name": "MenuProps",
+            "declarations": [
+              "export interface MenuProps extends HTMLAttributes<HTMLDivElement>, DataAttributes { variant?: MenuVariant }"
+            ]
+          },
+          {
+            "name": "MenuRadioGroup",
+            "declarations": [
+              "(props: MenuRadioGroupProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MenuRadioGroupProps",
+            "declarations": [
+              "export interface MenuRadioGroupProps extends ComponentPropsWithRef<typeof BaseMenu.RadioGroup> {}"
+            ]
+          },
+          {
+            "name": "MenuRadioItem",
+            "declarations": [
+              "({ children, description, trailing, className, ...props }: MenuRadioItemProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MenuRadioItemProps",
+            "declarations": [
+              "export interface MenuRadioItemProps extends Omit< ComponentPropsWithRef<typeof BaseMenu.RadioItem>, 'children' | 'className' >, Omit<MenuItemContentProps, 'leading'> { className?: string }"
+            ]
+          },
+          {
+            "name": "MenuRoot",
+            "declarations": [
+              "({ trigger, children, align, side, sideOffset, container, popupProps, loopFocus, ...props }: MenuRootProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MenuRootProps",
+            "declarations": [
+              "export interface MenuRootProps extends Omit<ComponentPropsWithRef<typeof BaseMenu.Root>, 'children'> { trigger: ReactElement children: ReactNode align?: ComponentPropsWithRef<typeof BaseMenu.Positioner>['align'] side?: ComponentPropsWithRef<typeof BaseMenu.Positioner>['side'] sideOffset?: number container?: | HTMLElement | ShadowRoot | RefObject<HTMLElement | ShadowRoot | null> | null popupProps?: MenuPopupProps }"
+            ]
+          },
+          {
+            "name": "MenuSeparator",
+            "declarations": [
+              "({ className, ...props }: MenuSeparatorProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MenuSeparatorProps",
+            "declarations": [
+              "export interface MenuSeparatorProps extends HTMLAttributes<HTMLHRElement> {}"
+            ]
+          },
+          {
+            "name": "MenuSubmenu",
+            "declarations": [
+              "({ label, children, leading, disabled, popupProps, }: MenuSubmenuProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MenuSubmenuProps",
+            "declarations": [
+              "export interface MenuSubmenuProps { label: ReactNode children: ReactNode leading?: ReactNode disabled?: boolean popupProps?: MenuPopupProps }"
+            ]
+          },
+          {
+            "name": "MenuVariant",
+            "declarations": [
+              "export type MenuVariant = 'default' | 'search'"
+            ]
+          },
+          {
+            "name": "NumberInput",
+            "declarations": [
+              "({ label, onCommit, className, inputProps, ...props }: NumberInputProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "NumberInputProps",
+            "declarations": [
+              "export interface NumberInputProps extends Omit< ComponentPropsWithRef<typeof NumberField.Root>, 'children' | 'className' | 'onValueCommitted' > { label: ReactNode onCommit?: (value: number | null) => void className?: string inputProps?: ComponentPropsWithRef<typeof NumberField.Input> & DataAttributes }"
+            ]
+          },
+          {
+            "name": "PageControls",
+            "declarations": [
+              "({ color, onColorChange, visible, onVisibleChange, }: PageControlsProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "PageControlsProps",
+            "declarations": [
+              "export interface PageControlsProps { color: string onColorChange: (color: string) => void visible: boolean onVisibleChange: (visible: boolean) => void }"
+            ]
+          },
+          {
+            "name": "Popover",
+            "declarations": [
+              "({ trigger, title, description, children, popupProps, ...props }: PopoverProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "PopoverProps",
+            "declarations": [
+              "export interface PopoverProps extends Omit<ComponentPropsWithRef<typeof BasePopover.Root>, 'children'> { trigger: ReactElement title?: ReactNode description?: ReactNode children: ReactNode popupProps?: Omit< ComponentPropsWithRef<typeof BasePopover.Popup>, 'children' > & DataAttributes }"
+            ]
+          },
+          {
+            "name": "ProjectDetails",
+            "declarations": [
+              "(): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ProjectNavigation",
+            "declarations": [
+              "({ pagesHeight, onPagesHeightChange, }: ProjectNavigationProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ProjectNavigationProps",
+            "declarations": [
+              "export interface ProjectNavigationProps { pagesHeight?: number onPagesHeightChange?: (height: number) => void }"
+            ]
+          },
+          {
+            "name": "Property",
+            "declarations": [
+              "({ label, value, className, ...props }: PropertyProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "PropertyList",
+            "declarations": [
+              "({ children, className, ...props }: PropertyListProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "PropertyListProps",
+            "declarations": [
+              "export interface PropertyListProps extends Omit<ComponentPropsWithRef<'dl'>, 'children'> { children: ReactNode }"
+            ]
+          },
+          {
+            "name": "PropertyProps",
+            "declarations": [
+              "export interface PropertyProps extends Omit<ComponentPropsWithRef<'div'>, 'children'> { label: ReactNode value: ReactNode }"
+            ]
+          },
+          {
+            "name": "Radio",
+            "declarations": [
+              "({ label, className, ...props }: RadioProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "RadioGroup",
+            "declarations": [
+              "<Value extends string>({ options, className, ...props }: RadioGroupProps<Value>): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "RadioGroupProps",
+            "declarations": [
+              "export interface RadioGroupProps<Value extends string = string> extends Omit<ComponentPropsWithRef<typeof BaseRadioGroup<Value>>, 'children' | 'className'> { options: readonly RadioOption<Value>[] className?: string }"
+            ]
+          },
+          {
+            "name": "RadioOption",
+            "declarations": [
+              "export interface RadioOption<Value extends string = string> { value: Value label: ReactNode disabled?: boolean }"
+            ]
+          },
+          {
+            "name": "RadioProps",
+            "declarations": [
+              "export interface RadioProps extends Omit<ComponentPropsWithRef<typeof BaseRadio.Root>, 'children' | 'className'> { label: ReactNode className?: string }"
+            ]
+          },
+          {
+            "name": "ResizerEdge",
+            "declarations": [
+              "export type ResizerEdge = 'top' | 'right' | 'bottom' | 'left'"
+            ]
+          },
+          {
+            "name": "ScrollArea",
+            "declarations": [
+              "({ children, className, viewportClassName, contentClassName, scrollbars, ...props }: ScrollAreaProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ScrollAreaProps",
+            "declarations": [
+              "export interface ScrollAreaProps extends Omit<ComponentPropsWithRef<typeof BaseScrollArea.Root>, 'children' | 'className'> { children: ReactNode className?: string viewportClassName?: string contentClassName?: string /** `hidden` keeps the content scrollable without drawing scrollbars. */ scrollbars?: ScrollbarVisibility | 'hidden' }"
+            ]
+          },
+          {
+            "name": "Scrollbar",
+            "declarations": [
+              "({ scroller, orientation, visibility, label, className, }: ScrollbarProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ScrollbarOrientation",
+            "declarations": [
+              "export type ScrollbarOrientation = 'vertical' | 'horizontal'"
+            ]
+          },
+          {
+            "name": "ScrollbarProps",
+            "declarations": [
+              "export interface ScrollbarProps { /** The native scroll container the scrollbar reports and controls. */ scroller: RefObject<HTMLElement | null> orientation?: ScrollbarOrientation visibility?: ScrollbarVisibility /** * Names a keyboard-operable scrollbar. Omit it where the scroller is * already keyboard-scrollable, such as a menu, to keep the thumb out of the * tab order and the accessibility tree. */ label?: string | undefined className?: string | undefined }"
+            ]
+          },
+          {
+            "name": "ScrollbarVisibility",
+            "declarations": [
+              "export type ScrollbarVisibility = 'auto' | 'always'"
+            ]
+          },
+          {
+            "name": "Select",
+            "declarations": [
+              "<Value extends string>({ value, defaultValue, onValueChange, options, placeholder, label, disabled, required, name, className, triggerProps, popupProps, }: SelectProps<Value>): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SelectOption",
+            "declarations": [
+              "export interface SelectOption<Value extends string = string> { value: Value label: ReactNode disabled?: boolean }"
+            ]
+          },
+          {
+            "name": "SelectProps",
+            "declarations": [
+              "export interface SelectProps<Value extends string = string> { value?: Value defaultValue?: Value onValueChange?: (value: Value) => void options: readonly SelectOption<Value>[] placeholder?: ReactNode label?: ReactNode disabled?: boolean required?: boolean name?: string className?: string triggerProps?: SelectTriggerProps popupProps?: SelectPopupProps }"
+            ]
+          },
+          {
+            "name": "Separator",
+            "declarations": [
+              "({ className, ...props }: SeparatorProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SeparatorProps",
+            "declarations": [
+              "export interface SeparatorProps extends Omit<ComponentPropsWithRef<typeof BaseSeparator>, 'className'> { className?: string }"
+            ]
+          },
+          {
+            "name": "ShellStatusControls",
+            "declarations": [
+              "({ zoom, onZoomChange, showNotification, }: ShellStatusControlsProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ShellStatusControlsProps",
+            "declarations": [
+              "export interface ShellStatusControlsProps { zoom: number onZoomChange: (zoom: number) => void showNotification?: boolean }"
+            ]
+          },
+          {
+            "name": "Sidebar",
+            "declarations": [
+              "({ id, side, title, label, headerContent, open, onOpenChange, children, resizable, overlapResizer, showToggle, toggleLabel, collapsedContent, size, onSizeChange, scrollTop, onScrollTopChange, bodyScrollable, }: SidebarProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SidebarProps",
+            "declarations": [
+              "export interface SidebarProps { id: string side: SidebarSide title?: string label?: string headerContent?: ReactNode open: boolean onOpenChange: (open: boolean) => void children: ReactNode resizable?: boolean overlapResizer?: boolean showToggle?: boolean toggleLabel?: string collapsedContent?: ReactNode size?: number onSizeChange?: (size: number) => void scrollTop?: number onScrollTopChange?: (scrollTop: number) => void bodyScrollable?: boolean }"
+            ]
+          },
+          {
+            "name": "SidebarSection",
+            "declarations": [
+              "({ title, leading, actions, children, className, scroll, label, }: SidebarSectionProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SidebarSectionProps",
+            "declarations": [
+              "export interface SidebarSectionProps { title?: string leading?: ReactNode actions?: ReactNode children: ReactNode className?: string scroll?: 'none' | 'horizontal' label?: string }"
+            ]
+          },
+          {
+            "name": "SidebarSectionSplit",
+            "declarations": [
+              "({ primary, secondary, primarySize, onPrimarySizeChange, label, }: SidebarSectionSplitProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SidebarSectionSplitProps",
+            "declarations": [
+              "export interface SidebarSectionSplitProps { primary: ReactNode secondary: ReactNode primarySize?: number onPrimarySizeChange?: (size: number) => void label?: string }"
+            ]
+          },
+          {
+            "name": "SidebarSide",
+            "declarations": [
+              "export type SidebarSide = 'left' | 'right'"
+            ]
+          },
+          {
+            "name": "Slider",
+            "declarations": [
+              "({ label, className, ...props }: SliderProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SliderProps",
+            "declarations": [
+              "export interface SliderProps extends Omit<ComponentPropsWithRef<typeof BaseSlider.Root<number>>, 'children' | 'className'> { label: ReactNode className?: string }"
+            ]
+          },
+          {
+            "name": "StatusChip",
+            "declarations": [
+              "({ status, label, className, ...props }: StatusChipProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "StatusChipProps",
+            "declarations": [
+              "export interface StatusChipProps extends Omit<ComponentPropsWithRef<'span'>, 'children'> { status: string label: ReactNode }"
+            ]
+          },
+          {
+            "name": "SubmenuIndicator",
+            "declarations": [
+              "({ children }: SubmenuIndicatorProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SubmenuIndicatorProps",
+            "declarations": [
+              "export interface SubmenuIndicatorProps { children: ReactNode }"
+            ]
+          },
+          {
+            "name": "SurfaceCanvasCluster",
+            "declarations": [
+              "({ compact, value, onValueChange, }: SurfaceCanvasClusterProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SurfaceCanvasClusterProps",
+            "declarations": [
+              "export interface SurfaceCanvasClusterProps extends ZoomMenuProps { compact?: boolean }"
+            ]
+          },
+          {
+            "name": "Switch",
+            "declarations": [
+              "({ label, className, ...props }: SwitchProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SwitchProps",
+            "declarations": [
+              "export interface SwitchProps extends Omit<ComponentPropsWithRef<typeof BaseSwitch.Root>, 'children' | 'className'> { label: ReactNode className?: string }"
+            ]
+          },
+          {
+            "name": "Tab",
+            "declarations": [
+              "({ label, icon, active, closable, onClose, className, onAuxClick, onKeyDown, ...props }: TabProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "TabBar",
+            "declarations": [
+              "({ items, value, onValueChange, onClose, renderPanel, label, leading, trailing, }: TabBarProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "TabBarItem",
+            "declarations": [
+              "export interface TabBarItem { id: string label: string icon?: ReactNode disabled?: boolean /** `false` hides the active tab's close glyph and ignores close gestures. */ closable?: boolean /** Keeps the panel's content mounted while another tab is active. */ keepMounted?: boolean }"
+            ]
+          },
+          {
+            "name": "TabBarProps",
+            "declarations": [
+              "export interface TabBarProps { items: readonly TabBarItem[] value: string onValueChange: (value: string) => void /** Delete, Backspace, middle-click, or the active tab's close glyph. */ onClose?: (value: string) => void renderPanel: (item: TabBarItem) => ReactNode label?: string leading?: ReactNode trailing?: ReactNode }"
+            ]
+          },
+          {
+            "name": "TabProps",
+            "declarations": [
+              "export interface TabProps extends Omit<BaseTabProps, 'children' | 'className'> { label: ReactNode icon?: ReactNode active?: boolean closable?: boolean onClose?: () => void className?: string }"
+            ]
+          },
+          {
+            "name": "Tabs",
+            "declarations": [
+              "<Value extends string>({ items, value, defaultValue, className, ...props }: TabsProps<Value>): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "TabSearch",
+            "declarations": [
+              "({ tabs, activeTab, onActiveTabChange, }: TabSearchProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "TabSearchProps",
+            "declarations": [
+              "export interface TabSearchProps { tabs: readonly TabBarItem[] activeTab: string onActiveTabChange: (tab: string) => void }"
+            ]
+          },
+          {
+            "name": "TabsItem",
+            "declarations": [
+              "export interface TabsItem<Value extends string = string> { value: Value label: ReactNode icon?: ReactNode content: ReactNode disabled?: boolean }"
+            ]
+          },
+          {
+            "name": "TabsProps",
+            "declarations": [
+              "export interface TabsProps<Value extends string = string> extends Omit<ComponentPropsWithRef<typeof BaseTabs.Root>, 'children' | 'className'> { items: readonly TabsItem<Value>[] className?: string }"
+            ]
+          },
+          {
+            "name": "Terminal",
+            "declarations": [
+              "({ label, lines }: TerminalProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "TerminalLine",
+            "declarations": [
+              "export interface TerminalLine { id: string content: string tone?: TerminalLineTone }"
+            ]
+          },
+          {
+            "name": "TerminalLineTone",
+            "declarations": [
+              "export type TerminalLineTone = 'command' | 'output' | 'success' | 'muted'"
+            ]
+          },
+          {
+            "name": "TerminalProps",
+            "declarations": [
+              "export interface TerminalProps { label: string lines: readonly TerminalLine[] }"
+            ]
+          },
+          {
+            "name": "TextInput",
+            "declarations": [
+              "({ label, description, error, leading, trailing, showLabel, className, inputClassName, ...props }: TextInputProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "TextInputProps",
+            "declarations": [
+              "export interface TextInputProps extends Omit<ComponentPropsWithRef<typeof BaseInput>, 'className'> { label: ReactNode description?: ReactNode error?: ReactNode leading?: ReactNode trailing?: ReactNode showLabel?: boolean className?: string inputClassName?: string }"
+            ]
+          },
+          {
+            "name": "ToastProvider",
+            "declarations": [
+              "({ children, ...props }: ToastProviderProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ToastProviderProps",
+            "declarations": [
+              "export interface ToastProviderProps extends ComponentPropsWithRef<typeof BaseToast.Provider> { children: ReactNode }"
+            ]
+          },
+          {
+            "name": "ToastViewport",
+            "declarations": [
+              "(): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ToggleGroup",
+            "declarations": [
+              "<Value extends string>({ options, className, ...props }: ToggleGroupProps<Value>): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ToggleGroupOption",
+            "declarations": [
+              "export interface ToggleGroupOption<Value extends string = string> { value: Value label: ReactNode disabled?: boolean }"
+            ]
+          },
+          {
+            "name": "ToggleGroupProps",
+            "declarations": [
+              "export interface ToggleGroupProps<Value extends string = string> extends Omit<ComponentPropsWithRef<typeof BaseToggleGroup<Value>>, 'children' | 'className'> { options: readonly ToggleGroupOption<Value>[] className?: string }"
+            ]
+          },
+          {
+            "name": "ToggleSidebar",
+            "declarations": [
+              "({ side, open, onPressedChange, label, controls, }: ToggleSidebarProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ToggleSidebarProps",
+            "declarations": [
+              "export interface ToggleSidebarProps { side: SidebarSide open: boolean onPressedChange: (open: boolean) => void label?: string controls?: string }"
+            ]
+          },
+          {
+            "name": "Toolbar",
+            "declarations": [
+              "({ children, className, ...props }: ToolbarProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ToolbarButton",
+            "declarations": [
+              "({ className, ...props }: ToolbarButtonProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ToolbarButtonProps",
+            "declarations": [
+              "export interface ToolbarButtonProps extends Omit<ComponentPropsWithRef<typeof BaseToolbar.Button>, 'className'> { className?: string }"
+            ]
+          },
+          {
+            "name": "ToolbarGroup",
+            "declarations": [
+              "({ children, className, ...props }: ToolbarGroupProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ToolbarGroupProps",
+            "declarations": [
+              "export interface ToolbarGroupProps extends Omit<ComponentPropsWithRef<typeof BaseToolbar.Group>, 'children' | 'className'> { children: ReactNode className?: string }"
+            ]
+          },
+          {
+            "name": "ToolbarProps",
+            "declarations": [
+              "export interface ToolbarProps extends Omit<ComponentPropsWithRef<typeof BaseToolbar.Root>, 'children' | 'className'> { children: ReactNode className?: string }"
+            ]
+          },
+          {
+            "name": "Tooltip",
+            "declarations": [
+              "({ trigger, children, side, popupProps, ...props }: TooltipProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "TooltipProps",
+            "declarations": [
+              "export interface TooltipProps extends Omit<ComponentPropsWithRef<typeof BaseTooltip.Root>, 'children'> { trigger: ReactElement children: ReactNode /** Which side of the trigger the tooltip opens on; defaults to above it. */ side?: ComponentPropsWithRef<typeof BaseTooltip.Positioner>['side'] popupProps?: Omit< ComponentPropsWithRef<typeof BaseTooltip.Popup>, 'children' > & DataAttributes }"
+            ]
+          },
+          {
+            "name": "UnitValueInput",
+            "declarations": [
+              "<Unit extends string>({ label, value, units, defaultUnit, minimum, maximum, canonicalStep, disabled, onCommit, className, numberInputProps, unitSelectTriggerProps, unitSelectPopupProps, ...containerProps }: UnitValueInputProps<Unit>): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "UnitValueInputProps",
+            "declarations": [
+              "export interface UnitValueInputProps<Unit extends string = string> extends Omit<ComponentPropsWithRef<'div'>, 'children' | 'className'> { label: ReactNode value: number units: readonly MeasurementUnit<Unit>[] defaultUnit: Unit minimum?: number maximum?: number canonicalStep?: number disabled?: boolean onCommit: (value: number) => void className?: string numberInputProps?: NumberInputProps['inputProps'] unitSelectTriggerProps?: SelectProps<Unit>['triggerProps'] unitSelectPopupProps?: SelectProps<Unit>['popupProps'] }"
+            ]
+          },
+          {
+            "name": "useToastManager",
+            "declarations": [
+              "<Data extends object = any>() => import(\"@base-ui/react\").UseToastManagerReturnValue<Data>"
+            ]
+          },
+          {
+            "name": "WindowControls",
+            "declarations": [
+              "({ native, onClose, onMinimize, onMaximize, }: WindowControlsProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "WindowControlsProps",
+            "declarations": [
+              "export interface WindowControlsProps { /** Reserves the controls' footprint for platform-drawn window buttons. */ native?: boolean onClose?: () => void onMinimize?: () => void onMaximize?: () => void }"
+            ]
+          },
+          {
+            "name": "ZoomMenu",
+            "declarations": [
+              "({ value, onValueChange }: ZoomMenuProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ZoomMenuProps",
+            "declarations": [
+              "export interface ZoomMenuProps { value: number onValueChange: (value: number) => void }"
+            ]
+          }
+        ]
+      },
+      {
+        "subpath": "./compositions",
+        "target": "src/compositions/index.ts",
+        "kind": "typescript",
+        "exports": [
+          {
+            "name": "WorkspaceNavigationSlot",
+            "declarations": [
+              "export interface WorkspaceNavigationSlot { label?: string header?: ReactNode items?: ReactNode footer?: ReactNode }"
+            ]
+          },
+          {
+            "name": "WorkspaceShell",
+            "declarations": [
+              "({ tabs, activeTab, onActiveTabChange, renderPanel, onCloseTab, tabLeading, tabTrailing, navigation, leftSidebar, rightSidebar, sidebarsOpen, onSidebarsOpenChange, compactContent, mainOverlay, mainRef, backgroundVisible, fill, children, }: WorkspaceShellProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "WorkspaceShellProps",
+            "declarations": [
+              "export interface WorkspaceShellProps { tabs: readonly TabBarItem[] activeTab: string onActiveTabChange: (tab: string) => void renderPanel: (item: TabBarItem) => ReactNode onCloseTab?: (tab: string) => void tabLeading?: ReactNode tabTrailing?: ReactNode navigation?: WorkspaceNavigationSlot leftSidebar?: WorkspaceSidebarSlot rightSidebar?: WorkspaceSidebarSlot sidebarsOpen: boolean onSidebarsOpenChange: (open: boolean) => void /** Main-area content shown only while the sidebars are collapsed. */ compactContent?: ReactNode /** Main-area content drawn above the tab panels. */ mainOverlay?: ReactNode mainRef?: Ref<HTMLElement> backgroundVisible?: boolean /** Fills the host viewport instead of drawing a floating window frame. */ fill?: boolean children?: ReactNode }"
+            ]
+          },
+          {
+            "name": "WorkspaceShellSpike",
+            "declarations": [
+              "({ defaultMode, showNotification, showSecondaryToolbar, fill, nativeWindowControls, }: WorkspaceShellSpikeProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "WorkspaceShellSpikeProps",
+            "declarations": [
+              "export interface WorkspaceShellSpikeProps { defaultMode?: 'expanded' | 'compact' showNotification?: boolean showSecondaryToolbar?: boolean /** Fills the host window instead of drawing a floating frame. */ fill?: boolean /** Reserves space for platform-drawn window controls instead of drawing them. */ nativeWindowControls?: boolean }"
+            ]
+          },
+          {
+            "name": "WorkspaceSidebarSlot",
+            "declarations": [
+              "export interface WorkspaceSidebarSlot { label: string header?: ReactNode content: ReactNode toggleLabel?: string bodyScrollable?: boolean }"
+            ]
+          }
+        ]
+      },
+      {
+        "subpath": "./icons",
+        "target": "src/icons/index.ts",
+        "kind": "typescript",
+        "exports": [
+          {
+            "name": "AiIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "BellIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ChevronDownIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CloseIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CodeIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CommandIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "CommentIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "DesignIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "EyeIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "FolderIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "GridIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "HandIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "HelpIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "HomeIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ICON_SETS",
+            "declarations": [
+              "{ readonly compact: { readonly canvas: 16; readonly count: 133; readonly height: 3296; readonly namespaces: readonly [\"icon.16\"]; readonly source: \"compact/icons.sheet.svg\"; readonly width: 5312; }; readonly prominent: { readonly canvas: 24; readonly count: 634; readonly height: 6944; readonly namespaces: readonly [\"icon.24\", \"icon.16\"]; readonly source: \"prominent/icons.sheet.svg\"; readonly width: 8000; }; readonly 'stroke-endpoints': { readonly canvas: 16; readonly count: 34; readonly height: 1632; readonly namespaces: readonly [\"icon.16.stroke\"]; readonly source: \"stroke-endpoints/icons.sheet.svg\"; readonly width: 3968; }; }"
+            ]
+          },
+          {
+            "name": "IconProps",
+            "declarations": [
+              "export interface IconProps extends Omit<ComponentPropsWithoutRef<'svg'>, 'children' | 'viewBox'> { size?: number | string }"
+            ]
+          },
+          {
+            "name": "IconSetName",
+            "declarations": [
+              "export type IconSetName = keyof typeof ICON_SETS"
+            ]
+          },
+          {
+            "name": "MaximalMarkIcon",
+            "declarations": [
+              "({ size, ...props }: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MaximizeIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MinimizeIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "MoveIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "PenIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "PersonIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "PlayIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "PlusIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SearchIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SectionIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SettingsIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ShapesIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "SidebarIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "StampIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "StickyIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "TableIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "TextIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "WidgetIcon",
+            "declarations": [
+              "(props: IconProps): import(\"react\").JSX.Element"
+            ]
+          }
+        ]
+      },
+      {
+        "subpath": "./primitives",
+        "target": "src/primitives/index.ts",
+        "kind": "typescript",
+        "exports": [
+          {
+            "name": "Button",
+            "declarations": [
+              "({ variant, className, children, ...props }: ButtonProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ButtonProps",
+            "declarations": [
+              "export interface ButtonProps extends Omit<ComponentPropsWithRef<typeof BaseButton>, 'className'> { variant?: ButtonVariant className?: string children: ReactNode }"
+            ]
+          },
+          {
+            "name": "ButtonVariant",
+            "declarations": [
+              "export type ButtonVariant = | 'primary' | 'secondary' | 'danger' | 'secondary-danger' | 'inverse' | 'link' | 'ghost'"
+            ]
+          },
+          {
+            "name": "ControlButton",
+            "declarations": [
+              "({ className, ...props }: ControlButtonProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ControlButtonProps",
+            "declarations": [
+              "export interface ControlButtonProps extends Omit<ComponentPropsWithRef<typeof BaseButton>, 'className'> { className?: string }"
+            ]
+          },
+          {
+            "name": "IconButton",
+            "declarations": [
+              "({ label, variant, selected, className, children, ...props }: IconButtonProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "IconButtonProps",
+            "declarations": [
+              "export interface IconButtonProps extends Omit<ComponentPropsWithRef<typeof BaseButton>, 'aria-label' | 'className'> { label: string variant?: IconButtonVariant selected?: boolean className?: string children: ReactNode }"
+            ]
+          },
+          {
+            "name": "IconButtonVariant",
+            "declarations": [
+              "export type IconButtonVariant = 'default' | 'toggle' | 'grounded'"
+            ]
+          },
+          {
+            "name": "ToggleButton",
+            "declarations": [
+              "({ selected, ...props }: ToggleButtonProps): import(\"react\").JSX.Element"
+            ]
+          },
+          {
+            "name": "ToggleButtonProps",
+            "declarations": [
+              "export interface ToggleButtonProps extends Omit<ControlButtonProps, 'aria-pressed'> { selected: boolean }"
+            ]
+          }
+        ]
+      },
+      {
+        "subpath": "./styles.css",
+        "target": "src/styles/index.css",
+        "kind": "css",
+        "surface": {
+          "files": [
+            "src/styles/buttons.css",
+            "src/styles/canvas-controls.css",
+            "src/styles/canvas.css",
+            "src/styles/components.css",
+            "src/styles/dialog.css",
+            "src/styles/index.css",
+            "src/styles/patterns.css",
+            "src/styles/scrollbar.css",
+            "src/styles/shell-overlays.css",
+            "src/styles/sidebar.css",
+            "src/styles/tabs.css",
+            "src/styles/terminal.css",
+            "src/styles/workspace-shell.css"
+          ],
+          "customProperties": [],
+          "selectors": [
+            ":root .maximal-workspace-shell[data-fill]",
+            ":root[data-platform=\"macos\"] .maximal-dialog",
+            ":root[data-platform=\"macos\"] .maximal-workspace-shell",
+            ":where(.maximal-workspace-shell) :where(button)",
+            ".maximal-accordion",
+            ".maximal-accordion__header",
+            ".maximal-accordion__item + .maximal-accordion__item",
+            ".maximal-accordion__panel",
+            ".maximal-accordion__panel[data-closed]",
+            ".maximal-alert-dialog__actions",
+            ".maximal-alert-dialog__error",
+            ".maximal-alert-dialog[aria-busy=\"true\"]",
+            ".maximal-assistant-spike",
+            ".maximal-assistant-spike h2",
+            ".maximal-assistant-spike p",
+            ".maximal-assistant-spike__eyebrow",
+            ".maximal-autocomplete",
+            ".maximal-autocomplete__input",
+            ".maximal-autocomplete__input-group",
+            ".maximal-autocomplete__input-group:focus-within",
+            ".maximal-avatar",
+            ".maximal-avatar__fallback",
+            ".maximal-avatar__image",
+            ".maximal-button",
+            ".maximal-button:active:not([data-disabled])",
+            ".maximal-button:focus-visible",
+            ".maximal-button:hover:not([data-disabled])",
+            ".maximal-button:is([data-variant=\"primary\"]",
+            ".maximal-button[data-disabled]",
+            ".maximal-button[data-variant=\"danger\"]",
+            ".maximal-button[data-variant=\"danger\"]:active:not([data-disabled])",
+            ".maximal-button[data-variant=\"danger\"]:hover:not([data-disabled])",
+            ".maximal-button[data-variant=\"ghost\"]",
+            ".maximal-button[data-variant=\"inverse\"]",
+            ".maximal-button[data-variant=\"link\"]",
+            ".maximal-button[data-variant=\"primary\"]",
+            ".maximal-button[data-variant=\"secondary-danger\"]",
+            ".maximal-button[data-variant=\"secondary\"]",
+            ".maximal-callout",
+            ".maximal-callout__body",
+            ".maximal-callout__title",
+            ".maximal-callout:focus-visible",
+            ".maximal-callout[aria-selected='true']",
+            ".maximal-canvas-board",
+            ".maximal-canvas-content",
+            ".maximal-canvas-content .maximal-terminal",
+            ".maximal-canvas-inspector [data-color-style]",
+            ".maximal-canvas-inspector [data-color-style=\"coral\"]",
+            ".maximal-canvas-inspector [data-color-style=\"sage\"]",
+            ".maximal-canvas-inspector [data-color-style=\"slate\"]",
+            ".maximal-canvas-inspector h3",
+            ".maximal-canvas-inspector h4",
+            ".maximal-canvas-inspector header",
+            ".maximal-canvas-inspector li",
+            ".maximal-canvas-inspector section",
+            ".maximal-canvas-inspector ul",
+            ".maximal-canvas-toolbar",
+            ".maximal-canvas-toolbar .maximal-icon-button",
+            ".maximal-canvas-toolbar .maximal-icon-button[data-selected]",
+            ".maximal-canvas-toolbar .maximal-icon-button[data-selected]:active:not([data-disabled])",
+            ".maximal-canvas-toolbar .maximal-icon-button[data-selected]:hover:not([data-disabled])",
+            ".maximal-canvas-toolbar__color",
+            ".maximal-canvas-toolbar__color > span",
+            ".maximal-canvas-toolbar__color[aria-pressed=\"true\"]",
+            ".maximal-canvas-toolbar__color[data-color=\"blue\"] > span",
+            ".maximal-canvas-toolbar__color[data-color=\"green\"] > span",
+            ".maximal-canvas-toolbar__color[data-color=\"grey\"] > span",
+            ".maximal-canvas-toolbar__color[data-color=\"orange\"] > span",
+            ".maximal-canvas-toolbar__color[data-color=\"persimmon\"] > span",
+            ".maximal-canvas-toolbar__color[data-color=\"pink\"] > span",
+            ".maximal-canvas-toolbar__color[data-color=\"purple\"] > span",
+            ".maximal-canvas-toolbar__color[data-color=\"teal\"] > span",
+            ".maximal-canvas-toolbar__color[data-color=\"white\"] > span",
+            ".maximal-canvas-toolbar__color[data-color=\"yellow\"] > span",
+            ".maximal-canvas-toolbar--secondary",
+            ".maximal-canvas-toolbars",
+            ".maximal-canvas-viewport",
+            ".maximal-card",
+            ".maximal-card:focus-visible",
+            ".maximal-card[aria-selected='true']",
+            ".maximal-checkbox",
+            ".maximal-checkbox__indicator",
+            ".maximal-checkbox:focus-visible",
+            ".maximal-checkbox[data-checked]",
+            ".maximal-choice",
+            ".maximal-choice:has([data-disabled])",
+            ".maximal-collaborators",
+            ".maximal-collaborators [data-avatar]",
+            ".maximal-collaborators > header",
+            ".maximal-collaborators button",
+            ".maximal-collaborators h3",
+            ".maximal-collaborators section",
+            ".maximal-collaborators__person",
+            ".maximal-collaborators__person small",
+            ".maximal-collaborators__person[data-muted]",
+            ".maximal-collaborators__positioner",
+            ".maximal-collaborators__search",
+            ".maximal-collaborators__search input",
+            ".maximal-collaborators__spotlight",
+            ".maximal-collaborators__spotlight .maximal-button",
+            ".maximal-collapsible",
+            ".maximal-collapsible__panel",
+            ".maximal-collapsible__panel[data-closed]",
+            ".maximal-combobox",
+            ".maximal-combobox__adornment",
+            ".maximal-combobox__adornment:first-child",
+            ".maximal-combobox__input",
+            ".maximal-combobox__input-group",
+            ".maximal-combobox__input-group:focus-within",
+            ".maximal-combobox__option",
+            ".maximal-compact-project-cluster",
+            ".maximal-compact-project-cluster__identity",
+            ".maximal-compact-surface-cluster",
+            ".maximal-context-menu-trigger",
+            ".maximal-control-button",
+            ".maximal-control-button:focus-visible",
+            ".maximal-control-button[data-disabled]",
+            ".maximal-control-cluster",
+            ".maximal-control-cluster__group",
+            ".maximal-control-cluster__group + .maximal-control-cluster__group",
+            ".maximal-dialog",
+            ".maximal-dialog__backdrop",
+            ".maximal-dialog__description",
+            ".maximal-dialog__title",
+            ".maximal-dialog__viewport",
+            ".maximal-disclosure-content",
+            ".maximal-disclosure-trigger",
+            ".maximal-disclosure-trigger__icon",
+            ".maximal-disclosure-trigger:focus-visible",
+            ".maximal-disclosure-trigger[data-panel-open] .maximal-disclosure-trigger__icon",
+            ".maximal-edge-resizer",
+            ".maximal-edge-resizer__thumb",
+            ".maximal-edge-resizer__thumb:not([data-overflowing])",
+            ".maximal-edge-resizer__track",
+            ".maximal-edge-resizer:focus-visible",
+            ".maximal-edge-resizer:hover .maximal-edge-resizer__thumb",
+            ".maximal-edge-resizer[data-edge=\"bottom\"]",
+            ".maximal-edge-resizer[data-edge=\"bottom\"] .maximal-edge-resizer__thumb",
+            ".maximal-edge-resizer[data-edge=\"bottom\"] .maximal-edge-resizer__track",
+            ".maximal-edge-resizer[data-edge=\"bottom\"] .maximal-scrollbar__thumb",
+            ".maximal-edge-resizer[data-edge=\"left\"]",
+            ".maximal-edge-resizer[data-edge=\"left\"] .maximal-edge-resizer__thumb",
+            ".maximal-edge-resizer[data-edge=\"left\"] .maximal-scrollbar__thumb",
+            ".maximal-edge-resizer[data-edge=\"right\"]",
+            ".maximal-edge-resizer[data-edge=\"right\"] .maximal-edge-resizer__thumb",
+            ".maximal-edge-resizer[data-edge=\"right\"] .maximal-scrollbar__thumb",
+            ".maximal-edge-resizer[data-edge=\"top\"]",
+            ".maximal-edge-resizer[data-edge=\"top\"] .maximal-edge-resizer__thumb",
+            ".maximal-edge-resizer[data-edge=\"top\"] .maximal-edge-resizer__track",
+            ".maximal-edge-resizer[data-edge=\"top\"] .maximal-scrollbar__thumb",
+            ".maximal-edge-resizer[data-overlap][data-edge=\"bottom\"]",
+            ".maximal-edge-resizer[data-overlap][data-edge=\"left\"]",
+            ".maximal-edge-resizer[data-overlap][data-edge=\"right\"]",
+            ".maximal-edge-resizer[data-overlap][data-edge=\"top\"]",
+            ".maximal-edge-resizer[data-scroll-active] .maximal-edge-resizer__thumb",
+            ".maximal-field",
+            ".maximal-field-description",
+            ".maximal-field-error",
+            ".maximal-field-label",
+            ".maximal-fieldset",
+            ".maximal-fieldset__legend",
+            ".maximal-horizontal-scroll-area",
+            ".maximal-horizontal-scroll-area__content",
+            ".maximal-horizontal-scroll-area__viewport",
+            ".maximal-horizontal-scroll-area__viewport::-webkit-scrollbar",
+            ".maximal-icon",
+            ".maximal-icon > svg",
+            ".maximal-icon-button",
+            ".maximal-icon-button:active:not([data-disabled])",
+            ".maximal-icon-button:focus-visible",
+            ".maximal-icon-button:hover:not([data-disabled])",
+            ".maximal-icon-button.maximal-page-controls__visibility",
+            ".maximal-icon-button.maximal-page-controls__visibility:active:not([data-disabled])",
+            ".maximal-icon-button.maximal-page-controls__visibility:hover:not([data-disabled])",
+            ".maximal-icon-button.maximal-page-controls__visibility[data-variant=\"toggle\"][aria-pressed=\"true\"]",
+            ".maximal-icon-button.maximal-toggle-sidebar",
+            ".maximal-icon-button[data-disabled]",
+            ".maximal-icon-button[data-selected]",
+            ".maximal-icon-button[data-selected]:active:not([data-disabled])",
+            ".maximal-icon-button[data-selected]:hover:not([data-disabled])",
+            ".maximal-icon-button[data-variant=\"grounded\"]",
+            ".maximal-icon-button[data-variant=\"toggle\"][aria-pressed=\"true\"]",
+            ".maximal-icon-button[data-variant=\"toggle\"][aria-pressed=\"true\"]:active:not([data-disabled])",
+            ".maximal-icon-button[data-variant=\"toggle\"][aria-pressed=\"true\"]:hover:not([data-disabled])",
+            ".maximal-icon-story",
+            ".maximal-icon[data-size='compact']",
+            ".maximal-icon[data-size='prominent']",
+            ".maximal-inspector-panel",
+            ".maximal-inspector-panel__body",
+            ".maximal-inspector-panel__header",
+            ".maximal-inspector-panel__title",
+            ".maximal-menu",
+            ".maximal-menu > .maximal-menu-item:first-child",
+            ".maximal-menu > .maximal-menu-item:last-child",
+            ".maximal-menu__content > :first-child .maximal-menu-item:first-child",
+            ".maximal-menu__content > :last-child .maximal-menu-item:last-child",
+            ".maximal-menu__content > .maximal-menu-item:first-child",
+            ".maximal-menu__content > .maximal-menu-item:last-child",
+            ".maximal-menu__footer",
+            ".maximal-menu__group",
+            ".maximal-menu__group + .maximal-menu__group",
+            ".maximal-menu__heading",
+            ".maximal-menu__scroll-arrow",
+            ".maximal-menu__scroll-arrow svg",
+            ".maximal-menu__scroll-arrow:hover",
+            ".maximal-menu__scroll-arrow[data-direction=\"down\"]",
+            ".maximal-menu__scroll-arrow[data-direction=\"up\"]",
+            ".maximal-menu__separator",
+            ".maximal-menu__state",
+            ".maximal-menu--search",
+            ".maximal-menu--search > .maximal-combobox__input-group",
+            ".maximal-menu-item",
+            ".maximal-menu-item__content",
+            ".maximal-menu-item__description",
+            ".maximal-menu-item__indicator",
+            ".maximal-menu-item__label",
+            ".maximal-menu-item__leading",
+            ".maximal-menu-item__selection",
+            ".maximal-menu-item__selection:not([data-checked])",
+            ".maximal-menu-item__trailing",
+            ".maximal-menu-item--footer",
+            ".maximal-menu-item[data-disabled]",
+            ".maximal-menu-item[data-highlighted]",
+            ".maximal-menu::-webkit-scrollbar",
+            ".maximal-menubar",
+            ".maximal-menubar__trigger",
+            ".maximal-menubar__trigger:focus-visible",
+            ".maximal-menubar__trigger:hover",
+            ".maximal-menubar__trigger[data-popup-open]",
+            ".maximal-number-input",
+            ".maximal-number-input__group",
+            ".maximal-number-input__group:focus-within",
+            ".maximal-number-input__input",
+            ".maximal-number-input__stepper",
+            ".maximal-number-input__stepper:hover:not([data-disabled])",
+            ".maximal-number-input[data-disabled] .maximal-number-input__group",
+            ".maximal-option",
+            ".maximal-option__indicator",
+            ".maximal-option--empty",
+            ".maximal-option[data-disabled]",
+            ".maximal-option[data-highlighted]",
+            ".maximal-option[data-selected]",
+            ".maximal-page-controls",
+            ".maximal-page-controls h3",
+            ".maximal-page-controls__color",
+            ".maximal-page-controls__color input[type=\"color\"]",
+            ".maximal-page-controls__color input[type=\"color\"]::-moz-color-swatch",
+            ".maximal-page-controls__color input[type=\"color\"]::-webkit-color-swatch",
+            ".maximal-page-controls__color input[type=\"color\"]::-webkit-color-swatch-wrapper",
+            ".maximal-page-controls__color input[type=\"text\"]",
+            ".maximal-page-controls__color input[type=\"text\"][aria-invalid=\"true\"]",
+            ".maximal-page-controls__color:focus-within",
+            ".maximal-page-controls__opacity",
+            ".maximal-page-controls__row",
+            ".maximal-page-controls__visibility",
+            ".maximal-page-controls__visibility:not([aria-pressed=\"true\"])::after",
+            ".maximal-popover",
+            ".maximal-popover__close",
+            ".maximal-popover__close:focus-visible",
+            ".maximal-popover__content",
+            ".maximal-popover__title",
+            ".maximal-popup",
+            ".maximal-popup-positioner",
+            ".maximal-popup-positioner > .maximal-scrollbar[data-orientation=\"vertical\"]",
+            ".maximal-project-content__group",
+            ".maximal-project-content__group button",
+            ".maximal-project-content__group button span",
+            ".maximal-project-content__group button:hover",
+            ".maximal-project-content__group button[aria-current=\"page\"]",
+            ".maximal-project-content__group h4",
+            ".maximal-project-information",
+            ".maximal-project-information h3",
+            ".maximal-project-information p",
+            ".maximal-project-navigation",
+            ".maximal-project-page-row",
+            ".maximal-project-page-row > button",
+            ".maximal-project-page-row > button span",
+            ".maximal-project-page-row > button:hover",
+            ".maximal-project-page-row > input",
+            ".maximal-project-page-row[data-current] > button",
+            ".maximal-project-pages .maximal-sidebar-section__content",
+            ".maximal-project-pages .maximal-sidebar-section__content::-webkit-scrollbar",
+            ".maximal-project-pages nav",
+            ".maximal-project-status",
+            ".maximal-project-status > span:last-child",
+            ".maximal-project-status > span:nth-child(2)",
+            ".maximal-property",
+            ".maximal-property__label",
+            ".maximal-property__value",
+            ".maximal-property-list",
+            ".maximal-radio",
+            ".maximal-radio__indicator",
+            ".maximal-radio-group",
+            ".maximal-radio:focus-visible",
+            ".maximal-radio[data-checked]",
+            ".maximal-scroll-area",
+            ".maximal-scroll-area__content",
+            ".maximal-scroll-area__viewport",
+            ".maximal-scroll-area__viewport:focus-visible",
+            ".maximal-scrollbar",
+            ".maximal-scrollbar__thumb",
+            ".maximal-scrollbar__thumb:focus-visible",
+            ".maximal-scrollbar__thumb[data-dragging]",
+            ".maximal-scrollbar__thumb[data-hovered]",
+            ".maximal-scrollbar:not([data-overflowing]) .maximal-scrollbar__thumb",
+            ".maximal-scrollbar[data-orientation] .maximal-scrollbar__thumb",
+            ".maximal-scrollbar[data-orientation=\"horizontal\"]",
+            ".maximal-scrollbar[data-orientation=\"horizontal\"] .maximal-scrollbar__thumb",
+            ".maximal-scrollbar[data-orientation=\"horizontal\"] .maximal-scrollbar__thumb[data-dragging]",
+            ".maximal-scrollbar[data-orientation=\"horizontal\"] .maximal-scrollbar__thumb[data-hovered]",
+            ".maximal-scrollbar[data-orientation=\"vertical\"]",
+            ".maximal-scrollbar[data-orientation=\"vertical\"] .maximal-scrollbar__thumb",
+            ".maximal-scrollbar[data-orientation=\"vertical\"] .maximal-scrollbar__thumb[data-dragging]",
+            ".maximal-scrollbar[data-orientation=\"vertical\"] .maximal-scrollbar__thumb[data-hovered]",
+            ".maximal-scrollbar[data-overflowing][data-revealed]",
+            ".maximal-scrollbar[data-overflowing][data-visibility=\"always\"]",
+            ".maximal-select",
+            ".maximal-select__icon",
+            ".maximal-select:focus-visible",
+            ".maximal-select[data-disabled]",
+            ".maximal-separator",
+            ".maximal-separator[data-orientation='horizontal']",
+            ".maximal-separator[data-orientation='vertical']",
+            ".maximal-shell-notification",
+            ".maximal-shell-notification > div",
+            ".maximal-shell-notification > svg",
+            ".maximal-shell-notification button",
+            ".maximal-shell-notification button + button",
+            ".maximal-shell-notification p",
+            ".maximal-shell-status-controls",
+            ".maximal-sidebar",
+            ".maximal-sidebar__body",
+            ".maximal-sidebar__body::-webkit-scrollbar",
+            ".maximal-sidebar__body[data-contained]",
+            ".maximal-sidebar__collapsed-content",
+            ".maximal-sidebar__container",
+            ".maximal-sidebar__container[hidden]",
+            ".maximal-sidebar__header",
+            ".maximal-sidebar__header h2",
+            ".maximal-sidebar__header--bottom-border",
+            ".maximal-sidebar__header--small-bottom-padding",
+            ".maximal-sidebar__header[data-custom-content]",
+            ".maximal-sidebar__header[data-custom-content] > :not(.maximal-toggle-sidebar)",
+            ".maximal-sidebar__header[data-custom-content][data-has-toggle] .maximal-toggle-sidebar",
+            ".maximal-sidebar__header[data-has-toggle] .maximal-project-information",
+            ".maximal-sidebar__list",
+            ".maximal-sidebar__list li",
+            ".maximal-sidebar__list li:hover",
+            ".maximal-sidebar__properties",
+            ".maximal-sidebar__properties > div",
+            ".maximal-sidebar__properties dd",
+            ".maximal-sidebar__properties dt",
+            ".maximal-sidebar__section-label",
+            ".maximal-sidebar-project-details",
+            ".maximal-sidebar-section",
+            ".maximal-sidebar-section__actions",
+            ".maximal-sidebar-section__content",
+            ".maximal-sidebar-section__header",
+            ".maximal-sidebar-section__header h3",
+            ".maximal-sidebar-section__leading",
+            ".maximal-sidebar-section__leading > svg",
+            ".maximal-sidebar-section-split",
+            ".maximal-sidebar-section-split__handle",
+            ".maximal-sidebar-section-split__handle > span",
+            ".maximal-sidebar-section-split__handle:focus-visible",
+            ".maximal-sidebar-section-split__handle:focus-visible > span",
+            ".maximal-sidebar-section-split__handle:hover > span",
+            ".maximal-sidebar-section-split__primary",
+            ".maximal-sidebar-section-split__primary > .maximal-sidebar-section",
+            ".maximal-sidebar-section-split__secondary",
+            ".maximal-sidebar-section-split__secondary > .maximal-sidebar-section",
+            ".maximal-sidebar:not([data-open])[data-side=\"left\"]",
+            ".maximal-sidebar:not([data-open])[data-side=\"right\"]",
+            ".maximal-sidebar[data-open][data-side=\"left\"]",
+            ".maximal-sidebar[data-open][data-side=\"right\"]",
+            ".maximal-sidebar[data-side=\"right\"] .maximal-sidebar__body",
+            ".maximal-sidebar[data-side=\"right\"] .maximal-toggle-sidebar",
+            ".maximal-slider",
+            ".maximal-slider__control",
+            ".maximal-slider__header",
+            ".maximal-slider__indicator",
+            ".maximal-slider__thumb",
+            ".maximal-slider__thumb:focus-visible",
+            ".maximal-slider__thumb:has(input:focus-visible)",
+            ".maximal-slider__track",
+            ".maximal-slider[data-disabled] .maximal-slider__control",
+            ".maximal-status-chip",
+            ".maximal-surface-cluster",
+            ".maximal-surface-cluster__modes",
+            ".maximal-surface-cluster__modes > button",
+            ".maximal-surface-cluster__modes > button[aria-pressed=\"true\"]",
+            ".maximal-surface-cluster__participants",
+            ".maximal-surface-cluster__participants > span",
+            ".maximal-surface-cluster__participants > span:first-child",
+            ".maximal-surface-cluster__participants > span[data-avatar=\"coral\"]",
+            ".maximal-surface-cluster__participants > span[data-avatar=\"sage\"]",
+            ".maximal-surface-cluster:not(.maximal-control-cluster) .maximal-zoom-trigger",
+            ".maximal-surface-cluster:not(.maximal-control-cluster)::before",
+            ".maximal-surface-cluster.maximal-compact-surface-cluster",
+            ".maximal-switch",
+            ".maximal-switch__thumb",
+            ".maximal-switch:focus-visible",
+            ".maximal-switch[data-checked]",
+            ".maximal-switch[data-checked] .maximal-switch__thumb",
+            ".maximal-switch[data-disabled]",
+            ".maximal-tab",
+            ".maximal-tab > span",
+            ".maximal-tab__close-icon",
+            ".maximal-tab-search",
+            ".maximal-tab-search button",
+            ".maximal-tab-search h3",
+            ".maximal-tab-search section",
+            ".maximal-tab-search__input",
+            ".maximal-tab-search__input input",
+            ".maximal-tab-search__input kbd",
+            ".maximal-tab-search__list",
+            ".maximal-tab-search__list button",
+            ".maximal-tab-search__list button > span",
+            ".maximal-tab-search__list button:hover",
+            ".maximal-tab-search__list button[aria-current=\"page\"]",
+            ".maximal-tab-search__list kbd",
+            ".maximal-tab-search__positioner",
+            ".maximal-tab:focus-visible",
+            ".maximal-tab:hover:not([data-disabled])",
+            ".maximal-tab[data-active]",
+            ".maximal-tab[data-disabled]",
+            ".maximal-tabs",
+            ".maximal-tabs__chrome",
+            ".maximal-tabs__indicator",
+            ".maximal-tabs__leading",
+            ".maximal-tabs__list",
+            ".maximal-tabs__panel",
+            ".maximal-tabs__panels",
+            ".maximal-tabs__trailing",
+            ".maximal-terminal",
+            ".maximal-terminal__content",
+            ".maximal-terminal__line",
+            ".maximal-terminal__line[data-tone=\"command\"]",
+            ".maximal-terminal__line[data-tone=\"muted\"]",
+            ".maximal-terminal__line[data-tone=\"success\"]",
+            ".maximal-terminal__scroll-area",
+            ".maximal-terminal__viewport",
+            ".maximal-text-input",
+            ".maximal-text-input__adornment",
+            ".maximal-text-input__adornment:first-child",
+            ".maximal-text-input__adornment:last-child",
+            ".maximal-text-input__group",
+            ".maximal-text-input__group:focus-within",
+            ".maximal-text-input__input",
+            ".maximal-text-input:has([data-disabled])",
+            ".maximal-textarea",
+            ".maximal-textarea:focus-visible",
+            ".maximal-toast",
+            ".maximal-toast__action",
+            ".maximal-toast__action:focus-visible",
+            ".maximal-toast__close",
+            ".maximal-toast__close:focus-visible",
+            ".maximal-toast__content",
+            ".maximal-toast__description",
+            ".maximal-toast__title",
+            ".maximal-toast-viewport",
+            ".maximal-toggle-group",
+            ".maximal-toggle-group__item",
+            ".maximal-toggle-group__item:focus-visible",
+            ".maximal-toggle-group__item:hover",
+            ".maximal-toggle-group__item[data-pressed]",
+            ".maximal-toolbar",
+            ".maximal-toolbar__button",
+            ".maximal-toolbar__button:focus-visible",
+            ".maximal-toolbar__button:hover",
+            ".maximal-toolbar__group",
+            ".maximal-tooltip",
+            ".maximal-unit-value",
+            ".maximal-visually-hidden",
+            ".maximal-window-controls",
+            ".maximal-window-controls[data-native]",
+            ".maximal-workspace-shell",
+            ".maximal-workspace-shell *",
+            ".maximal-workspace-shell *::after",
+            ".maximal-workspace-shell *::before",
+            ".maximal-workspace-shell__main",
+            ".maximal-workspace-shell__main[data-background-visible] .maximal-canvas-viewport",
+            ".maximal-workspace-shell__navigation-bar",
+            ".maximal-workspace-shell__navigation-bar .maximal-icon-button",
+            ".maximal-workspace-shell__navigation-default",
+            ".maximal-workspace-shell__navigation-default svg",
+            ".maximal-workspace-shell__navigation-footer",
+            ".maximal-workspace-shell__navigation-footer svg",
+            ".maximal-workspace-shell__navigation-header",
+            ".maximal-workspace-shell__navigation-header svg",
+            ".maximal-workspace-shell__navigation-header::after",
+            ".maximal-workspace-shell-story-frame",
+            ".maximal-workspace-shell-story-frame > .maximal-workspace-shell",
+            ".maximal-workspace-shell-story-frame::after",
+            ".maximal-workspace-shell[data-fill] .maximal-tabs__chrome",
+            ".maximal-workspace-shell[data-fill] .maximal-tabs__chrome :is(button",
+            ".maximal-workspace-shell[data-workspace-mode=\"compact\"]",
+            ".maximal-workspace-shell[data-workspace-mode=\"compact\"] .maximal-workspace-shell__navigation-bar",
+            ".maximal-zoom-menu",
+            ".maximal-zoom-menu__check",
+            ".maximal-zoom-menu__check[data-checked]::after",
+            ".maximal-zoom-menu__checkbox",
+            ".maximal-zoom-menu__input",
+            ".maximal-zoom-menu__input input",
+            ".maximal-zoom-menu__input input::-webkit-inner-spin-button",
+            ".maximal-zoom-menu__item",
+            ".maximal-zoom-menu__item > :last-child:not(:first-child)",
+            ".maximal-zoom-menu__item kbd",
+            ".maximal-zoom-menu__item[data-highlighted]",
+            ".maximal-zoom-menu__positioner",
+            ".maximal-zoom-menu__separator",
+            ".maximal-zoom-split",
+            ".maximal-zoom-split .maximal-icon-button",
+            ".maximal-zoom-split .maximal-icon-button + .maximal-icon-button",
+            ".maximal-zoom-trigger",
+            ".maximal-zoom-trigger:focus-visible",
+            ".maximal-zoom-trigger:hover",
+            ".maximal-zoom-trigger[data-popup-open]",
+            "[data-panel-open] > .maximal-disclosure-trigger .maximal-disclosure-trigger__icon",
+            "[data-variant=\"inverse\"]):active:not([data-disabled])",
+            "[data-variant=\"inverse\"]):hover:not([data-disabled])",
+            "[role=\"tab\"]",
+            "input)"
+          ]
+        }
+      },
+      {
+        "subpath": "./theme",
+        "target": "src/theme.ts",
+        "kind": "typescript",
+        "exports": [
+          {
+            "name": "applyTheme",
+            "declarations": [
+              "(theme: DesignSystemTheme, target?: Document, matchMedia?: ThemeMatchMedia | undefined): void"
+            ]
+          },
+          {
+            "name": "createThemeManager",
+            "declarations": [
+              "(environment?: ThemeEnvironment): ThemeManager"
+            ]
+          },
+          {
+            "name": "DesignSystemTheme",
+            "declarations": [
+              "export interface DesignSystemTheme { appearance: ThemeMode colors: PaletteSeeds }"
+            ]
+          },
+          {
+            "name": "PaletteSeed",
+            "declarations": [
+              "export interface PaletteSeed { background: string surface: string text: string accent: string /* Pins icon-onbrand, such as to a brand mark's colour, regardless of contrast. */ accentIcon?: string }"
+            ]
+          },
+          {
+            "name": "PaletteSeeds",
+            "declarations": [
+              "export interface PaletteSeeds { light: PaletteSeed dark: PaletteSeed }"
+            ]
+          },
+          {
+            "name": "resolveThemeMode",
+            "declarations": [
+              "(mode: ThemeMode, matchMedia?: ThemeMatchMedia | undefined): ColorMode"
+            ]
+          },
+          {
+            "name": "ThemeManager",
+            "declarations": [
+              "export interface ThemeManager { setTheme(theme: DesignSystemTheme): void dispose(): void }"
+            ]
+          },
+          {
+            "name": "ThemeMatchMedia",
+            "declarations": [
+              "export type ThemeMatchMedia = (query: string) => ThemeMediaQuery"
+            ]
+          },
+          {
+            "name": "ThemeMediaQuery",
+            "declarations": [
+              "export interface ThemeMediaQuery { readonly matches: boolean addEventListener(type: 'change', listener: () => void): void removeEventListener(type: 'change', listener: () => void): void }"
+            ]
+          },
+          {
+            "name": "ThemeMode",
+            "declarations": [
+              "export type ThemeMode = ColorMode | 'system'"
+            ]
+          }
+        ]
+      },
+      {
+        "subpath": "./tokens.css",
+        "target": "dist/tokens/tokens.css",
+        "kind": "css",
+        "surface": {
+          "files": [
+            "dist/tokens/tokens.css"
+          ],
+          "customProperties": [
+            "--body-code",
+            "--body-large",
+            "--body-large-strong",
+            "--body-medium",
+            "--body-medium-strong",
+            "--body-small",
+            "--body-small-strong",
+            "--border-width-thin",
+            "--duration-dwell",
+            "--duration-fade",
+            "--easing-in",
+            "--easing-out",
+            "--easing-standard",
+            "--elevation-100",
+            "--elevation-200",
+            "--elevation-300",
+            "--elevation-400",
+            "--elevation-500",
+            "--elevation-reference-100-dark-low-resolution",
+            "--elevation-reference-100-dark-standard",
+            "--elevation-reference-100-light-low-resolution",
+            "--elevation-reference-100-light-standard",
+            "--elevation-reference-200-dark-low-resolution",
+            "--elevation-reference-200-dark-standard",
+            "--elevation-reference-200-light-low-resolution",
+            "--elevation-reference-200-light-standard",
+            "--elevation-reference-300-dark-low-resolution",
+            "--elevation-reference-300-dark-standard",
+            "--elevation-reference-300-light-low-resolution",
+            "--elevation-reference-300-light-standard",
+            "--elevation-reference-400-dark-low-resolution",
+            "--elevation-reference-400-dark-standard",
+            "--elevation-reference-400-light-low-resolution",
+            "--elevation-reference-400-light-standard",
+            "--elevation-reference-500-dark-low-resolution",
+            "--elevation-reference-500-dark-standard",
+            "--elevation-reference-500-light-low-resolution",
+            "--elevation-reference-500-light-standard",
+            "--heading-display",
+            "--heading-large",
+            "--heading-medium",
+            "--heading-small",
+            "--height-control-compact",
+            "--height-menu-maximum",
+            "--height-row-heading",
+            "--height-row-standard",
+            "--height-window-minimum",
+            "--height-window-preferred",
+            "--icon-radius-dialog",
+            "--icon-size-compact",
+            "--icon-size-prominent",
+            "--icon-size-standard",
+            "--icon-solar-angle",
+            "--icon-source-canvas-application-raster",
+            "--icon-source-canvas-application-vector",
+            "--icon-source-canvas-glyph",
+            "--icon-source-canvas-terminal-raster",
+            "--icon-source-canvas-tray",
+            "--icon-source-canvas-tray-2x",
+            "--icon-spatial-canvas-background-light",
+            "--icon-spatial-canvas-dot-dark",
+            "--icon-spatial-canvas-dot-light",
+            "--icon-spatial-canvas-edge",
+            "--icon-spatial-canvas-radius",
+            "--icon-stroke",
+            "--icon-theme-card-accent",
+            "--icon-theme-card-background",
+            "--icon-theme-card-surface",
+            "--icon-theme-card-text",
+            "--icon-workbar-optical-folder-offset-y",
+            "--icon-workbar-optical-map-scale",
+            "--icon-workbar-optical-terminal-scale",
+            "--opacity-affordance",
+            "--opacity-disabled",
+            "--opacity-hidden",
+            "--opacity-visible",
+            "--padding-navigation-bar-inline",
+            "--radius-dialog-inner",
+            "--radius-dialog-outer",
+            "--radius-full",
+            "--radius-large",
+            "--radius-large-nested",
+            "--radius-medium",
+            "--radius-none",
+            "--radius-platform-macos-inner",
+            "--radius-platform-macos-outer",
+            "--radius-small",
+            "--radius-window-inner",
+            "--radius-window-outer",
+            "--spacer-0",
+            "--spacer-1",
+            "--spacer-2",
+            "--spacer-3",
+            "--spacer-4",
+            "--spacer-5",
+            "--spacer-6",
+            "--spacer-large-nested",
+            "--tab-fade",
+            "--width-content-standard",
+            "--width-navigation-bar",
+            "--width-sidebar-left-default",
+            "--width-sidebar-left-maximum",
+            "--width-sidebar-left-minimum",
+            "--width-sidebar-minimum",
+            "--width-sidebar-right-default",
+            "--width-sidebar-right-maximum",
+            "--width-sidebar-right-minimum",
+            "--width-sidebar-standard",
+            "--width-window-minimum",
+            "--width-window-preferred",
+            "--z-index-assistant",
+            "--z-index-dialog",
+            "--z-index-dialog-backdrop",
+            "--z-index-floating-controls",
+            "--z-index-menu",
+            "--z-index-notification",
+            "--z-index-popover",
+            "--z-index-raised-content",
+            "--z-index-resize-affordance",
+            "--z-index-resizer"
+          ],
+          "selectors": [
+            ":root",
+            "[data-theme='dark']",
+            "[data-theme='light']"
+          ]
+        }
+      },
+      {
+        "subpath": "./utilities",
+        "target": "src/utilities/index.ts",
+        "kind": "typescript",
+        "exports": [
+          {
+            "name": "CANVAS_ZOOM",
+            "declarations": [
+              "{ readonly default: 100; readonly maximum: 200; readonly minimum: 25; readonly presets: readonly [50, 100, 200]; readonly step: 10; }"
+            ]
+          },
+          {
+            "name": "normalizeCanvasZoom",
+            "declarations": [
+              "(value: number): number"
+            ]
+          },
+          {
+            "name": "stepCanvasZoom",
+            "declarations": [
+              "(value: number, direction: -1 | 1): number"
+            ]
+          }
+        ]
+      }
+    ],
+    "tokens": {
+      "source": [
+        "body-code",
+        "body-large",
+        "body-large-strong",
+        "body-medium",
+        "body-medium-strong",
+        "body-small",
+        "body-small-strong",
+        "border-width-thin",
+        "duration-dwell",
+        "duration-fade",
+        "easing-in",
+        "easing-out",
+        "easing-standard",
+        "elevation-100",
+        "elevation-200",
+        "elevation-300",
+        "elevation-400",
+        "elevation-500",
+        "elevation-reference-100-dark-low-resolution",
+        "elevation-reference-100-dark-standard",
+        "elevation-reference-100-light-low-resolution",
+        "elevation-reference-100-light-standard",
+        "elevation-reference-200-dark-low-resolution",
+        "elevation-reference-200-dark-standard",
+        "elevation-reference-200-light-low-resolution",
+        "elevation-reference-200-light-standard",
+        "elevation-reference-300-dark-low-resolution",
+        "elevation-reference-300-dark-standard",
+        "elevation-reference-300-light-low-resolution",
+        "elevation-reference-300-light-standard",
+        "elevation-reference-400-dark-low-resolution",
+        "elevation-reference-400-dark-standard",
+        "elevation-reference-400-light-low-resolution",
+        "elevation-reference-400-light-standard",
+        "elevation-reference-500-dark-low-resolution",
+        "elevation-reference-500-dark-standard",
+        "elevation-reference-500-light-low-resolution",
+        "elevation-reference-500-light-standard",
+        "heading-display",
+        "heading-large",
+        "heading-medium",
+        "heading-small",
+        "height-control-compact",
+        "height-menu-maximum",
+        "height-row-heading",
+        "height-row-standard",
+        "height-window-minimum",
+        "height-window-preferred",
+        "icon-radius-dialog",
+        "icon-size-compact",
+        "icon-size-prominent",
+        "icon-size-standard",
+        "icon-solar-angle",
+        "icon-source-canvas-application-raster",
+        "icon-source-canvas-application-vector",
+        "icon-source-canvas-glyph",
+        "icon-source-canvas-terminal-raster",
+        "icon-source-canvas-tray",
+        "icon-source-canvas-tray-2x",
+        "icon-spatial-canvas-background-light",
+        "icon-spatial-canvas-dot-dark",
+        "icon-spatial-canvas-dot-light",
+        "icon-spatial-canvas-edge",
+        "icon-spatial-canvas-radius",
+        "icon-stroke",
+        "icon-theme-card-accent",
+        "icon-theme-card-background",
+        "icon-theme-card-surface",
+        "icon-theme-card-text",
+        "icon-workbar-optical-folder-offset-y",
+        "icon-workbar-optical-map-scale",
+        "icon-workbar-optical-terminal-scale",
+        "opacity-affordance",
+        "opacity-disabled",
+        "opacity-hidden",
+        "opacity-visible",
+        "padding-navigation-bar-inline",
+        "radius-dialog-inner",
+        "radius-dialog-outer",
+        "radius-full",
+        "radius-large",
+        "radius-large-nested",
+        "radius-medium",
+        "radius-none",
+        "radius-platform-macos-inner",
+        "radius-platform-macos-outer",
+        "radius-small",
+        "radius-window-inner",
+        "radius-window-outer",
+        "spacer-0",
+        "spacer-1",
+        "spacer-2",
+        "spacer-3",
+        "spacer-4",
+        "spacer-5",
+        "spacer-6",
+        "spacer-large-nested",
+        "tab-fade",
+        "width-content-standard",
+        "width-navigation-bar",
+        "width-sidebar-left-default",
+        "width-sidebar-left-maximum",
+        "width-sidebar-left-minimum",
+        "width-sidebar-minimum",
+        "width-sidebar-right-default",
+        "width-sidebar-right-maximum",
+        "width-sidebar-right-minimum",
+        "width-sidebar-standard",
+        "width-window-minimum",
+        "width-window-preferred",
+        "z-index-assistant",
+        "z-index-dialog",
+        "z-index-dialog-backdrop",
+        "z-index-floating-controls",
+        "z-index-menu",
+        "z-index-notification",
+        "z-index-popover",
+        "z-index-raised-content",
+        "z-index-resize-affordance",
+        "z-index-resizer"
+      ],
+      "generatedJson": [
+        "body-code",
+        "body-large",
+        "body-large-strong",
+        "body-medium",
+        "body-medium-strong",
+        "body-small",
+        "body-small-strong",
+        "border-width-thin",
+        "duration-dwell",
+        "duration-fade",
+        "easing-in",
+        "easing-out",
+        "easing-standard",
+        "elevation-100",
+        "elevation-200",
+        "elevation-300",
+        "elevation-400",
+        "elevation-500",
+        "elevation-reference-100-dark-low-resolution",
+        "elevation-reference-100-dark-standard",
+        "elevation-reference-100-light-low-resolution",
+        "elevation-reference-100-light-standard",
+        "elevation-reference-200-dark-low-resolution",
+        "elevation-reference-200-dark-standard",
+        "elevation-reference-200-light-low-resolution",
+        "elevation-reference-200-light-standard",
+        "elevation-reference-300-dark-low-resolution",
+        "elevation-reference-300-dark-standard",
+        "elevation-reference-300-light-low-resolution",
+        "elevation-reference-300-light-standard",
+        "elevation-reference-400-dark-low-resolution",
+        "elevation-reference-400-dark-standard",
+        "elevation-reference-400-light-low-resolution",
+        "elevation-reference-400-light-standard",
+        "elevation-reference-500-dark-low-resolution",
+        "elevation-reference-500-dark-standard",
+        "elevation-reference-500-light-low-resolution",
+        "elevation-reference-500-light-standard",
+        "heading-display",
+        "heading-large",
+        "heading-medium",
+        "heading-small",
+        "height-control-compact",
+        "height-menu-maximum",
+        "height-row-heading",
+        "height-row-standard",
+        "height-window-minimum",
+        "height-window-preferred",
+        "icon-radius-dialog",
+        "icon-size-compact",
+        "icon-size-prominent",
+        "icon-size-standard",
+        "icon-solar-angle",
+        "icon-source-canvas-application-raster",
+        "icon-source-canvas-application-vector",
+        "icon-source-canvas-glyph",
+        "icon-source-canvas-terminal-raster",
+        "icon-source-canvas-tray",
+        "icon-source-canvas-tray-2x",
+        "icon-spatial-canvas-background-light",
+        "icon-spatial-canvas-dot-dark",
+        "icon-spatial-canvas-dot-light",
+        "icon-spatial-canvas-edge",
+        "icon-spatial-canvas-radius",
+        "icon-stroke",
+        "icon-theme-card-accent",
+        "icon-theme-card-background",
+        "icon-theme-card-surface",
+        "icon-theme-card-text",
+        "icon-workbar-optical-folder-offset-y",
+        "icon-workbar-optical-map-scale",
+        "icon-workbar-optical-terminal-scale",
+        "opacity-affordance",
+        "opacity-disabled",
+        "opacity-hidden",
+        "opacity-visible",
+        "padding-navigation-bar-inline",
+        "radius-dialog-inner",
+        "radius-dialog-outer",
+        "radius-full",
+        "radius-large",
+        "radius-large-nested",
+        "radius-medium",
+        "radius-none",
+        "radius-platform-macos-inner",
+        "radius-platform-macos-outer",
+        "radius-small",
+        "radius-window-inner",
+        "radius-window-outer",
+        "spacer-0",
+        "spacer-1",
+        "spacer-2",
+        "spacer-3",
+        "spacer-4",
+        "spacer-5",
+        "spacer-6",
+        "spacer-large-nested",
+        "tab-fade",
+        "width-content-standard",
+        "width-navigation-bar",
+        "width-sidebar-left-default",
+        "width-sidebar-left-maximum",
+        "width-sidebar-left-minimum",
+        "width-sidebar-minimum",
+        "width-sidebar-right-default",
+        "width-sidebar-right-maximum",
+        "width-sidebar-right-minimum",
+        "width-sidebar-standard",
+        "width-window-minimum",
+        "width-window-preferred",
+        "z-index-assistant",
+        "z-index-dialog",
+        "z-index-dialog-backdrop",
+        "z-index-floating-controls",
+        "z-index-menu",
+        "z-index-notification",
+        "z-index-popover",
+        "z-index-raised-content",
+        "z-index-resize-affordance",
+        "z-index-resizer"
+      ],
+      "generatedCss": [
+        "--body-code",
+        "--body-large",
+        "--body-large-strong",
+        "--body-medium",
+        "--body-medium-strong",
+        "--body-small",
+        "--body-small-strong",
+        "--border-width-thin",
+        "--duration-dwell",
+        "--duration-fade",
+        "--easing-in",
+        "--easing-out",
+        "--easing-standard",
+        "--elevation-100",
+        "--elevation-200",
+        "--elevation-300",
+        "--elevation-400",
+        "--elevation-500",
+        "--elevation-reference-100-dark-low-resolution",
+        "--elevation-reference-100-dark-standard",
+        "--elevation-reference-100-light-low-resolution",
+        "--elevation-reference-100-light-standard",
+        "--elevation-reference-200-dark-low-resolution",
+        "--elevation-reference-200-dark-standard",
+        "--elevation-reference-200-light-low-resolution",
+        "--elevation-reference-200-light-standard",
+        "--elevation-reference-300-dark-low-resolution",
+        "--elevation-reference-300-dark-standard",
+        "--elevation-reference-300-light-low-resolution",
+        "--elevation-reference-300-light-standard",
+        "--elevation-reference-400-dark-low-resolution",
+        "--elevation-reference-400-dark-standard",
+        "--elevation-reference-400-light-low-resolution",
+        "--elevation-reference-400-light-standard",
+        "--elevation-reference-500-dark-low-resolution",
+        "--elevation-reference-500-dark-standard",
+        "--elevation-reference-500-light-low-resolution",
+        "--elevation-reference-500-light-standard",
+        "--heading-display",
+        "--heading-large",
+        "--heading-medium",
+        "--heading-small",
+        "--height-control-compact",
+        "--height-menu-maximum",
+        "--height-row-heading",
+        "--height-row-standard",
+        "--height-window-minimum",
+        "--height-window-preferred",
+        "--icon-radius-dialog",
+        "--icon-size-compact",
+        "--icon-size-prominent",
+        "--icon-size-standard",
+        "--icon-solar-angle",
+        "--icon-source-canvas-application-raster",
+        "--icon-source-canvas-application-vector",
+        "--icon-source-canvas-glyph",
+        "--icon-source-canvas-terminal-raster",
+        "--icon-source-canvas-tray",
+        "--icon-source-canvas-tray-2x",
+        "--icon-spatial-canvas-background-light",
+        "--icon-spatial-canvas-dot-dark",
+        "--icon-spatial-canvas-dot-light",
+        "--icon-spatial-canvas-edge",
+        "--icon-spatial-canvas-radius",
+        "--icon-stroke",
+        "--icon-theme-card-accent",
+        "--icon-theme-card-background",
+        "--icon-theme-card-surface",
+        "--icon-theme-card-text",
+        "--icon-workbar-optical-folder-offset-y",
+        "--icon-workbar-optical-map-scale",
+        "--icon-workbar-optical-terminal-scale",
+        "--opacity-affordance",
+        "--opacity-disabled",
+        "--opacity-hidden",
+        "--opacity-visible",
+        "--padding-navigation-bar-inline",
+        "--radius-dialog-inner",
+        "--radius-dialog-outer",
+        "--radius-full",
+        "--radius-large",
+        "--radius-large-nested",
+        "--radius-medium",
+        "--radius-none",
+        "--radius-platform-macos-inner",
+        "--radius-platform-macos-outer",
+        "--radius-small",
+        "--radius-window-inner",
+        "--radius-window-outer",
+        "--spacer-0",
+        "--spacer-1",
+        "--spacer-2",
+        "--spacer-3",
+        "--spacer-4",
+        "--spacer-5",
+        "--spacer-6",
+        "--spacer-large-nested",
+        "--tab-fade",
+        "--width-content-standard",
+        "--width-navigation-bar",
+        "--width-sidebar-left-default",
+        "--width-sidebar-left-maximum",
+        "--width-sidebar-left-minimum",
+        "--width-sidebar-minimum",
+        "--width-sidebar-right-default",
+        "--width-sidebar-right-maximum",
+        "--width-sidebar-right-minimum",
+        "--width-sidebar-standard",
+        "--width-window-minimum",
+        "--width-window-preferred",
+        "--z-index-assistant",
+        "--z-index-dialog",
+        "--z-index-dialog-backdrop",
+        "--z-index-floating-controls",
+        "--z-index-menu",
+        "--z-index-notification",
+        "--z-index-popover",
+        "--z-index-raised-content",
+        "--z-index-resize-affordance",
+        "--z-index-resizer"
+      ]
+    }
+  },
+  "guardrails": {
+    "coverageMinimums": {
+      "branches": 51.9,
+      "functions": 63.5,
+      "lines": 62.6,
+      "statements": 60.6
+    },
+    "accessibilityMaximums": {
+      "maximumIncomplete": 0,
+      "maximumUncheckedStories": 0,
+      "maximumViolations": 0
+    },
+    "runtimeMaximums": {
+      "maximumConsoleErrors": 0,
+      "maximumPageErrors": 0
+    },
+    "sourceSwitches": {
+      "forbidImportantDeclarations": true,
+      "forbidLiteralColors": true,
+      "forbidLiteralMotionDurations": true,
+      "forbidLiteralSpatialDimensions": true,
+      "forbidLiteralStackingLevels": true
+    },
+    "acceptanceProfiles": [
+      "forced-colors",
+      "reduced-motion",
+      "reflow-320",
+      "text-spacing",
+      "zoom-200-equivalent"
+    ],
+    "themes": [
+      "dark",
+      "light"
+    ],
+    "ownedStoryImportPrefix": "./stories/",
+    "storyOwnership": [
+      "../../maximal-client/src/renderer/!(color)/**/*.stories.tsx",
+      "../../maximal-electron/src/renderer/**/*.stories.tsx",
+      "../../maximal-harness/src/renderer/**/*.stories.tsx",
+      "../stories/**/*.stories.tsx"
+    ],
+    "disabledAxeRules": [
+      "bypass",
+      "landmark-one-main",
+      "page-has-heading-one",
+      "region"
+    ],
+    "profileDisabledAxeRules": {
+      "forced-colors": [
+        "color-contrast"
+      ]
+    }
+  }
+}

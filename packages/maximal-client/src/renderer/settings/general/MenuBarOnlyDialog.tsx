@@ -1,4 +1,5 @@
-import { Button, Dialog } from '@maximal/maximal-electron/renderer'
+import { Button, Dialog } from '@maximal/maximal-design-system'
+import { shellOverlayContainer } from '../../shell-overlay-container'
 
 interface MenuBarOnlyDialogProps {
   open: boolean
@@ -23,7 +24,8 @@ export function MenuBarOnlyDialog({
       }}
       title="Keep menu bar only?"
       description="Confirm before Maximal removes its Dock or taskbar entry."
-      testId="menu-bar-mode-confirmation"
+      popupProps={{ 'data-testid': 'menu-bar-mode-confirmation' }}
+      container={shellOverlayContainer}
     >
       <h2 className="settings-dialog__heading">Keep menu bar only?</h2>
       <p>

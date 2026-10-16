@@ -1,5 +1,6 @@
+import { Button } from '@maximal/maximal-design-system'
 import type { ReactElement } from 'react'
-import { Button, Note } from '@maximal/maximal-electron/renderer'
+import { Note } from '@maximal/maximal-electron/renderer'
 
 import type { AppTab } from '../frame/AppFrame'
 

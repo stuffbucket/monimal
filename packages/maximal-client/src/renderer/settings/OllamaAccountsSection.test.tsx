@@ -210,7 +210,7 @@ describe('OllamaAccountsSection API key validation', () => {
     expect(save?.closest('.settings-credential-field')).toBe(
       input?.closest('.settings-credential-field'),
     )
-    expect(save?.classList.contains('btn--primary')).toBe(true)
+    expect(save?.dataset.variant).toBe('primary')
     expect(save?.disabled).toBe(true)
     expect(surface.querySelector('.settings-credential-field .avatar')).toBeNull()
   })
@@ -508,7 +508,7 @@ describe('OllamaAccountsSection API key validation', () => {
     expect(save.disabled).toBe(true)
   })
 
-  it('marks working cloud and local inputs as active', async () => {
+  it('shows availability for working cloud and local inputs', async () => {
     const { capabilities } = fakeCapabilities({
       configured: true,
       cloudAvailable: true,
@@ -517,14 +517,17 @@ describe('OllamaAccountsSection API key validation', () => {
 
     const surface = await renderSection(capabilities)
 
+    const apiKey = surface.querySelector('[data-testid="ollama-api-key"]')
+    const endpoint = surface.querySelector('[data-testid="ollama-endpoint"]')
+
     expect(
-      surface.querySelector('[data-testid="ollama-api-key"]')
-        ?.getAttribute('data-active'),
-    ).toBe('true')
+      apiKey?.closest('.maximal-text-input')
+        ?.querySelector('.maximal-status-chip')?.textContent,
+    ).toBe('Available')
     expect(
-      surface.querySelector('[data-testid="ollama-endpoint"]')
-        ?.getAttribute('data-active'),
-    ).toBe('true')
+      endpoint?.closest('.maximal-text-input')
+        ?.querySelector('.maximal-status-chip')?.textContent,
+    ).toBe('Available')
   })
 
   it('keeps the local description static and reports status below the input', async () => {
@@ -538,7 +541,7 @@ describe('OllamaAccountsSection API key validation', () => {
     expect(item?.querySelector('.settings__item-description')?.textContent).toBe(
       'Connect to an Ollama application running on this computer or another host.',
     )
-    expect(input?.closest('.form-field')?.textContent).toContain(
+    expect(input?.closest('.maximal-text-input')?.textContent).toContain(
       'Ollama is available.',
     )
   })

@@ -49,3 +49,19 @@
 .maximal-dialog__description {
   color: var(--maximal-color-text-secondary);
 }
+
+.maximal-alert-dialog[aria-busy="true"] {
+  cursor: progress;
+}
+
+.maximal-alert-dialog__error {
+  margin: 0;
+  color: var(--maximal-color-text-danger);
+}
+
+.maximal-alert-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--spacer-2);
+}

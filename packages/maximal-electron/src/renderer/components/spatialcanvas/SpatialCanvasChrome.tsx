@@ -28,7 +28,7 @@ import {
 import { Button, IconButton } from "../controls/Button.js";
 
 /** A page exposed by spatial canvas page controls. */
-export interface SpatialCanvasPage {
+interface SpatialCanvasPage {
   id: string;
   name: string;
 }
@@ -80,7 +80,7 @@ export function SpatialCanvasToolButton({
   );
 }
 
-export type SpatialCanvasHeaderActionKind =
+type SpatialCanvasHeaderActionKind =
   | "menu"
   | "comments"
   | "chat"

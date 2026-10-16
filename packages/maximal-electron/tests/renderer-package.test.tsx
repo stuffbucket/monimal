@@ -39,9 +39,10 @@ describe('the renderer entry point', () => {
     expect(undeclared).toEqual([]);
   });
 
-  it('exports the hooks a consumer composes with', () => {
-    expect(typeof surface.useThemePreference).toBe('function');
-    expect(typeof surface.useShellTabs).toBe('function');
+  it('keeps primitives without a workspace consumer off the entry point', () => {
+    const internal = ['Button', 'Dialog', 'NavRail', 'ShellLayout', 'TabBar', 'WindowChrome'];
+
+    expect(internal.filter((name) => name in surface)).toEqual([]);
   });
 
   it('leaves the terminal surface to @maximal/maximal-terminal', async () => {
@@ -111,7 +112,7 @@ describe('packaged renderer components', () => {
     const markup = renderToStaticMarkup(
       <surface.SettingsPage
         title="Connections"
-        actions={<surface.Button size="sm">Rescan</surface.Button>}
+        actions={<controls.Button size="sm">Rescan</controls.Button>}
       >
         Settings
       </surface.SettingsPage>,
@@ -129,14 +130,14 @@ describe('packaged renderer components', () => {
           title="Knowledge base"
           description="Use indexed documentation when answering."
           control={
-            <surface.Switch
+            <controls.Switch
               label="Use knowledge base"
               displayLabel={null}
               checked
               onChange={vi.fn()}
             />
           }
-          actions={<surface.Button>Configure</surface.Button>}
+          actions={<controls.Button>Configure</controls.Button>}
         />
       </surface.SettingsGroup>,
     );
@@ -150,7 +151,7 @@ describe('packaged renderer components', () => {
 
   it('renders compact switches by default with the track before the label', () => {
     const spread = renderToStaticMarkup(
-      <surface.Switch
+      <controls.Switch
         label="Menu bar only"
         layout="spread"
         checked={false}
@@ -158,7 +159,7 @@ describe('packaged renderer components', () => {
       />,
     );
     const compact = renderToStaticMarkup(
-      <surface.Switch label="Dock badge" checked onChange={vi.fn()} />,
+      <controls.Switch label="Dock badge" checked onChange={vi.fn()} />,
     );
 
     expect(compact).toContain('data-layout="compact"');

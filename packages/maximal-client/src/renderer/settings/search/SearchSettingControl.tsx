@@ -1,13 +1,17 @@
 import { type ReactElement, type ReactNode, useState } from 'react'
-import { Info } from 'lucide-react'
+import { Eye, EyeOff, Info } from 'lucide-react'
 
 import {
-  FormField,
+  Field,
+  IconButton,
+  NumberInput,
   Select,
   Switch,
-  Textarea,
   TextInput,
-} from '@maximal/maximal-electron/renderer'
+  Tooltip,
+} from '@maximal/maximal-design-system'
+
+import { ControlNotes } from '../ControlNotes'
 
 import type {
   ConnectorSettingField,
@@ -62,17 +66,17 @@ function fieldHint({
 }
 
 function StringListControl({
-  control,
+  label,
+  hint,
+  error,
   value,
   disabled,
   testId,
   onChange,
 }: {
-  control: {
-    id: string
-    'aria-describedby': string | undefined
-    'aria-invalid': boolean | undefined
-  }
+  label: ReactNode
+  hint: ReactNode | undefined
+  error: string | undefined
   value: readonly string[]
   disabled: boolean
   testId: string
@@ -88,18 +92,106 @@ function StringListControl({
   }
 
   return (
-    <Textarea
-      {...control}
-      value={text}
-      rows={3}
+    <Field
+      label={label}
+      description={hint}
+      error={error}
       disabled={disabled}
-      testId={testId}
-      onChange={(next) => {
-        setText(next)
-        onChange(parseStringList(next))
+      textareaProps={{
+        value: text,
+        rows: 3,
+        disabled,
+        'data-testid': testId,
+        onChange: (event) => {
+          const next = event.currentTarget.value
+          setText(next)
+          onChange(parseStringList(next))
+        },
+        onBlur: () => setText(formatStringList(parseStringList(text))),
       }}
-      onBlur={() => setText(formatStringList(parseStringList(text)))}
     />
+  )
+}
+
+function integerValue(
+  field: ConnectorSettingField,
+  value: ConnectorSettingValue,
+): number | null {
+  const displayed = displayedInteger(field, value)
+  return displayed === '' ? null : displayed
+}
+
+function SecretToggle({
+  label,
+  revealed,
+  onToggle,
+}: {
+  label: string
+  revealed: boolean
+  onToggle: () => void
+}): ReactElement {
+  return (
+    <IconButton
+      label={`${revealed ? 'Hide' : 'Show'} ${label}`}
+      onClick={onToggle}
+    >
+      {revealed ? <EyeOff size={16} /> : <Eye size={16} />}
+    </IconButton>
+  )
+}
+
+function BooleanSettingControl({
+  label,
+  hint,
+  tooltip,
+  checked,
+  disabled,
+  testId,
+  onChange,
+}: {
+  label: string
+  hint: ReactNode | undefined
+  tooltip: ReactNode | undefined
+  checked: boolean
+  disabled: boolean
+  testId: string
+  onChange: (value: boolean) => void
+}): ReactElement {
+  return (
+    <div className="settings-field">
+      {tooltip === undefined
+        ? (
+            <Switch
+              label={label}
+              checked={checked}
+              disabled={disabled}
+              onCheckedChange={onChange}
+              data-testid={testId}
+            />
+          )
+        : (
+            <Tooltip
+              trigger={(
+                <Switch
+                  aria-label={label}
+                  label={(
+                    <span className="search-behavior__switch-label">
+                      {label}
+                      <Info size={12} aria-hidden="true" />
+                    </span>
+                  )}
+                  checked={checked}
+                  disabled={disabled}
+                  onCheckedChange={onChange}
+                  data-testid={testId}
+                />
+              )}
+            >
+              {tooltip}
+            </Tooltip>
+          )}
+      {hint ? <span className="settings-list__detail">{hint}</span> : null}
+    </div>
   )
 }
 
@@ -118,94 +210,134 @@ export function SearchSettingControl({
   const hint = fieldHint({ field, secretSource, clearing })
   if (field.type === 'boolean') {
     return (
-      <div className="settings-field">
-        <Switch
-          label={field.label}
-          displayLabel={
-            tooltip === undefined
-              ? undefined
-              : (
-                  <span className="search-behavior__switch-label">
-                    {field.label}
-                    <Info size={12} aria-hidden="true" />
-                  </span>
-                )
-          }
-          tooltip={tooltip}
-          checked={value === true}
-          disabled={disabled}
-          onChange={onChange}
-          testId={testId}
-        />
-        {hint ? <span className="settings-list__detail">{hint}</span> : null}
-      </div>
+      <BooleanSettingControl
+        label={field.label}
+        hint={hint}
+        tooltip={tooltip}
+        checked={value === true}
+        disabled={disabled}
+        testId={testId}
+        onChange={onChange}
+      />
+    )
+  }
+
+  const label = labelAction === undefined
+    ? field.label
+    : (
+        <>
+          {field.label}
+          {labelAction}
+        </>
+      )
+
+  if (field.type === 'string-list') {
+    return (
+      <StringListControl
+        label={label}
+        hint={hint}
+        error={error}
+        value={Array.isArray(value) ? value : []}
+        disabled={disabled}
+        testId={testId}
+        onChange={onChange}
+      />
+    )
+  }
+
+  if (field.type === 'string' || field.type === 'secret') {
+    return (
+      <TextSettingInput
+        field={field}
+        label={label}
+        hint={hint}
+        error={error}
+        value={typeof value === 'string' ? value : ''}
+        disabled={disabled}
+        testId={testId}
+        onChange={onChange}
+      />
     )
   }
 
   return (
-    <FormField
-      label={field.label}
-      labelAction={labelAction}
-      hint={hint}
-      error={error}
-    >
-      {(control) => {
-        if (field.type === 'integer') {
-          return (
-            <input
-              {...control}
-              className="input"
-              type="number"
-              value={displayedInteger(field, value)}
+    <ControlNotes hint={hint} error={error}>
+      {(describedBy) => field.type === 'integer'
+        ? (
+            <NumberInput
+              label={label}
+              value={integerValue(field, value)}
               min={displayedIntegerBound(field, field.min)}
               max={displayedIntegerBound(field, field.max)}
               step={1}
               disabled={disabled}
-              data-testid={testId}
-              onChange={(event) => {
-                const next = event.target.value
-                onChange(persistedInteger(field, next))
+              onValueChange={(next) => {
+                onChange(persistedInteger(field, next === null ? '' : String(next)))
+              }}
+              inputProps={{
+                'aria-describedby': describedBy,
+                'data-testid': testId,
               }}
             />
           )
-        }
-        if (field.type === 'string-list') {
-          return (
-            <StringListControl
-              control={control}
-              value={Array.isArray(value) ? value : []}
-              disabled={disabled}
-              testId={testId}
-              onChange={onChange}
-            />
-          )
-        }
-        if (field.type === 'select') {
-          return (
+        : (
             <Select
-              {...control}
+              label={label}
               value={typeof value === 'string' ? value : ''}
-              options={field.options}
+              options={field.type === 'select' ? field.options : []}
               disabled={disabled}
-              testId={testId}
-              onChange={onChange}
+              onValueChange={onChange}
+              triggerProps={{
+                'aria-describedby': describedBy,
+                'data-testid': testId,
+              }}
+            />
+          )}
+    </ControlNotes>
+  )
+}
+
+function TextSettingInput({
+  field,
+  label,
+  hint,
+  error,
+  value,
+  disabled,
+  testId,
+  onChange,
+}: {
+  field: Extract<ConnectorSettingField, { type: 'string' | 'secret' }>
+  label: ReactNode
+  hint: ReactNode | undefined
+  error: string | undefined
+  value: string
+  disabled: boolean
+  testId: string
+  onChange: (value: ConnectorSettingValue | null) => void
+}): ReactElement {
+  const [revealed, setRevealed] = useState(false)
+  const secret = field.type === 'secret'
+  return (
+    <TextInput
+      label={label}
+      description={hint}
+      error={error}
+      value={value}
+      type={secret && !revealed ? 'password' : 'text'}
+      placeholder={field.placeholder}
+      disabled={disabled}
+      data-testid={testId}
+      trailing={secret
+        ? (
+            <SecretToggle
+              label={field.label}
+              revealed={revealed}
+              onToggle={() => setRevealed((current) => !current)}
             />
           )
-        }
-        return (
-          <TextInput
-            {...control}
-            value={typeof value === 'string' ? value : ''}
-            type={field.type === 'secret' ? 'password' : 'text'}
-            revealLabel={field.label}
-            placeholder={field.placeholder}
-            disabled={disabled}
-            title={error}
-            testId={testId}
-            onChange={(next) => onChange(textSettingUpdate(field, next))}
-          />
-        )
-      }}
-    </FormField>
+        : undefined}
+      onChange={(event) => onChange(textSettingUpdate(field, event.currentTarget.value))}
+    />
   )
 }

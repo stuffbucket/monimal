@@ -139,9 +139,10 @@ const bridge = {
       ipcRenderer.invoke(BRIDGE_CHANNELS.harnessSelectModel, modelKey),
     selectEffort: (effort) =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.harnessSelectEffort, effort),
-    ask: (prompt, chatId, attachments) =>
+    ask: (prompt, runId, chatId, attachments) =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.harnessAsk, {
         prompt,
+        runId,
         ...(chatId ? { chatId } : {}),
         ...(attachments?.length ? { attachments } : {}),
       }),
@@ -152,12 +153,12 @@ const bridge = {
       }),
     abort: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessAbort),
     approve: (request) => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessApprove, request),
-    ensureModel: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessEnsureModel),
+    ensureModel: (request) =>
+      ipcRenderer.invoke(BRIDGE_CHANNELS.harnessEnsureModel, request),
     preferences: () => ipcRenderer.invoke(BRIDGE_CHANNELS.harnessPreferences),
     updatePreferences: (update) =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.harnessUpdatePreferences, update),
-    onDelta: (listener) =>
-      subscribe<{ text: string }>(BRIDGE_CHANNELS.harnessDelta, ({ text }) => listener(text)),
+    onDelta: (listener) => subscribe(BRIDGE_CHANNELS.harnessDelta, listener),
     onTool: (listener) => subscribe(BRIDGE_CHANNELS.harnessTool, listener),
     onApproval: (listener) => subscribe(BRIDGE_CHANNELS.harnessApproval, listener),
     onEnd: (listener) => subscribe(BRIDGE_CHANNELS.harnessEnd, listener),

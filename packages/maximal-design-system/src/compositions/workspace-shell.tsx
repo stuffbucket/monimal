@@ -113,7 +113,6 @@ export function WorkspaceShell({
 
       {leftSidebar ? (
         <Sidebar
-          bodyScrollable={leftSidebar.bodyScrollable}
           headerContent={leftSidebar.header}
           id="workspace-left-sidebar"
           onOpenChange={onSidebarsOpenChange}
@@ -123,9 +122,14 @@ export function WorkspaceShell({
           resizable
           scrollTop={leftSidebarScrollTop}
           side="left"
-          size={leftSidebarSize}
           label={leftSidebar.label}
-          toggleLabel={leftSidebar.toggleLabel}
+          {...(leftSidebar.bodyScrollable === undefined
+            ? {}
+            : { bodyScrollable: leftSidebar.bodyScrollable })}
+          {...(leftSidebar.toggleLabel === undefined
+            ? {}
+            : { toggleLabel: leftSidebar.toggleLabel })}
+          {...(leftSidebarSize === undefined ? {} : { size: leftSidebarSize })}
         >
           {leftSidebar.content}
         </Sidebar>
@@ -141,17 +145,16 @@ export function WorkspaceShell({
           items={tabs}
           value={activeTab}
           onValueChange={onActiveTabChange}
-          onClose={onCloseTab}
           leading={tabLeading}
           trailing={tabTrailing}
           renderPanel={renderPanel}
+          {...(onCloseTab === undefined ? {} : { onClose: onCloseTab })}
         />
         {mainOverlay}
       </main>
 
       {rightSidebar ? (
         <Sidebar
-          bodyScrollable={rightSidebar.bodyScrollable}
           headerContent={rightSidebar.header}
           id="workspace-right-sidebar"
           label={rightSidebar.label}
@@ -163,7 +166,10 @@ export function WorkspaceShell({
           scrollTop={rightSidebarScrollTop}
           showToggle={false}
           side="right"
-          size={rightSidebarSize}
+          {...(rightSidebar.bodyScrollable === undefined
+            ? {}
+            : { bodyScrollable: rightSidebar.bodyScrollable })}
+          {...(rightSidebarSize === undefined ? {} : { size: rightSidebarSize })}
         >
           {rightSidebar.content}
         </Sidebar>

@@ -96,7 +96,7 @@ export function StylePill({ name, color, colors }: { name: string; color: string
       title={color}
       style={{
         display: 'grid',
-        gridTemplateColumns: 'auto 1fr auto',
+        gridTemplateColumns: 'auto minmax(0, 1fr) auto',
         alignItems: 'center',
         gap: 10,
         padding: '9px 10px 9px 12px',
@@ -106,12 +106,19 @@ export function StylePill({ name, color, colors }: { name: string; color: string
       }}
     >
       <ColorStyleIcon color={colors.muted} />
-      <span style={{ font: '15px/1 ui-monospace, SFMono-Regular, Menlo, monospace', whiteSpace: 'nowrap' }}>
-        <span style={{ color: colors.muted }}>$</span>
-        <span style={{ color: colors.label }}>{name}</span>
+      <span
+        style={{
+          minWidth: 0,
+          color: colors.heading,
+          font: '15px/1 ui-monospace, SFMono-Regular, Menlo, monospace',
+          overflowWrap: 'anywhere',
+        }}
+      >
+        {`$${name}`}
       </span>
       <span
         aria-label={color}
+        role="img"
         style={{ width: 24, height: 24, boxSizing: 'border-box', border: `1px solid ${colors.border}`, background: color }}
       />
     </li>

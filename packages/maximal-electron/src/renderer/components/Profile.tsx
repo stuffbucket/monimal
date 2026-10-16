@@ -7,13 +7,18 @@ import {
   ToggleLeft,
   UserRound,
 } from 'lucide-react';
+import {
+  Avatar as DesignSystemAvatar,
+  MenuGroup,
+  MenuItem,
+  MenuItemContent,
+  MenuRoot,
+} from '@maximal/maximal-design-system/components';
+import { IconButton } from '@maximal/maximal-design-system/primitives';
 import type { ComponentType } from 'react';
 
 import { initials, profileLabel, type Account } from '../lib/account.js';
 import type { SettingsSurface } from '../lib/settings.js';
-
-import { IconButton } from './controls/Button.js';
-import { Menu, type MenuItem } from './controls/Overlays.js';
 
 /**
  * The account control in the title bar.
@@ -55,28 +60,18 @@ const SURFACES: SurfaceEntry[] = [
  * `alt` is empty on purpose. The button that holds this already carries the
  * account name, and a second announcement of it is noise.
  */
-export function Avatar({ account, large }: { account?: Account; large?: boolean }) {
-  const className = `avatar${large ? ' avatar--lg' : ''}`;
-
-  if (account === undefined) {
-    return (
-      <span className={`${className} avatar--anon`} data-testid="avatar-anon">
-        <UserRound size={large ? 18 : 14} />
-      </span>
-    );
-  }
-
+export function Avatar({ account }: { account?: Account }) {
   return (
-    <span className={`${className} avatar--initials`} data-testid="avatar-initials">
-      {initials(account.displayName)}
-      {account.avatarUrl !== undefined ? (
-        <span
-          aria-hidden="true"
-          className="avatar__image"
-          style={{ backgroundImage: `url(${JSON.stringify(account.avatarUrl)})` }}
-        />
-      ) : null}
-    </span>
+    <DesignSystemAvatar
+      alt=""
+      data-testid={account === undefined ? 'avatar-anon' : 'avatar-initials'}
+      fallback={
+        account === undefined
+          ? <UserRound aria-hidden size={14} />
+          : initials(account.displayName)
+      }
+      src={account?.avatarUrl}
+    />
   );
 }
 
@@ -98,54 +93,66 @@ export function Profile({
   onSignOut?: () => void;
   testId?: string;
 }) {
-  const items: MenuItem[] = SURFACES.map((surface) => ({
-    id: surface.id,
-    label: surface.label,
-    icon: surface.icon,
-    onSelect: () => {
-      onOpen(surface.id);
-    },
-  }));
-
-  // Absent means the consumer has no such action, so no entry. A disabled one
-  // would advertise a sign-in that is never coming.
-  if (account !== undefined && onSignOut) {
-    items.push({
-      id: 'sign-out',
-      label: 'Sign out',
-      icon: LogOut,
-      danger: true,
-      onSelect: onSignOut,
-    });
-  }
+  const identity = (
+    <MenuItemContent
+      description={account?.handle}
+      leading={<Avatar account={account} />}
+      trailing={account?.plan}
+    >
+      {account?.displayName ?? 'Not signed in'}
+    </MenuItemContent>
+  );
+  const items = (
+    <>
+      {SURFACES.map((surface) => {
+        const Icon = surface.icon;
+        return (
+          <MenuItem
+            data-testid={`menu-${surface.id}`}
+            key={surface.id}
+            leading={<Icon aria-hidden size={16} />}
+            onClick={() => onOpen(surface.id)}
+          >
+            {surface.label}
+          </MenuItem>
+        );
+      })}
+      {account !== undefined && onSignOut ? (
+        <MenuItem
+          data-testid="menu-sign-out"
+          leading={<LogOut aria-hidden size={16} />}
+          onClick={onSignOut}
+        >
+          Sign out
+        </MenuItem>
+      ) : null}
+    </>
+  );
 
   return (
-    <Menu
+    <MenuRoot
       align="end"
-      testId={`${testId}-menu`}
+      popupProps={{ 'data-testid': `${testId}-menu` }}
+      sideOffset={6}
       trigger={
-        <IconButton label={profileLabel(account)} testId={testId}>
+        <IconButton data-testid={testId} label={profileLabel(account)}>
           <Avatar account={account} />
         </IconButton>
       }
-      header={
-        <span className="profile__identity">
-          <Avatar account={account} large />
-          <span className="profile__lines">
-            <span className="profile__name">
-              {account?.displayName ?? 'Not signed in'}
-            </span>
-            {account?.handle !== undefined && (
-              <span className="profile__handle">{account.handle}</span>
-            )}
-          </span>
-          {account?.plan !== undefined && (
-            <span className="profile__plan">{account.plan}</span>
-          )}
-        </span>
-      }
-      headerAction={account === undefined ? onSignIn : undefined}
-      items={items}
-    />
+    >
+      {account === undefined && onSignIn !== undefined ? (
+        <>
+          <MenuItem
+            leading={<Avatar account={account} />}
+            onClick={onSignIn}
+          >
+            Not signed in
+          </MenuItem>
+          {items}
+        </>
+      ) : (
+        <MenuGroup label={identity}>{items}</MenuGroup>
+      )}
+    </MenuRoot>
   );
 }

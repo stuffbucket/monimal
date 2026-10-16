@@ -14,15 +14,4 @@ export default [
       },
     },
   },
-  {
-    files: ['scripts/storybook-check.mjs'],
-    languageOptions: {
-      globals: {
-        document: 'readonly',
-        fetch: 'readonly',
-        setTimeout: 'readonly',
-        window: 'readonly',
-      },
-    },
-  },
 ];

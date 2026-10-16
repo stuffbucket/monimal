@@ -4,7 +4,7 @@
 .maximal-control-button:focus-visible,
 .maximal-icon-button:focus-visible,
 .maximal-tab:focus-visible,
-.maximal-horizontal-scroll-area__thumb:focus-visible,
+.maximal-scrollbar__thumb:focus-visible,
 .maximal-zoom-trigger:focus-visible,
 .maximal-page-controls__color:focus-within,
 .maximal-edge-resizer:focus-visible,
@@ -47,19 +47,6 @@
   outline: none;
 }
 
-.maximal-horizontal-scroll-area__track,
-.maximal-edge-resizer__thumb,
-.maximal-scrollbar {
-  opacity: var(--opacity-hidden);
-  transition: opacity var(--duration-fade) var(--easing-standard);
-}
-
-.maximal-horizontal-scroll-area__thumb,
-.maximal-edge-resizer__thumb,
-.maximal-scrollbar__thumb {
-  background: var(--maximal-color-bg-pressed);
-  border-radius: var(--radius-full);
-}
 
 .maximal-canvas-toolbar .maximal-icon-button,
 .maximal-workspace-shell__navigation-bar .maximal-icon-button,

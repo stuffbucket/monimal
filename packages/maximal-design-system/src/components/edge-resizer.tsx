@@ -2,19 +2,14 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
-  useCallback,
   useEffect,
   useRef,
   useState,
 } from 'react'
 
-export type ResizerEdge = 'top' | 'right' | 'bottom' | 'left'
+import { useScrollThumb } from './scrollbar/scroll-thumb'
 
-interface ScrollThumb {
-  offset: number
-  size: number
-  visible: boolean
-}
+export type ResizerEdge = 'top' | 'right' | 'bottom' | 'left'
 
 export interface EdgeResizerProps {
   edge: ResizerEdge
@@ -38,81 +33,31 @@ export function EdgeResizer({
   const trackRef = useRef<HTMLDivElement>(null)
   const resizerRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{ coordinate: number; size: number } | null>(null)
-  const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [scrollActive, setScrollActive] = useState(false)
+  const thumbRef = useRef<HTMLSpanElement>(null)
   const [currentSize, setCurrentSize] = useState<number>()
-  const [thumb, setThumb] = useState<ScrollThumb>({
-    offset: 0,
-    size: 0,
-    visible: false,
+  const horizontal = edge === 'left' || edge === 'right'
+  const fallbackScroller = useRef<HTMLElement | null>(null)
+  const scrollThumb = useScrollThumb({
+    scroller: scrollTargetRef ?? fallbackScroller,
+    track: trackRef,
+    thumb: thumbRef,
+    orientation: horizontal ? 'vertical' : 'horizontal',
   })
-
-  const updateThumb = useCallback(() => {
-    const scrollTarget = scrollTargetRef?.current
-    const track = trackRef.current
-    if (!scrollTarget || !track) {
-      setThumb({ offset: 0, size: 0, visible: false })
-      return
-    }
-
-    const verticalTrack = edge === 'left' || edge === 'right'
-    const viewportSize = verticalTrack
-      ? scrollTarget.clientHeight
-      : scrollTarget.clientWidth
-    const contentSize = verticalTrack
-      ? scrollTarget.scrollHeight
-      : scrollTarget.scrollWidth
-    const scrollPosition = verticalTrack
-      ? scrollTarget.scrollTop
-      : scrollTarget.scrollLeft
-    const scrollRange = contentSize - viewportSize
-    const trackSize = verticalTrack ? track.clientHeight : track.clientWidth
-    if (scrollRange <= 0 || trackSize <= 0) {
-      setThumb({ offset: 0, size: trackSize, visible: false })
-      return
-    }
-
-    const size = trackSize * (viewportSize / contentSize)
-    const offset = (scrollPosition / scrollRange) * (trackSize - size)
-    setThumb({ offset, size, visible: true })
-  }, [edge, scrollTargetRef])
-
-  const revealScrollThumb = useCallback(() => {
-    setScrollActive(true)
-    if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current)
-    fadeTimerRef.current = setTimeout(() => {
-      setScrollActive(false)
-      fadeTimerRef.current = null
-    }, 700)
-  }, [])
+  const revealScrollThumb = scrollThumb.reveal
 
   useEffect(() => {
-    const scrollTarget = scrollTargetRef?.current
-    if (!scrollTarget) return
+    const resizeTarget = resizeTargetRef.current
+    if (!resizeTarget) return
 
-    const handleScroll = () => {
-      updateThumb()
-      revealScrollThumb()
+    const updateCurrentSize = () => {
+      const bounds = resizeTarget.getBoundingClientRect()
+      setCurrentSize(horizontal ? bounds.width : bounds.height)
     }
-    const observer = new ResizeObserver(updateThumb)
-
-    scrollTarget.addEventListener('scroll', handleScroll, { passive: true })
-    observer.observe(scrollTarget)
-    if (scrollTarget.firstElementChild) observer.observe(scrollTarget.firstElementChild)
-    updateThumb()
-
-    return () => {
-      scrollTarget.removeEventListener('scroll', handleScroll)
-      observer.disconnect()
-    }
-  }, [revealScrollThumb, scrollTargetRef, updateThumb])
-
-  useEffect(
-    () => () => {
-      if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current)
-    },
-    [],
-  )
+    const observer = new ResizeObserver(updateCurrentSize)
+    observer.observe(resizeTarget)
+    updateCurrentSize()
+    return () => observer.disconnect()
+  }, [horizontal, resizeTargetRef])
 
   useEffect(() => {
     const resizer = resizerRef.current
@@ -136,7 +81,6 @@ export function EdgeResizer({
     return () => resizer.removeEventListener('wheel', handleWheel)
   }, [edge, revealScrollThumb, scrollTargetRef])
 
-  const horizontal = edge === 'left' || edge === 'right'
   const resize = (size: number) => {
     onResize(size)
     const bounds = resizeTargetRef.current?.getBoundingClientRect()
@@ -195,7 +139,7 @@ export function EdgeResizer({
       className="maximal-edge-resizer"
       data-edge={edge}
       data-overlap={overlap ? '' : undefined}
-      data-scroll-active={scrollActive ? '' : undefined}
+      data-scroll-active={scrollThumb.scrolling || scrollThumb.hovered ? '' : undefined}
       onPointerCancel={handlePointerEnd}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -206,22 +150,12 @@ export function EdgeResizer({
       tabIndex={0}
     >
       <div className="maximal-edge-resizer__track" ref={trackRef}>
-        {thumb.visible ? (
-          <span
-            className="maximal-edge-resizer__thumb"
-            style={
-              horizontal
-                ? {
-                    blockSize: `${thumb.size}px`,
-                    transform: `translateY(${thumb.offset}px)`,
-                  }
-                : {
-                    inlineSize: `${thumb.size}px`,
-                    transform: `translateX(${thumb.offset}px)`,
-                  }
-            }
-          />
-        ) : null}
+        <span
+          aria-hidden
+          className="maximal-edge-resizer__thumb maximal-scrollbar__thumb"
+          data-overflowing={scrollThumb.visible ? '' : undefined}
+          ref={thumbRef}
+        />
       </div>
     </div>
   )

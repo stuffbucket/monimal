@@ -1,6 +1,6 @@
 import type { TrafficRequestOutcome } from "@maximal/maximal-observability-contract"
 
-import { FormField, Select, Switch } from "@maximal/maximal-electron/renderer"
+import { Select, Switch } from "@maximal/maximal-design-system"
 
 import {
   useObservability,
@@ -44,20 +44,21 @@ function DimensionFilter({
   const { filters, setDimension } = useObservability()
   const value = filters[dimension][0] ?? "all"
   const options = [
-    { value: "all", label: `All ${label.toLowerCase()}` },
+    {
+      value: "all",
+      label: `All ${
+        dimension === "sessionIds" ? "sessions" : label.toLowerCase()
+      }`,
+    },
     ...values.map((entry) => ({ value: entry, label: entry })),
   ]
   return (
-    <FormField label={label}>
-      {(field) => (
-        <Select
-          {...field}
-          value={value}
-          options={options}
-          onChange={(next) => setDimension(dimension, next)}
-        />
-      )}
-    </FormField>
+    <Select
+      label={label}
+      value={value}
+      options={options}
+      onValueChange={(next) => setDimension(dimension, next)}
+    />
   )
 }
 
@@ -106,16 +107,12 @@ export function ObservabilityFilters({ title }: { title: string }) {
     <aside className="mo-rail" aria-label={`${title} filters`}>
       <h2>{title}</h2>
       <div className="mo-filter-stack">
-        <FormField label="Time range">
-          {(field) => (
-            <Select
-              {...field}
-              value={timePreset}
-              options={TIME_OPTIONS}
-              onChange={setTimePreset}
-            />
-          )}
-        </FormField>
+        <Select
+          label="Time range"
+          value={timePreset}
+          options={TIME_OPTIONS}
+          onValueChange={setTimePreset}
+        />
         <DimensionFilter
           label="Client"
           dimension="clients"
@@ -141,20 +138,16 @@ export function ObservabilityFilters({ title }: { title: string }) {
           dimension="sessionIds"
           values={values.sessionIds}
         />
-        <FormField label="Outcome">
-          {(field) => (
-            <Select
-              {...field}
-              value={filters.outcomes[0] ?? "all"}
-              options={OUTCOME_OPTIONS}
-              onChange={setOutcome}
-            />
-          )}
-        </FormField>
+        <Select
+          label="Outcome"
+          value={filters.outcomes[0] ?? "all"}
+          options={OUTCOME_OPTIONS}
+          onValueChange={setOutcome}
+        />
         <Switch
           label={live ? "Live updates on" : "Live updates paused"}
           checked={live}
-          onChange={setLive}
+          onCheckedChange={setLive}
         />
       </div>
     </aside>

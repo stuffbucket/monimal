@@ -25,7 +25,7 @@ import {
   WidgetIcon,
 } from '../icons'
 import { Button, ControlButton, IconButton } from '../primitives/button'
-import { stepCanvasZoom } from './canvas-zoom'
+import { stepCanvasZoom } from '../utilities/canvas-zoom'
 import {
   CompactControlCluster,
   CompactControlGroup,

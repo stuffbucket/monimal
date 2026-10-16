@@ -1,6 +1,7 @@
+import { Button } from '@maximal/maximal-design-system'
 import { useEffect, type ReactElement } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button, Note } from '@maximal/maximal-electron/renderer'
+import { Note } from '@maximal/maximal-electron/renderer'
 import type { DetachableTerminalTransport, TerminalSession } from '@maximal/maximal-terminal/renderer'
 
 import type { AppTab } from '../frame/AppFrame'

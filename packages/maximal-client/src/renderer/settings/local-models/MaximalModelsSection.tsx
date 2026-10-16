@@ -1,18 +1,21 @@
+import {
+  Button,
+  Property,
+  PropertyList,
+  Switch,
+  Tooltip,
+} from "@maximal/maximal-design-system"
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import {
-  Button,
   CopyButton,
-  Field,
-  FieldList,
   ModelCardGrid,
   Note,
   SettingsActions,
   SettingsGroup,
   SettingsItem,
   SettingsSection,
-  Switch,
   type ModelCard,
 } from "@maximal/maximal-electron/renderer";
 import {
@@ -71,9 +74,9 @@ function MaximalRuntimeDetails({
   contextLength: number | null;
 }) {
   return (
-    <FieldList>
-      <Field label="Application" value="Maximal" />
-      <Field
+    <PropertyList>
+      <Property label="Application" value="Maximal" />
+      <Property
         label="Endpoint"
         value={
           endpoint === null ? (
@@ -86,8 +89,8 @@ function MaximalRuntimeDetails({
           )
         }
       />
-      <Field label="Server configuration" value="Maximal llama.cpp runtime" />
-      <Field
+      <Property label="Server configuration" value="Maximal llama.cpp runtime" />
+      <Property
         label="Context length"
         value={
           contextLength === null
@@ -95,7 +98,32 @@ function MaximalRuntimeDetails({
             : contextLength.toLocaleString()
         }
       />
-    </FieldList>
+    </PropertyList>
+  );
+}
+
+function ProviderToggle({
+  enabled,
+  onChange,
+}: {
+  enabled: boolean;
+  onChange: (enabled: boolean) => void;
+}) {
+  const label = enabled ? "Disable provider" : "Enable provider";
+  return (
+    <Tooltip
+      trigger={(
+        <Switch
+          aria-label={label}
+          label={null}
+          checked={enabled}
+          onCheckedChange={onChange}
+          data-testid="local-models-enable-maximal"
+        />
+      )}
+    >
+      {label}
+    </Tooltip>
   );
 }
 
@@ -127,7 +155,6 @@ export function MaximalModelsSection({
     models.length === 0
       ? null
       : Math.max(...models.map((model) => model.context.contextWindow));
-  const providerToggleLabel = enabled ? "Disable provider" : "Enable provider";
 
   return (
     <SettingsSection
@@ -138,16 +165,7 @@ export function MaximalModelsSection({
         <SettingsItem
           title="Runtime status"
           description={`${enabled ? "Enabled" : "Disabled"} · Running · Maximal`}
-          actions={
-            <Switch
-              label={providerToggleLabel}
-              displayLabel={null}
-              tooltip={providerToggleLabel}
-              checked={enabled}
-              onChange={setEnabled}
-              testId="local-models-enable-maximal"
-            />
-          }
+          actions={<ProviderToggle enabled={enabled} onChange={setEnabled} />}
         >
           <MaximalRuntimeDetails
             endpoint={endpoint}
@@ -180,7 +198,6 @@ export function MaximalModelsSection({
                       {details}
                       <span aria-live="polite">{progressLabel(operation)}</span>
                       <Button
-                        size="sm"
                         onClick={() => onCancel(model.key, operation.operationId)}
                       >
                         Cancel
@@ -194,7 +211,6 @@ export function MaximalModelsSection({
                       {details}
                       <Button
                         variant="primary"
-                        size="sm"
                         disabled={!enabled}
                         onClick={() => onDownload(model.key)}
                       >
@@ -215,7 +231,7 @@ export function MaximalModelsSection({
         )}
 
         <SettingsActions>
-          <Button size="sm" onClick={onOpenFolder}>
+          <Button onClick={onOpenFolder}>
             Open models folder
           </Button>
         </SettingsActions>

@@ -111,7 +111,7 @@ export function applyShellRoot(mode: ShellMode, element: HTMLElement): void {
 /**
  * The mode a run starts in.
  *
- * `../scripts/storybook-check.mjs` drives the preview by URL and knows nothing
+ * `pnpm storybook:check` drives the preview by URL and knows nothing
  * about this global, so the environment is how a whole run is put in package
  * mode: `STORYBOOK_SHELL_MODE=package npm run storybook:check`. The toolbar
  * still switches a single story either way.

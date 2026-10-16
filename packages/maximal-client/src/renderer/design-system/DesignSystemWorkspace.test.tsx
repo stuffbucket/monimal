@@ -39,6 +39,10 @@ const launch = vi.fn<(request: { profileId: string; cols: number; rows: number }
   label: string
   canRunInBackground: boolean
 }>>()
+const profiles = vi.fn(async () => [
+  { id: 'local', label: 'Local', kind: 'local' as const },
+])
+const discover = vi.fn(async () => ({ generation: 1, targets: [] }))
 const uiModeGet = vi.fn<() => Promise<{ mode: UiMode; switchable: boolean }>>()
 const uiModeSet = vi.fn<(mode: UiMode) => Promise<void>>()
 const typography = {
@@ -58,7 +62,6 @@ function terminalState(overrides: Partial<WorkspaceTerminalState> = {}): Workspa
     closeTerminal: vi.fn(async () => undefined),
     onTerminalLaunched: vi.fn(),
     openSettings: vi.fn(),
-    setTerminalError: vi.fn(),
     terminalError: undefined,
     updateTerminalTitle: vi.fn(),
     ...overrides,
@@ -84,9 +87,16 @@ function button(label: string): HTMLButtonElement {
 
 beforeEach(() => {
   launch.mockReset()
+  profiles.mockClear()
+  discover.mockClear()
   uiModeGet.mockReset().mockResolvedValue({ mode: 'design-system', switchable: false })
   uiModeSet.mockReset().mockResolvedValue(undefined)
-  Object.assign(window, { maximal: { terminal: { launch }, uiMode: { get: uiModeGet, set: uiModeSet } } })
+  Object.assign(window, {
+    maximal: {
+      terminal: { discover, launch, profiles },
+      uiMode: { get: uiModeGet, set: uiModeSet },
+    },
+  })
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
@@ -149,18 +159,36 @@ describe('DesignSystemWorkspace', () => {
     expect(state.closeTerminal).not.toHaveBeenCalled()
   })
 
-  it('launches a local terminal and reports a failed launch', async () => {
+  it('opens the launcher, creates a terminal, and reports a failed launch', async () => {
     const result = { sessionId: 'new', label: 'zsh', canRunInBackground: false }
     launch.mockResolvedValueOnce(result).mockRejectedValueOnce(new Error('denied'))
     const state = terminalState()
     await render(state)
 
     await act(async () => button('New terminal').click())
+    await vi.waitFor(() => {
+      expect(document.body.querySelector('[data-testid="terminal-launcher"]')).not.toBeNull()
+    })
+    const localChoice = (): HTMLElement => {
+      const found = [...document.body.querySelectorAll<HTMLElement>('[role="option"]')]
+        .find((candidate) => candidate.textContent?.trim() === 'Local')
+      if (!found) throw new Error('Missing Local terminal choice')
+      return found
+    }
+    await act(async () => localChoice().click())
     await act(async () => button('New terminal').click())
+    await vi.waitFor(() => expect(localChoice()).toBeDefined())
+    await act(async () => localChoice().click())
 
-    expect(launch).toHaveBeenCalledWith({ profileId: 'local', cols: 80, rows: 24 })
+    expect(launch).toHaveBeenCalledWith({
+      profileId: 'local',
+      targetId: undefined,
+      cols: 80,
+      rows: 24,
+    })
     expect(state.onTerminalLaunched).toHaveBeenCalledWith(result)
-    expect(state.setTerminalError).toHaveBeenCalledWith('A terminal could not be started.')
+    expect(document.body.querySelector('[role="alert"]')?.textContent)
+      .toBe('Terminal could not be started.')
   })
 
   it('shows the terminal error as an alert', async () => {

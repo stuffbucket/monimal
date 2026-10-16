@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from '@maximal/maximal-storybook';
 import { CopyButton } from './CopyButton.js';
 
 const meta = {
-  title: 'Components/CopyButton',
+  title: 'Deprecated/CopyButton',
   component: CopyButton,
   args: {
     text: 'https://example.com/logs',

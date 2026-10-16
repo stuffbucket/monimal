@@ -69,7 +69,8 @@ const GRAPHIC_CONTRAST = 3
 /*
  * Colour roles, from the colour role guide: a role names a meaning, and any
  * type takes it (`text-danger`, `bg-danger`). A hue role's `bg` is its ramp's
- * 500 fill; `text` is the first step from 500 that reads at 4.5:1 on the
+ * 500 fill, or for a light-content role the first darker step its content
+ * reads on; `text` is the first step from 500 that reads at 4.5:1 on the
  * theme's surfaces and on the role's own tint, and `icon` and `border` the
  * first that reach 3:1. Text ramps are tried in order: warning text falls back
  * to orange where no yellow step reads, which is every light background.
@@ -90,6 +91,14 @@ const HUE_ROLES = {
  * ramp and info blue. Content on it takes `text-on{role}`, a dark step of the
  * same ramp, because the mode's own text colours are light in dark mode.
  */
+/*
+ * Strong fills carry a primary or destructive action with light content in
+ * both modes: the fill is the first step from 500 toward the dark end where
+ * that content reads at 4.5:1, and hover and pressed deepen from there. The
+ * role's own `bg` keeps the seed accent for selection and identity.
+ */
+const STRONG_FILL_STEPS = [500, 600, 700, 800] as const satisfies readonly ColorStep[]
+
 const LIGHT_FILL_ROLES = { selected: 'brand', info: 'blue' } as const satisfies Record<string, string>
 const LIGHT_FILLS = { fill: 200, hover: 300, pressed: 400 } as const satisfies Record<string, ColorStep>
 
@@ -198,6 +207,39 @@ function atomicRamps(seed: PaletteSeed, mode: ColorMode): AtomicRamps {
   return ramps
 }
 
+const NEXT_STEP: Partial<Record<ColorStep, readonly [ColorStep, ColorStep]>> = {
+  500: [600, 700],
+  600: [700, 800],
+  700: [800, 900],
+  800: [900, 1000],
+}
+
+/* A hue role's content colour on its 500 fill, and hover and pressed steps that move away from it. */
+function onFill(role: string, ramp: Ramp): {
+  on: 'black' | 'cream' | 'white'
+  deeper: readonly [ColorStep, ColorStep]
+} {
+  /* Brand content is cream where it reads; otherwise the on colour is whichever of white and black reads better. */
+  const on = role === 'brand' && wcagContrast(BRAND_CREAM_HEX, ramp[500]) >= TEXT_CONTRAST
+    ? 'cream'
+    : wcagContrast('#000000', ramp[500]) >= wcagContrast('#ffffff', ramp[500]) ? 'black' : 'white'
+  return { on, deeper: on === 'black' ? [400, 300] : [600, 700] }
+}
+
+/* A strong fill step for light content, with its hover and pressed steps. */
+function strongFill(role: 'brand' | 'danger', ramp: Ramp): {
+  steps: readonly [ColorStep, ColorStep, ColorStep]
+  on: 'cream' | 'white'
+} {
+  const on = role === 'brand' ? 'cream' : 'white'
+  const light = on === 'cream' ? BRAND_CREAM_HEX : '#ffffff'
+  const step = STRONG_FILL_STEPS.find((candidate) =>
+    wcagContrast(light, ramp[candidate]) >= TEXT_CONTRAST) ?? 800
+  const deeper = NEXT_STEP[step]
+  if (deeper === undefined) throw new Error(`No deeper steps after ${String(step)}.`)
+  return { steps: [step, deeper[0], deeper[1]], on }
+}
+
 function modeTokens(seed: PaletteSeed, mode: ColorMode): PaletteTokens {
   const ramps = atomicRamps(seed, mode)
   const tokens: PaletteTokens = {}
@@ -244,12 +286,7 @@ function modeTokens(seed: PaletteSeed, mode: ColorMode): PaletteTokens {
     const ramp = ramps[fill]
     if (ramp === undefined) throw new Error(`No ${fill} ramp.`)
     const against = [...surfaces, tintOf(fill)]
-    /* Brand content is cream where it reads; otherwise the on colour is whichever of white and black reads better. */
-    const on = role === 'brand' && wcagContrast(BRAND_CREAM_HEX, ramp[500]) >= TEXT_CONTRAST
-      ? 'cream'
-      : wcagContrast('#000000', ramp[500]) >= wcagContrast('#ffffff', ramp[500]) ? 'black' : 'white'
-    /* Hover and pressed move the fill away from its on colour, so text on it only gains contrast. */
-    const deeper = on === 'black' ? [400, 300] as const : [600, 700] as const
+    const { on, deeper } = onFill(role, ramp)
     const strong = firstReadable(ramps, text, mode, against, TEXT_CONTRAST)
     const graphic = firstReadable(ramps, text, mode, against, GRAPHIC_CONTRAST)
     Object.assign(tokens, {
@@ -273,6 +310,25 @@ function modeTokens(seed: PaletteSeed, mode: ColorMode): PaletteTokens {
       [color('text', `on${role}`, 'tertiary')]: alias(on, ON_FILL_ALPHA.tertiary),
     })
   }
+
+  /* Filled action controls consume these by name, so they are declared literally. */
+  const strongOf = (role: 'brand' | 'danger') => {
+    const ramp = ramps[HUE_ROLES[role].fill]
+    if (ramp === undefined) throw new Error(`No ${HUE_ROLES[role].fill} ramp.`)
+    return strongFill(role, ramp)
+  }
+  const brand = strongOf('brand')
+  const danger = strongOf('danger')
+  Object.assign(tokens, {
+    '--maximal-color-bg-brand-strong': alias(HUE_ROLES.brand.fill, brand.steps[0]),
+    '--maximal-color-bg-brand-strong-hover': alias(HUE_ROLES.brand.fill, brand.steps[1]),
+    '--maximal-color-bg-brand-strong-pressed': alias(HUE_ROLES.brand.fill, brand.steps[2]),
+    '--maximal-color-text-onbrand-strong': alias(brand.on, 1000),
+    '--maximal-color-bg-danger-strong': alias(HUE_ROLES.danger.fill, danger.steps[0]),
+    '--maximal-color-bg-danger-strong-hover': alias(HUE_ROLES.danger.fill, danger.steps[1]),
+    '--maximal-color-bg-danger-strong-pressed': alias(HUE_ROLES.danger.fill, danger.steps[2]),
+    '--maximal-color-text-ondanger-strong': alias(danger.on, 1000),
+  })
 
   for (const [role, hue] of Object.entries(LIGHT_FILL_ROLES)) {
     const ramp = ramps[hue]
@@ -321,10 +377,18 @@ function modeTokens(seed: PaletteSeed, mode: ColorMode): PaletteTokens {
    * from the background, and a selected item takes the brand fill, with
    * text-onbrand and icon-onbrand on it.
    */
+  /* Menu overflow rows consume these surfaces by name, so they are declared literally. */
+  Object.assign(tokens, {
+    '--maximal-color-bg-menu-default': near(ELEMENT_SURFACES.menu),
+    '--maximal-color-bg-menu-hover': near(ELEMENT_SURFACES.menu + 1),
+  })
+
   for (const [element, distance] of Object.entries(ELEMENT_SURFACES)) {
     Object.assign(tokens, {
-      [color('bg', element, 'default')]: near(distance),
-      [color('bg', element, 'hover')]: near(distance + 1),
+      ...(element === 'menu' ? {} : {
+        [color('bg', element, 'default')]: near(distance),
+        [color('bg', element, 'hover')]: near(distance + 1),
+      }),
       [color('bg', element, 'selected')]: `var(${color('bg', 'brand')})`,
     })
     if (element === 'toolbar' || element === 'menu') {
@@ -339,6 +403,13 @@ function modeTokens(seed: PaletteSeed, mode: ColorMode): PaletteTokens {
 
   Object.assign(tokens, {
     '--maximal-color-bg-modal-backdrop': alias('black', 400),
+    /* Scrollbar thumbs are translucent so they read over any surface or content beneath them. */
+    '--maximal-color-bg-scrollbar': mode === 'dark'
+      ? alias('white', 400)
+      : alias('black', 400),
+    '--maximal-color-bg-scrollbar-hover': mode === 'dark'
+      ? alias('white', 500)
+      : alias('black', 500),
     '--maximal-color-bg-selected-quiet': mode === 'dark'
       ? alias('white', 200)
       : alias('black', 100),

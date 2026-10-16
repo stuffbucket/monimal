@@ -262,6 +262,21 @@ jobs:
       - name: Check design tokens
         run: pnpm run check:tokens
 
+      - name: Install pinned Chromium for design-system checks
+        run: pnpm --filter @maximal/maximal-design-system exec playwright install chromium
+
+      - name: Check design-system stories and accessibility
+        run: pnpm --filter @maximal/maximal-design-system run storybook:check
+
+      - name: Check design-system acceptance profiles
+        run: pnpm --filter @maximal/maximal-design-system run storybook:acceptance
+
+      - name: Check design-system coverage floor
+        run: pnpm --filter @maximal/maximal-design-system run test:coverage
+
+      - name: Check design-system quality mutation score
+        run: pnpm --filter @maximal/maximal-design-system-tools run mutate:mds
+
       - name: Check for cross-package and intra-package duplicate logic
         run: pnpm exec turbo run //#check:cross-package-duplicates
 

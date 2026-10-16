@@ -22,7 +22,7 @@ export const NO_VALUE = '—';
 /* ------------------------------------------------------------ model cards */
 
 /** What a model can do. Only the true ones are shown. */
-export interface ModelCapabilities {
+interface ModelCapabilities {
   vision: boolean;
   imageGeneration?: boolean;
   videoGeneration?: boolean;

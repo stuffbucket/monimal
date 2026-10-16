@@ -15,12 +15,24 @@ import test from 'node:test';
 import {
   dtcgInventory,
   iconSourceIssues,
+  isTokenInventorySource,
   inventoryIssues,
   ratchetChanges,
   readIconMetrics,
   scanTokenSources,
   runtimePropertyDeclarations,
 } from '../scripts/inventory.mjs';
+
+test('token inventory excludes non-runtime design-system tooling', () => {
+  assert.equal(
+    isTokenInventorySource('packages/maximal-design-system-tools/test/policy.test.mjs'),
+    false,
+  );
+  assert.equal(
+    isTokenInventorySource('packages/maximal-client/src/renderer/theme.css'),
+    true,
+  );
+});
 
 test('DTCG inventory preserves CSS identity and observed declarations', () => {
   const tokens = new Map([
@@ -117,6 +129,7 @@ test('DTCG motion and stacking owners preserve CSS values', () => {
     }]],
     ['--opacity-disabled', [{ file: 'tokens.css', value: '0.5' }]],
     ['--z-index-popover', [{ file: 'tokens.css', value: '20' }]],
+    ['--z-index-assistant', [{ file: 'tokens.css', value: '40' }]],
   ]);
   const inventory = dtcgInventory(tokens).inventory;
 
@@ -124,6 +137,8 @@ test('DTCG motion and stacking owners preserve CSS values', () => {
   assert.deepEqual(inventory['easing-standard'].$value, [0.25, 0.1, 0.25, 1]);
   assert.equal(inventory['opacity-disabled'].$type, 'number');
   assert.equal(inventory['z-index-popover'].$type, 'number');
+  assert.equal(inventory['z-index-assistant'].$type, 'number');
+  assert.equal(inventory['z-index-assistant'].$value, 40);
 });
 
 test('DTCG spatial grid owners type colors and dot geometry', () => {

@@ -5,7 +5,7 @@ import { SAMPLE_MODELS } from '../../../../.storybook/sample-settings.js';
 import { ModelCardGrid } from './ModelCards.js';
 
 const meta = {
-  title: 'Settings/ModelCardGrid',
+  title: 'Deprecated/ModelCardGrid',
   component: ModelCardGrid,
   args: {
     models: SAMPLE_MODELS,

@@ -1,7 +1,4 @@
-import {
-  Slider,
-  Switch,
-} from '@maximal/maximal-electron/renderer'
+import { Slider, Switch } from '@maximal/maximal-design-system'
 import { useState, type ReactElement } from 'react'
 
 import type {
@@ -11,29 +8,21 @@ import type {
 } from '../capabilities'
 import { TerminalTypographyBasics } from './TerminalTypographyBasics'
 
-function numericOptions(
-  minimum: number,
-  maximum: number,
-  step: number,
-  label: (value: number) => string,
-): ReadonlyArray<{ value: number; label: string }> {
-  const count = Math.floor((maximum - minimum) / step)
-  const options = Array.from({ length: count + 1 }, (_, index) => {
-    const value = Number((minimum + (index * step)).toFixed(4))
-    return { value, label: label(value) }
-  })
-  if (options.at(-1)?.value !== maximum) {
-    options.push({ value: maximum, label: label(maximum) })
-  }
-  return options
+/** A bounded numeric range and how the design-system slider displays its value. */
+interface SliderRange {
+  min: number
+  max: number
+  step: number
+  format?: Intl.NumberFormatOptions
 }
 
-function percentageLabel(value: number): string {
-  return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`
+const BASELINE: SliderRange = {
+  min: -20,
+  max: 20,
+  step: 0.1,
+  format: { maximumFractionDigits: 1, signDisplay: 'exceptZero' },
 }
-
-const BASELINE = numericOptions(-20, 20, 0.1, percentageLabel)
-const STRENGTH = numericOptions(0, 100, 1, (value) => `${String(value)}%`)
+const STRENGTH: SliderRange = { min: 0, max: 100, step: 1 }
 type TypographySection = 'font' | 'spacing' | 'rendering' | 'features'
 const TYPOGRAPHY_SECTIONS: Array<{
   value: TypographySection
@@ -101,50 +90,38 @@ interface ControlProps {
 
 function CompactSlider({
   title,
-  label,
   value,
-  options,
+  range,
   disabled,
   testId,
   onPreview,
   onCommit,
 }: {
   title: string
-  label: string
   value: number
-  options: ReadonlyArray<{ value: number; label: string }>
+  range: SliderRange
   disabled?: boolean
   testId: string
   onPreview: (value: number) => void
   onCommit: (value: number) => void
 }): ReactElement {
-  const selected = options.reduce((closest, option) =>
-    Math.abs(option.value - value) < Math.abs(closest.value - value)
-      ? option
-      : closest)
   return (
     <div
       className="terminal-typography-field"
       data-disabled={disabled ? 'true' : undefined}
     >
-      <div className="terminal-typography-field__heading">
-        <span className="terminal-typography-field__label">{title}</span>
-        <output>{selected.label}</output>
-      </div>
-      <div className="terminal-typography-field__slider">
-        <Slider
-          label={label}
-          value={value}
-          options={options}
-          disabled={disabled}
-          showLabels={false}
-          showDetents={false}
-          directionalSnap
-          onChange={onPreview}
-          onCommit={onCommit}
-          testId={testId}
-        />
-      </div>
+      <Slider
+        label={title}
+        value={value}
+        min={range.min}
+        max={range.max}
+        step={range.step}
+        format={range.format}
+        disabled={disabled}
+        data-testid={testId}
+        onValueChange={onPreview}
+        onValueCommitted={onCommit}
+      />
     </div>
   )
 }
@@ -172,14 +149,8 @@ function AxisControl({
   onPreview,
   onUpdate,
 }: ControlProps & { axis: TerminalFontAxis }): ReactElement {
-  const step = axisStep(axis)
   const value = settings.fontVariations[axis.tag] ?? axis.default
-  const options = numericOptions(
-    axis.minimum,
-    axis.maximum,
-    step,
-    (next) => Number(next.toFixed(4)).toString(),
-  )
+  const range = { min: axis.minimum, max: axis.maximum, step: axisStep(axis) }
   const patch = (next: number): Partial<TypographySettings> => ({
     fontVariations: {
       ...settings.fontVariations,
@@ -189,9 +160,8 @@ function AxisControl({
   return (
     <CompactSlider
       title={AXIS_LABELS[axis.tag] ?? axis.tag}
-      label={`${AXIS_LABELS[axis.tag] ?? axis.tag} font axis`}
       value={value}
-      options={options}
+      range={range}
       testId={`terminal-font-axis-${axis.tag}`}
       onPreview={(next) => onPreview(patch(next))}
       onCommit={(next) => onUpdate(patch(next))}
@@ -260,9 +230,8 @@ export function TerminalTypographyControls({
             <>
               <CompactSlider
                 title="Baseline"
-                label="Terminal baseline"
                 value={settings.baseline}
-                options={BASELINE}
+                range={BASELINE}
                 testId="terminal-baseline"
                 onPreview={(baseline) => onPreview({ baseline })}
                 onCommit={(baseline) => onUpdate({ baseline })}
@@ -272,9 +241,8 @@ export function TerminalTypographyControls({
           {section === 'rendering' ? (
             <CompactSlider
               title="Thicken"
-              label="Terminal thicken strength"
               value={settings.thicken ? settings.thickenStrength : 0}
-              options={STRENGTH}
+              range={STRENGTH}
               testId="terminal-thicken-strength"
               onPreview={(thickenStrength) => onPreview({
                 thicken: thickenStrength > 0,
@@ -295,11 +263,11 @@ export function TerminalTypographyControls({
                     <small>{description}</small>
                   </span>
                   <Switch
-                    label={`${label} (${tag})`}
-                    displayLabel={null}
+                    aria-label={`${label} (${tag})`}
+                    label={null}
                     checked={featureEnabled(tag)}
-                    onChange={(enabled) => updateFeature(tag, enabled)}
-                    testId={`terminal-font-feature-${tag}`}
+                    onCheckedChange={(enabled) => updateFeature(tag, enabled)}
+                    data-testid={`terminal-font-feature-${tag}`}
                   />
                 </label>
               ))}

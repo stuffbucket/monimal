@@ -1,5 +1,5 @@
 import type { ComponentType, ReactElement } from 'react'
-import { ScrollArea, Tooltip } from '@maximal/maximal-electron/renderer'
+import { ScrollArea, Tooltip } from '@maximal/maximal-design-system'
 
 import type { SettingsSectionId } from '../../shared/settings-sections'
 
@@ -24,10 +24,15 @@ export function SectionRail({
   collapsed: boolean
 }): ReactElement {
   return (
-    <ScrollArea as="nav" className="settings-rail" aria-label="Settings sections">
-      {sections.map(({ id, label, icon: Icon }) => (
-        <Tooltip key={id} content={collapsed ? label : undefined} side="right">
+    <ScrollArea
+      className="settings-rail__scroll"
+      contentClassName="settings-rail"
+      render={<nav aria-label="Settings sections" />}
+    >
+      {sections.map(({ id, label, icon: Icon }) => {
+        const link = (
           <button
+            key={id}
             type="button"
             className="settings-rail__link"
             aria-current={current === id ? 'page' : undefined}
@@ -39,8 +44,11 @@ export function SectionRail({
             <Icon size={16} />
             {!collapsed && <span>{label}</span>}
           </button>
-        </Tooltip>
-      ))}
+        )
+        return collapsed
+          ? <Tooltip key={id} side="right" trigger={link}>{label}</Tooltip>
+          : link
+      })}
     </ScrollArea>
   )
 }

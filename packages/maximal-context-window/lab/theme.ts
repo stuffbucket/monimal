@@ -23,9 +23,6 @@ const THEME_CSS = `
   --maximal-color-text-onbrand: #16181d;
   --maximal-color-border-default: #343943;
   --maximal-color-border-strong: #515a69;
-  --shell-font:
-    400 1rem/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui,
-    sans-serif;
   --data-viz-series-1: #64b5c4;
   --data-viz-series-2: #77b96f;
   --data-viz-series-3: #d0a24c;
@@ -37,10 +34,7 @@ const THEME_CSS = `
 }
 
 /* Light-mode override, toggled by setting \`data-theme="light"\` on any
-   ancestor element (the lab toggles it on its own root \`div\`). Values
-   mirror \`packages/maximal-electron\`'s \`tokens.css\` light block so
-   the lab exercises the same palette a real light-themed host would
-   supply, not just the dark one above. */
+   ancestor element (the lab toggles it on its own root \`div\`). */
 [data-theme='light'] {
   color-scheme: light;
   --maximal-color-bg-default: #ffffff;
@@ -102,13 +96,13 @@ html,
 body {
   color: var(--maximal-color-text-default);
   background: var(--maximal-color-bg-default);
-  font: var(--shell-font);
+  font: var(--body-large);
 }
 
 .lab-shell {
   max-width: 28rem;
   height: 100%;
-  padding: var(--shell-space-4, 1rem);
+  padding: var(--spacer-4);
   box-sizing: border-box;
   color: var(--maximal-color-text-default);
   background: var(--maximal-color-bg-default);

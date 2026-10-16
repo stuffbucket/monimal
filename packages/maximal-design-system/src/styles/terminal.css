@@ -21,7 +21,7 @@
 }
 
 .maximal-terminal__line {
-  min-height: 16px;
+  min-height: var(--spacer-3);
   white-space: pre;
 }
 
@@ -35,22 +35,6 @@
 
 .maximal-terminal__line[data-tone="success"] {
   color: var(--maximal-color-text-success);
-}
-
-.maximal-scrollbar {
-  display: flex;
-  width: var(--spacer-2);
-  justify-content: center;
-  padding: 2px;
-}
-
-.maximal-terminal__scroll-area:hover .maximal-scrollbar,
-.maximal-scrollbar[data-scrolling] {
-  opacity: var(--opacity-visible);
-}
-
-.maximal-scrollbar__thumb {
-  width: 100%;
 }
 
 .maximal-assistant-spike {

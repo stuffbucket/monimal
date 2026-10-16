@@ -103,7 +103,7 @@ function TypefaceControlsStory() {
 }
 
 const meta = {
-  title: 'Controls/Typeface controls',
+  title: 'Deprecated/Typeface controls',
   component: TypefaceControls,
   args: {
     family: {

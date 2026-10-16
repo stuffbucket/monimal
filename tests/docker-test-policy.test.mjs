@@ -2106,6 +2106,28 @@ test("the reusable Docker dependency image includes every workspace manifest", (
     dockerfile,
     /pnpm install --frozen-lockfile --ignore-scripts --store-dir=\/workspace\/\.pnpm-store/,
   );
+  const electronInstall = dockerfile.indexOf(
+    "ELECTRON_SKIP_BINARY_DOWNLOAD= node apps/desktop/node_modules/electron/install.js",
+  );
+  const playwrightInstall = dockerfile.indexOf(
+    "pnpm --filter @maximal/maximal-design-system-tools exec playwright install chromium",
+  );
+  const checkoutStager = dockerfile.indexOf(
+    "COPY --chown=maximal:maximal scripts/stage-test-checkout.mjs",
+  );
+  assert.ok(
+    playwrightInstall > install && playwrightInstall < checkoutStager,
+    "Playwright Chromium must install in the reusable dependency image",
+  );
+  assert.ok(electronInstall > install, "Electron must install after workspace dependencies");
+  assert.ok(
+    electronInstall < checkoutStager,
+    "Electron must install in the reusable dependency image",
+  );
+  assert.equal(
+    dockerfile.match(/node apps\/desktop\/node_modules\/electron\/install\.js/g)?.length,
+    1,
+  );
 });
 
 test("the image owns test homes and stages commands as non-root", () => {

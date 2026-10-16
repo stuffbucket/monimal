@@ -47,7 +47,7 @@ function EditableExamples(): ReactElement {
 }
 
 const meta = {
-  title: 'Controls/EditableLabelMolecules',
+  title: 'Deprecated/EditableLabelMolecules',
   component: EditableHeading,
   render: () => <EditableExamples />,
 } satisfies Meta<typeof EditableHeading>;

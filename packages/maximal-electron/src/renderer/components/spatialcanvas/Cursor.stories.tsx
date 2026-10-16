@@ -17,7 +17,7 @@ import {
 } from '../controls/CursorStoryParts.js';
 
 const meta = {
-  title: 'Controls/Cursor',
+  title: 'Deprecated/Cursor',
   component: SpatialCanvasCursor,
   parameters: {
     controls: { disable: true },

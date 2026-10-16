@@ -1,3 +1,4 @@
+import { Button, Dialog } from '@maximal/maximal-design-system'
 import { StrictMode, useState, type ReactElement } from 'react'
 import { createRoot } from 'react-dom/client'
 
@@ -7,7 +8,6 @@ import '@maximal/maximal-electron/renderer/styles.css'
 
 import type { ProjectSearchResult } from '@maximal/project-catalog'
 import { createYProjectMapStore } from '@maximal/maximal-project-browser'
-import { Button, Dialog } from '@maximal/maximal-electron/renderer'
 import type { DetachableTerminalTransport } from '@maximal/maximal-terminal/renderer'
 import {
   AppFrame,
@@ -30,6 +30,7 @@ import { Settings, type SettingsSectionRequest } from './settings/Settings'
 import { createPreviewSettingsCapabilities } from './settings/ui-preview-capabilities'
 import type { MaximalHost } from '../shared/host'
 import { UnsavedChangesProvider, useGuardedNavigation } from './unsaved-changes'
+import { shellOverlayContainer } from './shell-overlay-container'
 
 const capabilities = createPreviewSettingsCapabilities()
 const previewSessionError = 'Session actions are available in the desktop workspace, not the UI preview.'
@@ -292,6 +293,7 @@ function PreviewFrame(): ReactElement {
         onOpenChange={(open) => { if (!open) setActionError(undefined) }}
         title="Desktop workspace required"
         description={actionError}
+        container={shellOverlayContainer}
       >
         <Button onClick={() => setActionError(undefined)}>Done</Button>
       </Dialog>

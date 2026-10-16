@@ -33,6 +33,10 @@ const commonRestrictedPatterns = [
     group: ["@maximal/*/src", "@maximal/*/src/**"],
     message: "Import another package through a declared public entry point, never its source tree.",
   },
+  {
+    group: ["**/maximal-electron/src", "**/maximal-electron/src/**"],
+    message: "Import maximal-electron through a declared public entry point, never its source tree by relative path.",
+  },
 ]
 
 const packageRestrictedPatterns = {

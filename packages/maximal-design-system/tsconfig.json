@@ -6,6 +6,7 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "strict": true,
+    "exactOptionalPropertyTypes": true,
     "noUncheckedIndexedAccess": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -13,5 +14,5 @@
     "noEmit": true,
     "types": ["node", "vite/client"]
   },
-  "include": [".storybook/**/*.ts", "src"]
+  "include": [".storybook/**/*.ts", "src", "stories"]
 }

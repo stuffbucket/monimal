@@ -19,6 +19,7 @@
     "./renderer/settings/Settings": "./src/renderer/settings/Settings.tsx",
     "./renderer/settings/capabilities": "./src/renderer/settings/capabilities.ts",
     "./renderer/settings/TerminalTypographyPreviewWindow": "./src/renderer/settings/general/TerminalTypographyPreviewWindow.tsx",
+    "./renderer/terminal/TerminalLauncher": "./src/renderer/terminal/TerminalLauncher.tsx",
     "./renderer/terminal/window-transfer": "./src/renderer/terminal/window-transfer.ts",
     "./renderer/traffic/source": "./src/renderer/traffic/source.ts",
     "./renderer/useTerminalTabs": "./src/renderer/useTerminalTabs.ts",

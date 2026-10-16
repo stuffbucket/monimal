@@ -6,7 +6,7 @@ import { IconButton } from './controls/Button.js';
 import { TooltipProvider } from './controls/Overlays.js';
 
 /** Best effort. The clipboard is absent outside a secure context. */
-export function copyText(text: string): void {
+function copyText(text: string): void {
   const clipboard: Clipboard | undefined = navigator.clipboard;
   if (!clipboard) return;
   void clipboard.writeText(text).catch(() => undefined);

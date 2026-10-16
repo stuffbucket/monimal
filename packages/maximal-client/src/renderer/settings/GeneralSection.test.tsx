@@ -22,6 +22,7 @@ import { appearancePreferenceQueryKey } from './general/useAppearancePreference'
 import { menuBarModeQueryKey } from './general/useMenuBarPresence'
 import { terminalTypographyQueryKey } from './general/useTerminalTypographyQuery'
 import { materialPreferenceQueryKey } from '../useMaterialPreference'
+import { chooseOption, selectDisabled, selectedLabel } from '../fixtures/select'
 
 vi.mock('./general/TerminalTypographyPreview', () => ({
   TerminalTypographyPreview: () => (
@@ -393,16 +394,21 @@ function rerenderGeneral(capabilities: SettingsCapabilities): void {
   )
 }
 
-function switchControl(surface: HTMLElement): HTMLButtonElement {
-  const control = surface.querySelector<HTMLButtonElement>(
+/** Base UI marks a disabled switch with `data-disabled`; it is not a native button. */
+function isToggleDisabled(control: HTMLElement): boolean {
+  return control.hasAttribute('data-disabled')
+}
+
+function switchControl(surface: HTMLElement): HTMLElement {
+  const control = surface.querySelector<HTMLElement>(
     '[data-testid="menu-bar-only-switch"]',
   )
   if (control === null) throw new Error('menu-bar-only switch was not rendered')
   return control
 }
 
-function vibrancyControl(surface: HTMLElement): HTMLButtonElement {
-  const control = surface.querySelector<HTMLButtonElement>(
+function vibrancyControl(surface: HTMLElement): HTMLElement {
+  const control = surface.querySelector<HTMLElement>(
     '[data-testid="vibrancy-switch"]',
   )
   if (control === null) throw new Error('vibrancy switch was not rendered')
@@ -412,8 +418,8 @@ function vibrancyControl(surface: HTMLElement): HTMLButtonElement {
 function effectControl(
   surface: HTMLElement,
   testId: string,
-): HTMLButtonElement {
-  const control = surface.querySelector<HTMLButtonElement>(
+): HTMLElement {
+  const control = surface.querySelector<HTMLElement>(
     `[data-testid="${testId}"]`,
   )
   if (control === null) throw new Error(`${testId} was not rendered`)
@@ -428,6 +434,8 @@ function setInputValue(input: HTMLInputElement, value: string): void {
   setter?.call(input, value)
   input.dispatchEvent(new Event('input', { bubbles: true }))
 }
+
+const settleTimers = () => vi.advanceTimersByTimeAsync(0)
 
 function setSelectValue(select: HTMLSelectElement, value: string): void {
   const setter = Object.getOwnPropertyDescriptor(
@@ -591,7 +599,7 @@ describe('GeneralSection', () => {
     const surface = await renderGeneral(capabilities, 'shaders')
 
     expect(surface.textContent).toContain('Native vibrancy is available on macOS.')
-    expect(vibrancyControl(surface).disabled).toBe(true)
+    expect(isToggleDisabled(vibrancyControl(surface))).toBe(true)
   })
 
   it('updates background and reduced-motion preferences', async () => {
@@ -614,35 +622,26 @@ describe('GeneralSection', () => {
     const { capabilities, general } = fakeCapabilities()
     const surface = await renderGeneral(capabilities, 'shaders')
 
-    expect(
-      surface.querySelector<HTMLSelectElement>('[data-testid="material-preset"]')
-        ?.disabled,
-    ).toBe(true)
+    const disabledPreset = surface.querySelector<HTMLElement>('[data-testid="material-preset"]')
+    if (disabledPreset === null) throw new Error('material preset was not rendered')
+    expect(selectDisabled(disabledPreset)).toBe(true)
     await act(async () => {
       effectControl(surface, 'background-effects-switch').click()
       await vi.advanceTimersByTimeAsync(0)
     })
-    const preset = surface.querySelector<HTMLSelectElement>(
+    const preset = surface.querySelector<HTMLElement>(
       '[data-testid="material-preset"]',
     )
-    const lighting = surface.querySelector<HTMLSelectElement>(
+    const lighting = surface.querySelector<HTMLElement>(
       '[data-testid="material-lighting"]',
     )
     if (preset === null || lighting === null) {
       throw new Error('material controls were not rendered')
     }
-    expect(preset.disabled).toBe(false)
+    expect(selectDisabled(preset)).toBe(false)
 
-    await act(async () => {
-      preset.value = 'water'
-      preset.dispatchEvent(new Event('change', { bubbles: true }))
-      await vi.advanceTimersByTimeAsync(0)
-    })
-    await act(async () => {
-      lighting.value = 'timezone'
-      lighting.dispatchEvent(new Event('change', { bubbles: true }))
-      await vi.advanceTimersByTimeAsync(0)
-    })
+    await chooseOption(preset, 'Water', settleTimers)
+    await chooseOption(lighting, 'Date, time, and location', settleTimers)
 
     expect(surface.querySelector('[data-testid="material-timezone"]')).not.toBeNull()
     expect(surface.querySelector('[data-testid="material-latitude"]')).not.toBeNull()
@@ -650,7 +649,7 @@ describe('GeneralSection', () => {
     const direction = surface.querySelector<HTMLElement>(
       '[data-testid="material-solar-direction"]',
     )
-    const solarEffect = surface.querySelector<HTMLSelectElement>(
+    const solarEffect = surface.querySelector<HTMLElement>(
       '[data-testid="material-solar-effect"]',
     )
     expect(direction?.getAttribute('aria-valuenow')).toBe('0')
@@ -664,13 +663,9 @@ describe('GeneralSection', () => {
       }))
       await vi.advanceTimersByTimeAsync(0)
     })
-    await act(async () => {
-      if (solarEffect !== null) {
-        solarEffect.value = 'rays'
-        solarEffect.dispatchEvent(new Event('change', { bubbles: true }))
-      }
-      await vi.advanceTimersByTimeAsync(0)
-    })
+    if (solarEffect !== null) {
+      await chooseOption(solarEffect, 'Rays through broken clouds', settleTimers)
+    }
     expect(general.setMaterial).toHaveBeenCalledWith(
       expect.objectContaining({ solarFacingOffset: 5 }),
     )
@@ -696,9 +691,9 @@ describe('GeneralSection', () => {
       effectControl(surface, 'background-effects-switch').click()
       await vi.advanceTimersByTimeAsync(0)
     })
-    expect(effectControl(surface, 'background-effects-switch').disabled).toBe(true)
-    expect(effectControl(surface, 'reduced-motion-switch').disabled).toBe(true)
-    expect(vibrancyControl(surface).disabled).toBe(true)
+    expect(isToggleDisabled(effectControl(surface, 'background-effects-switch'))).toBe(true)
+    expect(isToggleDisabled(effectControl(surface, 'reduced-motion-switch'))).toBe(true)
+    expect(isToggleDisabled(vibrancyControl(surface))).toBe(true)
 
     await act(async () => {
       finish({
@@ -709,7 +704,7 @@ describe('GeneralSection', () => {
       })
       await vi.advanceTimersByTimeAsync(0)
     })
-    expect(effectControl(surface, 'background-effects-switch').disabled).toBe(false)
+    expect(isToggleDisabled(effectControl(surface, 'background-effects-switch'))).toBe(false)
   })
 
   it('keeps desktop behavior in Interaction settings', async () => {
@@ -737,47 +732,36 @@ describe('GeneralSection', () => {
     expect(surface.textContent).toContain('Default model')
     expect(surface.textContent).toContain('Reasoning effort')
     expect(
-      surface.querySelector<HTMLSelectElement>('[data-testid="assistant-default-model"]')
-        ?.value,
-    ).toBe('maximal:claude-haiku')
+      selectedLabel(surface.querySelector<HTMLElement>('[data-testid="assistant-default-model"]')),
+    ).toBe('Claude Haiku')
     expect(
-      surface.querySelector<HTMLSelectElement>('[data-testid="assistant-default-effort"]')
-        ?.value,
-    ).toBe('medium')
+      selectedLabel(surface.querySelector<HTMLElement>('[data-testid="assistant-default-effort"]')),
+    ).toBe('Medium')
     expect(surface.querySelector('[data-testid="assistant-candy-switch"]')).not.toBeNull()
     expect(surface.textContent).toContain(
       'Manage notification permission, alerts, and sounds in system settings.',
     )
     expect(switchControl(surface).getAttribute('role')).toBe('switch')
-    expect(switchControl(surface).getAttribute('data-layout')).toBe('compact')
     expect(surface.querySelector('[aria-live="assertive"]')).toBeNull()
   })
 
   it('updates the default assistant model and reasoning effort', async () => {
     const { capabilities, general } = fakeCapabilities()
     const surface = await renderGeneral(capabilities)
-    const model = surface.querySelector<HTMLSelectElement>(
+    const model = surface.querySelector<HTMLElement>(
       '[data-testid="assistant-default-model"]',
     )
-    const effort = surface.querySelector<HTMLSelectElement>(
+    const effort = surface.querySelector<HTMLElement>(
       '[data-testid="assistant-default-effort"]',
     )
     if (model === null || effort === null) {
       throw new Error('Assistant defaults were not rendered')
     }
 
-    await act(async () => {
-      model.value = 'maximal:claude-sonnet'
-      model.dispatchEvent(new Event('change', { bubbles: true }))
-      await vi.advanceTimersByTimeAsync(0)
-    })
+    await chooseOption(model, 'Claude Sonnet', settleTimers)
     expect(general.setAssistantModel).toHaveBeenCalledWith('maximal:claude-sonnet')
 
-    await act(async () => {
-      effort.value = 'high'
-      effort.dispatchEvent(new Event('change', { bubbles: true }))
-      await vi.advanceTimersByTimeAsync(0)
-    })
+    await chooseOption(effort, 'High', settleTimers)
     expect(general.setAssistantEffort).toHaveBeenCalledWith('high')
   })
 
@@ -849,16 +833,16 @@ describe('GeneralSection', () => {
       notificationAttempt.promise,
     )
     const surface = await renderGeneral(capabilities)
-    const startup = surface.querySelector<HTMLButtonElement>(
+    const startup = surface.querySelector<HTMLElement>(
       '[data-testid="start-on-login-switch"]',
     )
     if (startup === null) throw new Error('startup switch was not rendered')
 
     await act(async () => startup.click())
-    expect(startup.disabled).toBe(true)
+    expect(isToggleDisabled(startup)).toBe(true)
 
     await act(async () => startupAttempt.reject(new Error('Startup failed')))
-    expect(startup.disabled).toBe(false)
+    expect(isToggleDisabled(startup)).toBe(false)
     expect(surface.textContent).toContain('Startup failed')
 
     const openSettings = button('Open settings')
@@ -982,7 +966,7 @@ describe('GeneralSection', () => {
       loadingMenuBar.resolve({ enabled: false, pending: true }),
     )
     await vi.waitFor(() => {
-      expect(switchControl(surface).disabled).toBe(true)
+      expect(isToggleDisabled(switchControl(surface))).toBe(true)
     })
 
     general.menuBarMode.mockResolvedValueOnce({ enabled: false, pending: false })
@@ -1001,7 +985,7 @@ describe('GeneralSection', () => {
       await Promise.resolve()
     })
     await act(async () => switchControl(surface).click())
-    expect(switchControl(surface).disabled).toBe(true)
+    expect(isToggleDisabled(switchControl(surface))).toBe(true)
   })
 
   it('offers Ghostty-discovered Nerd Fonts and persists typography changes', async () => {
@@ -1133,9 +1117,9 @@ describe('GeneralSection', () => {
         '[data-testid="terminal-typography-section-rendering"]',
       )?.click()
     })
-    expect(surface.querySelector(
-      '[data-testid="terminal-thicken-strength"] [role="slider"]',
-    )?.getAttribute('aria-valuenow')).toBe('0')
+    expect(surface.querySelector<HTMLInputElement>(
+      '[data-testid="terminal-thicken-strength"] input[type="range"]',
+    )?.value).toBe('0')
     act(() => {
       surface.querySelector<HTMLButtonElement>(
         '[data-testid="terminal-typography-section-features"]',
@@ -1164,7 +1148,7 @@ describe('GeneralSection', () => {
   it('persists terminal palette modes, colors, and effect switches', async () => {
     const { capabilities, terminalTypography } = fakeCapabilities()
     const surface = await renderGeneral(capabilities, 'palette')
-    const mode = surface.querySelector<HTMLSelectElement>(
+    const mode = surface.querySelector<HTMLElement>(
       '[data-testid="terminal-color-mode"]',
     )
     const compensate = surface.querySelector<HTMLButtonElement>(
@@ -1174,7 +1158,7 @@ describe('GeneralSection', () => {
       '[data-testid="terminal-palette-stamp"]',
     )
     const minimumContrast = surface.querySelector<HTMLElement>(
-      '[data-testid="terminal-minimum-contrast"] [role="slider"]',
+      '[data-testid="terminal-minimum-contrast"]',
     )
 
     expect(mode).not.toBeNull()
@@ -1182,22 +1166,13 @@ describe('GeneralSection', () => {
     expect(stamp).not.toBeNull()
     expect(minimumContrast?.hasAttribute('data-disabled')).toBe(false)
 
-    await act(async () => {
-      if (mode !== null) {
-        mode.value = 'dark'
-        mode.dispatchEvent(new Event('change', { bubbles: true }))
-      }
-      await Promise.resolve()
-    })
+    if (mode !== null) await chooseOption(mode, 'Dark')
     expect(terminalTypography.update.mock.lastCall?.[0].palette?.mode).toBe('dark')
 
-    const editing = surface.querySelector<HTMLSelectElement>(
+    const editing = surface.querySelector<HTMLElement>(
       '[data-testid="terminal-palette-editing"]',
     )
-    await act(async () => {
-      if (editing !== null) setSelectValue(editing, 'light')
-      await Promise.resolve()
-    })
+    if (editing !== null) await chooseOption(editing, 'Light palette')
     const background = surface.querySelector<HTMLButtonElement>(
       '[data-testid="terminal-palette-light-background"]',
     )

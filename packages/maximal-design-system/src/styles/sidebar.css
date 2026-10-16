@@ -53,6 +53,10 @@
   background: inherit;
 }
 
+.maximal-sidebar__container[hidden] {
+  display: none;
+}
+
 .maximal-sidebar__header {
   display: flex;
   min-height: var(--height-row-heading);

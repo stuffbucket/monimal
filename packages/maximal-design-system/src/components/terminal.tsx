@@ -1,4 +1,4 @@
-import { ScrollArea } from '@base-ui/react/scroll-area'
+import { ScrollArea } from './surfaces'
 
 export type TerminalLineTone = 'command' | 'output' | 'success' | 'muted'
 
@@ -16,24 +16,21 @@ export interface TerminalProps {
 export function Terminal({ label, lines }: TerminalProps) {
   return (
     <section className="maximal-terminal" aria-label={label}>
-      <ScrollArea.Root className="maximal-terminal__scroll-area">
-        <ScrollArea.Viewport className="maximal-terminal__viewport">
-          <ScrollArea.Content className="maximal-terminal__content">
-            {lines.map((line) => (
-              <div
-                className="maximal-terminal__line"
-                data-tone={line.tone ?? 'output'}
-                key={line.id}
-              >
-                {line.content}
-              </div>
-            ))}
-          </ScrollArea.Content>
-        </ScrollArea.Viewport>
-        <ScrollArea.Scrollbar className="maximal-scrollbar" orientation="vertical">
-          <ScrollArea.Thumb className="maximal-scrollbar__thumb" />
-        </ScrollArea.Scrollbar>
-      </ScrollArea.Root>
+      <ScrollArea
+        className="maximal-terminal__scroll-area"
+        contentClassName="maximal-terminal__content"
+        viewportClassName="maximal-terminal__viewport"
+      >
+        {lines.map((line) => (
+          <div
+            className="maximal-terminal__line"
+            data-tone={line.tone ?? 'output'}
+            key={line.id}
+          >
+            {line.content}
+          </div>
+        ))}
+      </ScrollArea>
     </section>
   )
 }

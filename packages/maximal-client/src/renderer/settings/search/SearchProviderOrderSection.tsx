@@ -1,7 +1,7 @@
+import { Button } from '@maximal/maximal-design-system'
 import { type ReactElement } from 'react'
 
 import {
-  Button,
   Note,
   PartitionedSortableList,
   SettingsSection,

@@ -1,10 +1,9 @@
+import { Button, CopyButton } from '@maximal/maximal-design-system'
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useState, type ReactElement } from 'react'
 import type { LogFile } from '@maximal/maximal-logging'
 
 import {
-  Button,
-  CopyButton,
   Note,
   SettingsGroup,
   SettingsItem,
@@ -77,7 +76,7 @@ export function LogsSection({ capabilities }: LogsSectionProps): ReactElement {
               location ? (
                 <>
                   <CopyButton text={location} about="the log folder path" />
-                  <Button size="sm" onClick={() => void reveal()} disabled={revealing}>
+                  <Button onClick={() => void reveal()} disabled={revealing}>
                     {revealing ? 'Opening…' : 'Reveal desktop logs'}
                   </Button>
                 </>
@@ -102,7 +101,7 @@ export function LogsSection({ capabilities }: LogsSectionProps): ReactElement {
               actions={
                 <>
                   <CopyButton text={coreLocation} about="the core log folder path" />
-                  <Button size="sm" onClick={() => void revealCore()} disabled={revealingCore}>
+                  <Button onClick={() => void revealCore()} disabled={revealingCore}>
                     {revealingCore ? 'Opening…' : 'Reveal core logs'}
                   </Button>
                 </>

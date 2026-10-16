@@ -1,6 +1,6 @@
+import { Button } from '@maximal/maximal-design-system'
 import {
   Banner,
-  Button,
   Note,
   SettingsGroup,
   SettingsItem,
@@ -145,7 +145,7 @@ function TypographySurface({
             title="Terminal Typography"
             description="Shape terminal type with a compact proof beside the controls."
             actions={(
-              <Button size="sm" onClick={onOpenPreview}>
+              <Button onClick={onOpenPreview}>
                 Full specimen
               </Button>
             )}

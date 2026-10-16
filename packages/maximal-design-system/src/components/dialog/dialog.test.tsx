@@ -43,7 +43,7 @@ function renderDialog(
 
 describe('Dialog', () => {
   it('renders an accessible Base UI modal with hidden naming content', () => {
-    renderDialog({ testId: 'dialog' })
+    renderDialog({ popupProps: { 'data-testid': 'dialog' } })
 
     const popup = document.querySelector('[data-testid="dialog"]')
     const title = document.querySelector('.maximal-dialog__title')

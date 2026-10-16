@@ -25,11 +25,29 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    fonts-liberation \
     git \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
     libatomic1 \
+    libatspi2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libgbm1 \
+    libgtk-3-0 \
+    libnss3 \
+    libx11-xcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    libxshmfence1 \
+    libxss1 \
     procps \
     tmux \
     unzip \
+    xauth \
+    xvfb \
   && rm -rf /var/lib/apt/lists/*
 
 RUN set -eux; \
@@ -111,6 +129,7 @@ COPY --chown=maximal:maximal patches patches
 COPY --chown=maximal:maximal packages/model-runtimes/anthropic/package.json packages/model-runtimes/anthropic/package.json
 COPY --chown=maximal:maximal packages/model-runtimes/gliner25/package.json packages/model-runtimes/gliner25/package.json
 COPY --chown=maximal:maximal packages/maximal-design-system/package.json packages/maximal-design-system/package.json
+COPY --chown=maximal:maximal packages/maximal-design-system-tools/package.json packages/maximal-design-system-tools/package.json
 COPY --chown=maximal:maximal packages/eslint-config/package.json packages/eslint-config/package.json
 COPY --chown=maximal:maximal packages/local-model-registry/package.json packages/local-model-registry/package.json
 COPY --chown=maximal:maximal packages/maximal-assets/package.json packages/maximal-assets/package.json
@@ -156,7 +175,10 @@ RUN --mount=type=cache,id=maximal-pnpm-${TARGETARCH},target=/workspace/.pnpm-sto
   --mount=type=cache,id=maximal-pnpm-cache-${TARGETARCH},target=/home/maximal/.cache/pnpm,uid=10001,gid=10001,sharing=locked \
   --mount=type=cache,id=maximal-pnpm-state-${TARGETARCH},target=/home/maximal/.local/state/pnpm,uid=10001,gid=10001,sharing=locked \
   pnpm install --frozen-lockfile --ignore-scripts --store-dir=/workspace/.pnpm-store \
-  && pnpm --filter @maximal/maximal-core exec stryker --version
+  && pnpm --filter @maximal/maximal-core exec stryker --version \
+  && pnpm --filter @maximal/maximal-design-system-tools exec playwright install chromium \
+  && ELECTRON_SKIP_BINARY_DOWNLOAD= node apps/desktop/node_modules/electron/install.js \
+  && node -e "const fs=require('node:fs'); if (!fs.existsSync(require('./apps/desktop/node_modules/electron'))) process.exit(1)"
 
 COPY --chown=maximal:maximal scripts/stage-test-checkout.mjs /opt/monimal/stage-test-checkout.mjs
 
@@ -164,35 +186,10 @@ CMD ["node", "/opt/monimal/stage-test-checkout.mjs", "--rebuild=workspace", "--"
 
 FROM dependency-base AS desktop-smoke
 
-USER root
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends \
-    fonts-liberation \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libatspi2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libgbm1 \
-    libgtk-3-0 \
-    libnss3 \
-    libx11-xcb1 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
-    libxshmfence1 \
-    libxss1 \
-    xauth \
-    xvfb \
-  && rm -rf /var/lib/apt/lists/*
-
 ENV ELECTRON_SKIP_BINARY_DOWNLOAD="" \
     MAXIMAL_DESKTOP_E2E_NO_SANDBOX=1 \
     MAXIMAL_ELECTRON_ZIP_DIR=/home/maximal/.cache/electron-zips
 USER maximal
-RUN node apps/desktop/node_modules/electron/install.js \
-  && node -e "const fs=require('node:fs'); if (!fs.existsSync(require('./apps/desktop/node_modules/electron'))) process.exit(1)" \
-  && node --input-type=module -e 'import { createRequire } from "node:module"; import fs from "node:fs"; import path from "node:path"; const require = createRequire(import.meta.url); const { downloadArtifact } = await import(require.resolve("@electron/get", { paths: [require.resolve("@electron/packager")] })); const archive = await downloadArtifact({ version: require("./apps/desktop/node_modules/electron/package.json").version, artifactName: "electron", platform: "linux", arch: process.arch }); fs.mkdirSync(process.env.MAXIMAL_ELECTRON_ZIP_DIR, { recursive: true }); fs.copyFileSync(archive, path.join(process.env.MAXIMAL_ELECTRON_ZIP_DIR, path.basename(archive)));'
+RUN node --input-type=module -e 'import { createRequire } from "node:module"; import fs from "node:fs"; import path from "node:path"; const require = createRequire(import.meta.url); const { downloadArtifact } = await import(require.resolve("@electron/get", { paths: [require.resolve("@electron/packager")] })); const archive = await downloadArtifact({ version: require("./apps/desktop/node_modules/electron/package.json").version, artifactName: "electron", platform: "linux", arch: process.arch }); fs.mkdirSync(process.env.MAXIMAL_ELECTRON_ZIP_DIR, { recursive: true }); fs.copyFileSync(archive, path.join(process.env.MAXIMAL_ELECTRON_ZIP_DIR, path.basename(archive)));'
 
 FROM dependency-base AS dependencies

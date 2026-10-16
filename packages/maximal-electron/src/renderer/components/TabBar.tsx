@@ -96,7 +96,7 @@ export interface TabTransferOptions<T extends Tab> {
   contextMenu?: (tab: T) => TabContextMenuItem[];
 }
 
-export interface TabContextMenuItem {
+interface TabContextMenuItem {
   id: string;
   label: string;
   onSelect: () => void;

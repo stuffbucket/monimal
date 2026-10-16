@@ -9,9 +9,14 @@ import {
   TriangleAlert,
 } from 'lucide-react'
 import {
-  AppFrame as PackageAppFrame,
   IconButton,
-  Menu,
+  MenuGroup,
+  MenuItem,
+  MenuRoot,
+  Tooltip,
+} from '@maximal/maximal-design-system'
+import {
+  AppFrame as PackageAppFrame,
   SHELL_PANEL_SIZES,
   type Tab,
   type TabTransferOptions,
@@ -147,61 +152,83 @@ export function AppFrame({
       titleBarActions={onOpenProjects || assistant || onOpenBrowser ? (
         <>
           {onOpenProjects ? (
-            <IconButton
-              label="Open Projects"
-              onClick={onOpenProjects}
-              testId="open-projects"
-            >
-              <FolderSearch size={16} />
-            </IconButton>
-          ) : null}
-          {assistant ? (
-            <Menu
-              align="end"
-              testId="assistant-menu"
-              header="Recent chats"
+            <Tooltip
               trigger={(
                 <IconButton
+                  data-testid="open-projects"
+                  label="Open Projects"
+                  onClick={onOpenProjects}
+                >
+                  <FolderSearch size={16} />
+                </IconButton>
+              )}
+            >
+              Open Projects
+            </Tooltip>
+          ) : null}
+          {assistant ? (
+            <MenuRoot
+              align="end"
+              popupProps={{ 'data-testid': 'assistant-menu' }}
+              trigger={(
+                <IconButton
+                  data-testid="open-assistant"
                   label="Assistant"
-                  testId="open-assistant"
                 >
                   <Sparkles size={16} />
                 </IconButton>
               )}
-              items={[
-                {
-                  id: 'toggle',
-                  label: `Open or close Assistant · ${assistant.hotkey}`,
-                  icon: Sparkles,
-                  onSelect: assistant.onToggle,
-                },
-                ...assistant.recent.map((chat) => ({
-                  id: `chat-${chat.id}`,
-                  label: chat.title,
-                  icon: chat.attention === 'notification'
+            >
+              <MenuGroup label="Recent chats">
+                <MenuItem
+                  data-testid="menu-toggle"
+                  leading={<Sparkles aria-hidden size={16} />}
+                  onClick={assistant.onToggle}
+                  trailing={assistant.hotkey}
+                >
+                  Open or close Assistant
+                </MenuItem>
+                {assistant.recent.map((chat) => {
+                  const AttentionIcon = chat.attention === 'notification'
                     ? TriangleAlert
                     : chat.attention === 'unread'
                       ? CircleDot
-                      : Circle,
-                  onSelect: () => assistant.onOpenChat(chat.id),
-                })),
-                {
-                  id: 'show-more',
-                  label: 'Show more…',
-                  icon: History,
-                  onSelect: assistant.onShowMore,
-                },
-              ]}
-            />
+                      : Circle
+                  return (
+                    <MenuItem
+                      data-testid={`menu-chat-${chat.id}`}
+                      key={chat.id}
+                      leading={<AttentionIcon aria-hidden size={16} />}
+                      onClick={() => assistant.onOpenChat(chat.id)}
+                    >
+                      {chat.title}
+                    </MenuItem>
+                  )
+                })}
+                <MenuItem
+                  data-testid="menu-show-more"
+                  leading={<History aria-hidden size={16} />}
+                  onClick={assistant.onShowMore}
+                >
+                  Show more…
+                </MenuItem>
+              </MenuGroup>
+            </MenuRoot>
           ) : null}
           {onOpenBrowser ? (
-            <IconButton
-              label="Open Browser"
-              onClick={onOpenBrowser}
-              testId="open-browser"
+            <Tooltip
+              trigger={(
+                <IconButton
+                  data-testid="open-browser"
+                  label="Open Browser"
+                  onClick={onOpenBrowser}
+                >
+                  <Globe size={16} />
+                </IconButton>
+              )}
             >
-              <Globe size={16} />
-            </IconButton>
+              Open Browser
+            </Tooltip>
           ) : null}
         </>
       ) : undefined}

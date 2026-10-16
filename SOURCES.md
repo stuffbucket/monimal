@@ -14,7 +14,8 @@ their source repositories.
 
 | Package | Purpose |
 | --- | --- |
-| `packages/maximal-design-system` (`@maximal/maximal-design-system`) | Shared color and theme system, generated Style Dictionary artifacts, workspace token inventory, Base UI-backed design primitives and spikes, design tools, and the workspace Storybook catalog. |
+| `packages/maximal-design-system` (`@maximal/maximal-design-system`) | Shared color and theme system, generated Style Dictionary artifacts, workspace token inventory, Base UI-backed design primitives and spikes, and the workspace Storybook catalog. |
+| `packages/maximal-design-system-tools` (`@maximal/maximal-design-system-tools`) | Portable React state analysis, design-system source and API policy checks, and Storybook browser-quality tooling. |
 | `packages/maximal-browser` | Agent-shareable browser sessions, native Electron views, and browser-tab renderer UI. |
 | `packages/maximal-terminal` | Electron-free terminal hosts, tmux control and projection, launch connectors, and the terminal renderer. |
 | `packages/maximal-settings` | Typed layered settings, process-owned JSON stores, plugin-schema validation, and the settings migration ratchet. |
@@ -191,6 +192,7 @@ packaged sidecar.
 | `maximal-electron` | Private workspace package, not published; the registry publish, tag, and git-install checks are removed. |
 | `maximal-electron` | Workspace installation MUST NOT build the package; Turbo MUST own dependency-ordered builds. |
 | `maximal-design-system` | Its package build and Turbo token inventory hash tracked application and package sources because the Style Dictionary inventory is workspace-wide. |
+| `maximal-design-system` | Required CI installs the lockfile-pinned Playwright Chromium revision and gates every design-system-owned Storybook story in light and dark themes on rendering, play functions, generated tokens, browser errors, WCAG 2.2 AA Axe results, keyboard focus visibility, deterministic acceptance profiles, non-regressing runtime coverage floors, and critical-logic mutation score. |
 | `maximal-electron` | The package MUST NOT contain demo-shell or terminal-lab application composition. |
 | `maximal-recording` / `apps/desktop` | Recording owns capture and encoding; desktop owns explicit initiation, destination, and window selection. |
 | `apps/desktop` | The desktop application MUST own terminal integration behavior and end-to-end coverage. |

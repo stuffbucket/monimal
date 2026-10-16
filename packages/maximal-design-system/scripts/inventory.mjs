@@ -22,6 +22,10 @@ const JSX_NUMERIC_SIZE = /<([A-Z][a-zA-Z0-9_.]*)\b[^>]*\bsize=\{(\d+(?:\.\d+)?)\
 const SVG_VIEW_BOX = /<svg\b[^>]*\bviewBox=["']([^"']+)["']/i;
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 
+export function isTokenInventorySource(file) {
+  return !file.startsWith('packages/maximal-design-system-tools/');
+}
+
 function trackedFiles(root = WORKSPACE_ROOT, pattern = SOURCE_PATTERN) {
   return execFileSync(
     'git',
@@ -41,6 +45,7 @@ function trackedFiles(root = WORKSPACE_ROOT, pattern = SOURCE_PATTERN) {
     .filter(
       (file) =>
         pattern.test(file)
+        && isTokenInventorySource(file)
         && fs.existsSync(path.join(root, file)),
     )
     .sort();

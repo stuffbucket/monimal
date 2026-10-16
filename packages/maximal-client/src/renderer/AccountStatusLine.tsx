@@ -1,5 +1,5 @@
+import { Button } from '@maximal/maximal-design-system'
 import type { ReactElement } from 'react'
-import { Button } from '@maximal/maximal-electron/renderer'
 
 import { Status } from './frame/AppFrame'
 import type { AuthStatus } from './settings/capabilities'

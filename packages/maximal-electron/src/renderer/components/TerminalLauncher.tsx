@@ -128,7 +128,7 @@ export interface TerminalProfileSummary {
   kind: 'command' | 'local' | 'tmux-control' | 'docker' | 'podman' | 'lima' | 'multipass' | 'kubernetes' | 'wsl' | 'vagrant' | 'ssh' | 'tmux' | 'ssh-tmux';
 }
 
-export interface TerminalTargetSummary {
+interface TerminalTargetSummary {
   id: string;
   profileId: string;
   label: string;
@@ -155,7 +155,7 @@ export interface TerminalLaunchResult {
   canRunInBackground: boolean;
 }
 
-export interface TerminalLauncherProps {
+interface TerminalLauncherProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   profiles: () => Promise<TerminalProfileSummary[]>;

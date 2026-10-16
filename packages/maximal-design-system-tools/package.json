@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@maximal/maximal-design-system-tools",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Portable React and design-system analysis, conformance, and browser-quality tooling.",
+  "type": "module",
+  "monimal": {
+    "taskExemptions": {
+      "dev": "The package exposes one-shot analysis commands rather than a development server.",
+      "start": "The package owns no long-running application lifecycle."
+    }
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./api-surface": "./src/api-surface.mjs",
+    "./policy": "./src/policy.mjs",
+    "./pulse-browser": "./src/pulse-browser.mjs",
+    "./react-state": {
+      "types": "./src/react-state-analysis.ts",
+      "default": "./src/react-state-analysis.ts"
+    },
+    "./source-quality": "./src/source-quality.mjs",
+    "./storybook-check": "./src/storybook-check.mjs"
+  },
+  "bin": {
+    "maximal-ds-api-check": "./bin/api-check.mjs",
+    "maximal-ds-policy-check": "./bin/policy-check.mjs",
+    "maximal-ds-source-quality": "./bin/source-quality.mjs",
+    "pulse": "./bin/state-machine.mts",
+    "maximal-react-state": "./bin/state-machine.mts",
+    "maximal-storybook-check": "./bin/storybook-check.mjs"
+  },
+  "scripts": {
+    "analyze": "bun ../maximal-core/scripts/analyze.ts",
+    "build": "pnpm run typecheck",
+    "lint": "eslint .",
+    "mutate": "stryker run",
+    "mutate:pulse": "stryker run stryker.pulse.config.mjs",
+    "mutate:mds": "stryker run stryker.mds.config.mjs",
+    "pulse": "node --experimental-strip-types bin/state-machine.mts",
+    "state-machine": "pnpm run pulse",
+    "test": "node --test test/api-surface.test.mjs test/source-quality.test.mjs && vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.62.0",
+    "axe-core": "4.13.0",
+    "storybook": "10.5.10",
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
+  },
+  "devDependencies": {
+    "@maximal/eslint-config": "workspace:*",
+    "@stryker-mutator/core": "10.0.0",
+    "@stryker-mutator/vitest-runner": "10.0.0",
+    "@types/node": "^26.4.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "eslint": "^10.9.1",
+    "vitest": "^5.0.1"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

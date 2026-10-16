@@ -7,7 +7,7 @@ import {
 import { getTabPanelId, getTabTriggerId, type Tab } from './TabBar.js';
 import { TitleBar } from './TitleBar.js';
 
-export interface WindowChromeProps {
+interface WindowChromeProps {
   layoutId: string;
   tab: Tab;
   children: ReactNode;

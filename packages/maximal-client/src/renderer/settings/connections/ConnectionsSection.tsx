@@ -1,6 +1,7 @@
+import { Button } from '@maximal/maximal-design-system'
 import { useEffect, type ReactElement } from 'react'
 
-import { Button, Note } from '@maximal/maximal-electron/renderer'
+import { Note } from '@maximal/maximal-electron/renderer'
 
 import type { SettingsCapabilities } from '../capabilities'
 import { useSettingsHeaderActions } from '../header-actions'
@@ -26,7 +27,7 @@ export function ConnectionsSection({
 
   useEffect(() => {
     setHeaderActions(
-      <Button size="sm" variant="primary" onClick={section.rescan} disabled={section.busy}>
+      <Button variant="primary" onClick={section.rescan} disabled={section.busy}>
         {section.refreshing ? 'Scanning…' : 'Rescan'}
       </Button>,
     )
@@ -37,7 +38,7 @@ export function ConnectionsSection({
     <section className="settings-section" aria-busy={section.busy}>
       {!hasHeader ? (
         <div className="settings-section__actions">
-          <Button size="sm" variant="primary" onClick={section.rescan} disabled={section.busy}>
+          <Button variant="primary" onClick={section.rescan} disabled={section.busy}>
             {section.refreshing ? 'Scanning…' : 'Rescan'}
           </Button>
         </div>

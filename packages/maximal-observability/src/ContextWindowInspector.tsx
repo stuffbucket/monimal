@@ -7,7 +7,7 @@ import {
   ContextWindowSessionPanel,
   deriveContextSessions,
 } from "@maximal/maximal-context-window"
-import { InspectorPanel } from "@maximal/maximal-electron/renderer"
+import { InspectorPanel } from "@maximal/maximal-design-system"
 
 import { type Loadable, useObservability } from "./state.tsx"
 

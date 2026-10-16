@@ -1,17 +1,19 @@
+import {
+  Button,
+  CopyButton,
+  Dialog,
+  Property,
+  PropertyList,
+  Switch,
+} from '@maximal/maximal-design-system'
 import type { ReactElement } from 'react'
 
 import {
   ApiKeysDialog,
-  Button,
-  CopyButton,
-  Dialog,
-  Field,
-  FieldList,
   Note,
   SettingsGroup,
   SettingsItem,
   SettingsSection,
-  Switch,
   type ApiClient,
 } from '@maximal/maximal-electron/renderer'
 
@@ -21,6 +23,7 @@ import type {
   ConnectionsListResponse,
 } from '../capabilities'
 import { HEALTH_ISSUE_COPY } from './connections-section-content'
+import { shellOverlayContainer } from '../../shell-overlay-container'
 
 interface LocalAddressesSectionProps {
   proxyUrl: string | null
@@ -73,8 +76,8 @@ export function LocalAddressesSection({ proxyUrl, openAiUrl }: LocalAddressesSec
       {proxyUrl === null || openAiUrl === null ? (
         <Note live="polite">Loading connection details…</Note>
       ) : (
-        <FieldList>
-          <Field
+        <PropertyList>
+          <Property
             label="Anthropic base"
             value={
               <>
@@ -83,7 +86,7 @@ export function LocalAddressesSection({ proxyUrl, openAiUrl }: LocalAddressesSec
               </>
             }
           />
-          <Field
+          <Property
             label="OpenAI base"
             value={
               <>
@@ -92,7 +95,7 @@ export function LocalAddressesSection({ proxyUrl, openAiUrl }: LocalAddressesSec
               </>
             }
           />
-          <Field
+          <Property
             label="Routes"
             value={
               <>
@@ -100,7 +103,7 @@ export function LocalAddressesSection({ proxyUrl, openAiUrl }: LocalAddressesSec
               </>
             }
           />
-        </FieldList>
+        </PropertyList>
       )}
     </SettingsSection>
   )
@@ -132,10 +135,9 @@ export function AppIntegrationsSection({
               actions={
                 !app.health.ok ? (
                   <Button
-                    size="sm"
+                    data-testid={`app-${app.id}-fix`}
                     disabled={busy}
                     onClick={() => onSelectFixTarget(app)}
-                    testId={`app-${app.id}-fix`}
                   >
                     {busyAction === `fix:${app.id}` ? 'Fixing…' : 'Fix settings…'}
                   </Button>
@@ -205,12 +207,12 @@ export function AdvancedConnectionsSection({
             description="When off, anonymous local requests are allowed. Requests carrying a known enabled key are still attributed to that client."
             control={
               <Switch
-                label="Require known keys"
-                displayLabel={null}
+                aria-label="Require known keys"
+                label={null}
                 checked={connections.require_known_keys}
                 disabled={busy}
-                onChange={onSetEnforcement}
-                testId="api-key-enforcement"
+                onCheckedChange={onSetEnforcement}
+                data-testid="api-key-enforcement"
               />
             }
           />
@@ -254,7 +256,8 @@ export function ConnectionsDialogs({
         }}
         title={fixTarget ? `Fix ${fixTarget.name} settings?` : 'Fix app settings?'}
         description="Re-applies Maximal's configuration for this app."
-        testId="app-fix-confirmation"
+        popupProps={{ 'data-testid': 'app-fix-confirmation' }}
+        container={shellOverlayContainer}
       >
         {fixTarget ? (
           <>

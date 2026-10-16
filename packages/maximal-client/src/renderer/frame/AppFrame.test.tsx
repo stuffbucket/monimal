@@ -174,12 +174,7 @@ describe('AppFrame', () => {
     if (assistant === null) throw new Error('Assistant button was not rendered')
     if (rightPanelToggle === null) throw new Error('right-panel toggle was not rendered')
     expect(assistant.nextElementSibling).toBe(rightPanelToggle)
-    await act(async () => {
-      assistant.dispatchEvent(new MouseEvent('pointerdown', {
-        bubbles: true,
-        button: 0,
-      }))
-    })
+    await act(async () => assistant.click())
     const toggleAssistant = document.querySelector<HTMLElement>('[data-testid="menu-toggle"]')
     if (toggleAssistant === null) throw new Error('Assistant toggle was not rendered')
     await act(async () => toggleAssistant.click())

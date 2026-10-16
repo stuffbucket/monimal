@@ -2,15 +2,15 @@ import type { ReactNode } from 'react';
 import { Group, Panel, Separator } from 'react-resizable-panels';
 
 /** A binary layout tree: a leaf, or two subtrees split right or down. */
-export interface SplitTreeBranch<Leaf extends object> {
+interface SplitTreeBranch<Leaf extends object> {
   direction: 'right' | 'down';
   first: SplitTreeNode<Leaf>;
   second: SplitTreeNode<Leaf>;
 }
 
-export type SplitTreeNode<Leaf extends object> = Leaf | SplitTreeBranch<Leaf>;
+type SplitTreeNode<Leaf extends object> = Leaf | SplitTreeBranch<Leaf>;
 
-export interface SplitTreeProps<Leaf extends object> {
+interface SplitTreeProps<Leaf extends object> {
   node: SplitTreeNode<Leaf>;
   /** Prefixes every panel id, so sibling trees keep separate layouts. */
   id: string;

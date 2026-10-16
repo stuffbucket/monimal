@@ -162,7 +162,7 @@ function Strip({
 }
 
 const meta = {
-  title: 'Layout/TabBar',
+  title: 'Deprecated/TabBar',
   component: TabBar,
   args: {
     tabIdBase: 'story',

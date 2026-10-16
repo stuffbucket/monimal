@@ -13,7 +13,7 @@ import { SettingsPage, SettingsSection } from './SettingsPage.js';
  * and inside a dialog. That is easiest to see with both stories open.
  */
 const meta = {
-  title: 'Settings/SettingsPage',
+  title: 'Deprecated/SettingsPage',
   component: SettingsPage,
   args: {
     title: 'Model cards',

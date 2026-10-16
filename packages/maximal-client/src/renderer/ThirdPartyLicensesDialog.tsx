@@ -1,6 +1,7 @@
+import { Button, Dialog } from '@maximal/maximal-design-system'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState, type ReactElement } from 'react'
-import { Button, Dialog } from '@maximal/maximal-electron/renderer'
+import { shellOverlayContainer } from './shell-overlay-container'
 
 export function ThirdPartyLicensesDialog(): ReactElement {
   const [open, setOpen] = useState(false)
@@ -33,8 +34,9 @@ export function ThirdPartyLicensesDialog(): ReactElement {
       description="License notices for software included with Maximal."
       showTitle
       showDescription
-      className="dialog license-dialog"
-      testId="third-party-licenses-dialog"
+      className="license-dialog"
+      popupProps={{ 'data-testid': 'third-party-licenses-dialog' }}
+      container={shellOverlayContainer}
     >
       <div
         className="license-dialog__reader"

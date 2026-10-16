@@ -6,6 +6,11 @@
       "$description": "Short fade used by transient interface affordances.",
       "$value": { "value": 120, "unit": "ms" },
       "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--duration-fade"] } }
+    },
+    "dwell": {
+      "$description": "How long a transient affordance stays shown after the activity that revealed it ends.",
+      "$value": { "value": 800, "unit": "ms" },
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--duration-dwell"] } }
     }
   },
   "easing": {
@@ -15,6 +20,16 @@
       "$description": "Default easing for short interface transitions.",
       "$value": [0.25, 0.1, 0.25, 1],
       "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--easing-standard"] } }
+    },
+    "out": {
+      "$description": "Decelerating curve for elements entering or growing into view.",
+      "$value": [0.16, 1, 0.3, 1],
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--easing-out"] } }
+    },
+    "in": {
+      "$description": "Accelerating curve for elements leaving or shrinking out of view.",
+      "$value": [0.7, 0, 0.84, 0],
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--easing-in"] } }
     }
   },
   "opacity": {

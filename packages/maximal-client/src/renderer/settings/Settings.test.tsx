@@ -24,6 +24,9 @@ import type {
 } from './capabilities'
 import { Settings, type SettingsSectionRequest } from './Settings'
 
+/* jsdom has no Web Animations API; Base UI's scroll area reads it while measuring. */
+Element.prototype.getAnimations ??= () => []
+
 const OLLAMA_ENDPOINT = 'http://127.0.0.1:11434'
 
 class NoopResizeObserver implements ResizeObserver {
@@ -483,7 +486,7 @@ describe('Settings', () => {
     const rescan = [...header.querySelectorAll('button')].find(
       (button) => button.textContent === 'Rescan',
     )
-    expect(rescan?.classList.contains('btn--primary')).toBe(true)
+    expect(rescan?.dataset.variant).toBe('primary')
   })
 
   it('selects every manifest destination into the same tabpanel', async () => {
@@ -513,7 +516,7 @@ describe('Settings', () => {
     )
     expect(surface.textContent).not.toContain('On this page')
     expect(surface.querySelector('#settings-heading')).toBeNull()
-    expect(surface.querySelector('nav.settings-rail')?.getAttribute('aria-label')).toBe(
+    expect(surface.querySelector('nav.settings-rail__scroll')?.getAttribute('aria-label')).toBe(
       'Settings sections',
     )
   })

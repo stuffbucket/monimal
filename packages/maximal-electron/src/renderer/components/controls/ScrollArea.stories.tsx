@@ -4,7 +4,7 @@ import { expect, waitFor, within } from '@maximal/maximal-storybook/test';
 import { ScrollArea } from './ScrollArea.js';
 
 const meta = {
-  title: 'Controls/ScrollArea',
+  title: 'Deprecated/ScrollArea',
   component: ScrollArea,
   decorators: [
     (Story) => (

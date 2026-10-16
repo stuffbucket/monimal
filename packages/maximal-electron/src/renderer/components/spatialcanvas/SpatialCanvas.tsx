@@ -17,7 +17,7 @@ import { SPATIAL_CANVAS_STYLES } from "./SpatialCanvasStyles.js";
 export type { SpatialCanvasCursorState } from "./SpatialCanvasCursorGlyph.js";
 
 /** A connector segment expressed in spatial canvas coordinates. */
-export interface SpatialCanvasLine {
+interface SpatialCanvasLine {
   id: string;
   x1: number;
   y1: number;

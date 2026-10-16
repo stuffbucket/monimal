@@ -1,11 +1,11 @@
 import { type ReactElement } from 'react'
 
+import { Switch } from '@maximal/maximal-design-system'
 import {
   Note,
   SettingsGroup,
   SettingsItem,
   SettingsSection,
-  Switch,
 } from '@maximal/maximal-electron/renderer'
 
 import { useMaterialPreference } from '../useMaterialPreference'
@@ -69,12 +69,12 @@ export function ShadersSection({
             }
             control={
               <Switch
-                label="Translucent window"
-                displayLabel={null}
+                aria-label="Translucent window"
+                label={null}
                 checked={appearance.state.vibrancyEnabled}
                 disabled={appearance.busy || !appearance.state.vibrancySupported}
-                onChange={(next) => void appearance.setVibrancyEnabled(next)}
-                testId="vibrancy-switch"
+                onCheckedChange={(next) => void appearance.setVibrancyEnabled(next)}
+                data-testid="vibrancy-switch"
               />
             }
           />
@@ -90,13 +90,13 @@ export function ShadersSection({
             description="Render a configurable material behind the workspace."
             control={
               <Switch
-                label="Background material"
-                displayLabel={null}
+                aria-label="Background material"
+                label={null}
                 checked={appearance.state.backgroundEffectsEnabled}
                 disabled={appearance.busy}
-                onChange={(next) =>
+                onCheckedChange={(next) =>
                   void appearance.setBackgroundEffectsEnabled(next)}
-                testId="background-effects-switch"
+                data-testid="background-effects-switch"
               />
             }
           >
@@ -111,12 +111,12 @@ export function ShadersSection({
             description="Stop decorative animation and minimize transitions throughout Maximal. The operating system preference is always honored."
             control={
               <Switch
-                label="Reduce motion"
-                displayLabel={null}
+                aria-label="Reduce motion"
+                label={null}
                 checked={appearance.state.reducedMotionEnabled}
                 disabled={appearance.busy}
-                onChange={(next) => void appearance.setReducedMotionEnabled(next)}
-                testId="reduced-motion-switch"
+                onCheckedChange={(next) => void appearance.setReducedMotionEnabled(next)}
+                data-testid="reduced-motion-switch"
               />
             }
           />

@@ -23,6 +23,7 @@ body,
 
 body {
   /* The canvas, not the window chrome: a story is content on a surface. */
+  color: var(--maximal-color-text-default);
   background: var(--maximal-color-bg-default);
   padding: var(--spacer-4);
 }

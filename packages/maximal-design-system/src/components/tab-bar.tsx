@@ -50,13 +50,15 @@ export function TabBar({
           {items.map((item) => (
             <Tab
               active={item.id === value}
-              closable={item.closable}
-              disabled={item.disabled}
               icon={item.icon}
               key={item.id}
               label={item.label}
-              onClose={onClose ? () => onClose(item.id) : undefined}
               value={item.id}
+              {...(item.closable === undefined ? {} : { closable: item.closable })}
+              {...(item.disabled === undefined ? {} : { disabled: item.disabled })}
+              {...(onClose === undefined
+                ? {}
+                : { onClose: () => onClose(item.id) })}
             />
           ))}
         </Tabs.List>

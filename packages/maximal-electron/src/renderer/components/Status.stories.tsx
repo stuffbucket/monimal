@@ -25,7 +25,7 @@ function StatusSurface() {
 }
 
 const meta = {
-  title: 'Shell/Status',
+  title: 'Deprecated/Status',
   component: StatusViewport,
   parameters: { layout: 'fullscreen' },
 } satisfies Meta<typeof StatusViewport>;

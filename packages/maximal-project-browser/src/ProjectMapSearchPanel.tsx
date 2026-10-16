@@ -1,9 +1,9 @@
+import { TextInput } from "@maximal/maximal-design-system"
 import {
   SpatialCanvasPanelHeader,
   SpatialCanvasSearchResult,
   SpatialCanvasSearchResults,
   SpatialCanvasSidePanel,
-  TextInput,
 } from "@maximal/maximal-electron/renderer"
 
 import type { ProjectMapProject } from "./model.ts"
@@ -33,9 +33,11 @@ export function ProjectMapSearchPanel({
         <SpatialCanvasPanelHeader>
           <TextInput
             aria-label="Search projects"
+            label="Search projects"
+            showLabel={false}
             value={query}
             placeholder="Search projects"
-            onChange={onQueryChange}
+            onChange={(event) => onQueryChange(event.currentTarget.value)}
           />
         </SpatialCanvasPanelHeader>
       }

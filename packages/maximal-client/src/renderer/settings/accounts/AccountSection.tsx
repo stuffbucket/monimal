@@ -1,3 +1,4 @@
+import { Button } from '@maximal/maximal-design-system'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   useCallback,
@@ -7,7 +8,6 @@ import {
 
 import {
   Banner,
-  Button,
   SettingsGroup,
   SettingsItem,
   SettingsSection,
@@ -185,14 +185,13 @@ export function AccountSection({
               status?.state === 'unauthenticated' ? (
                 <Button
                   variant="primary"
-                  size="sm"
                   onClick={handleStart}
                   disabled={busy}
                 >
                   {busy ? 'Starting…' : 'Sign in with GitHub'}
                 </Button>
               ) : status?.state === 'authenticated' ? (
-                <Button size="sm" onClick={handleSignOut} disabled={busy}>
+                <Button onClick={handleSignOut} disabled={busy}>
                   {busy ? 'Signing out…' : 'Sign out'}
                 </Button>
               ) : status?.state === 'error' ? (

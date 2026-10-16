@@ -6,19 +6,6 @@ import { MaximalQueryProvider } from './query-client'
 import type { SettingsCapabilities } from './settings/capabilities'
 
 vi.mock('@maximal/maximal-electron/renderer', () => ({
-  Button: ({ children, ...props }: { children: ReactNode } & React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button {...props}>{children}</button>
-  ),
-  Checkbox: ({ label, checked, onChange }: {
-    label: string
-    checked: boolean
-    onChange: (checked: boolean) => void
-  }) => (
-    <label>
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
-      {label}
-    </label>
-  ),
   Dialog: ({ open, children }: { open: boolean; children: ReactNode }) => open
     ? <div data-testid="provider-onboarding">{children}</div>
     : null,
@@ -87,7 +74,7 @@ describe('ProviderOnboarding', () => {
   it('offers setup only when no provider is configured and the prompt is not dismissed', async () => {
     const empty = capabilities()
     const shell = await render(empty.value)
-    expect(shell.querySelector('[data-testid="provider-onboarding"]')).not.toBeNull()
+    expect(document.querySelector('[data-testid="provider-onboarding"]')).not.toBeNull()
 
     act(() => root?.unmount())
     root = null
@@ -108,7 +95,7 @@ describe('ProviderOnboarding', () => {
   it('closes without persisting when the user declines', async () => {
     const capability = capabilities()
     const shell = await render(capability.value)
-    const decline = [...shell.querySelectorAll('button')].find(
+    const decline = [...document.querySelectorAll('button')].find(
       (button) => button.textContent === 'Not now',
     )
     if (decline === undefined) throw new Error('decline control missing')
@@ -116,15 +103,15 @@ describe('ProviderOnboarding', () => {
     await act(async () => decline.click())
 
     expect(capability.setDismissed).not.toHaveBeenCalled()
-    expect(shell.querySelector('[data-testid="provider-onboarding"]')).toBeNull()
+    expect(document.querySelector('[data-testid="provider-onboarding"]')).toBeNull()
   })
 
   it('persists do-not-ask before navigating to provider setup', async () => {
     const capability = capabilities()
     const onSetup = vi.fn()
     const shell = await render(capability.value, onSetup)
-    const checkbox = shell.querySelector<HTMLInputElement>('input[type="checkbox"]')
-    const setup = [...shell.querySelectorAll('button')].find(
+    const checkbox = document.querySelector<HTMLInputElement>('input[type="checkbox"]')
+    const setup = [...document.querySelectorAll('button')].find(
       (button) => button.textContent === 'Set up a provider',
     )
     if (checkbox === null || setup === undefined) throw new Error('onboarding controls missing')
@@ -134,6 +121,6 @@ describe('ProviderOnboarding', () => {
 
     expect(capability.setDismissed).toHaveBeenCalledWith(true)
     expect(onSetup).toHaveBeenCalledOnce()
-    expect(shell.querySelector('[data-testid="provider-onboarding"]')).toBeNull()
+    expect(document.querySelector('[data-testid="provider-onboarding"]')).toBeNull()
   })
 })

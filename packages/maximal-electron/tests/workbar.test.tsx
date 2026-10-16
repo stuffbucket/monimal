@@ -4,7 +4,9 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { SHELL_ICON_NAMES, Tooltip, Workbar } from '../src/renderer/index.js';
+import { Tooltip } from '../src/renderer/components/controls/index.js';
+import { SHELL_ICON_NAMES } from '../src/renderer/lib/shell-icons.js';
+import { Workbar } from '../src/renderer/index.js';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -104,7 +106,7 @@ describe('Workbar', () => {
 
     if (profile === null) throw new Error('Profile button was not rendered');
     await act(async () => {
-      profile.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }));
+      profile.click();
     });
     const diagnostics = document.querySelector<HTMLElement>('[data-testid="menu-diagnostics"]');
     if (diagnostics === null) throw new Error('Diagnostics profile action was not rendered');

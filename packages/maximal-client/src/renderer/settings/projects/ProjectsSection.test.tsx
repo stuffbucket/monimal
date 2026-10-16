@@ -112,8 +112,8 @@ function button(container: HTMLElement, label: string): HTMLButtonElement {
     .find((candidate) => candidate.textContent === label)!
 }
 
-function switchFor(container: HTMLElement, label: string): HTMLButtonElement {
-  return container.querySelector<HTMLButtonElement>(
+function switchFor(container: HTMLElement, label: string): HTMLElement {
+  return container.querySelector<HTMLElement>(
     `[role="switch"][aria-label="${label}"]`,
   )!
 }
@@ -165,7 +165,8 @@ describe('ProjectsSection', () => {
     expect(switchFor(container, 'Discover projects under /work').getAttribute('aria-checked'))
       .toBe('true')
     expect(switchFor(container, 'Trust /work').getAttribute('aria-checked')).toBe('false')
-    expect(switchFor(container, 'Trust projects below /work').disabled).toBe(true)
+    expect(switchFor(container, 'Trust projects below /work').hasAttribute('data-disabled'))
+      .toBe(true)
     const exclusions = container.querySelector<HTMLInputElement>(
       '[aria-label="Excluded directories for /work"]',
     )!

@@ -11,7 +11,7 @@ import {
   CANVAS_ZOOM,
   normalizeCanvasZoom,
   stepCanvasZoom,
-} from './canvas-zoom'
+} from '../utilities/canvas-zoom'
 import { CollaboratorPopover } from './shell-overlays'
 import { CompactControlCluster } from './control-cluster'
 
@@ -182,7 +182,7 @@ export function SurfaceCanvasCluster({
     <>
       <CollaboratorPopover />
       {!compact ? (
-        <div className="maximal-surface-cluster__modes" aria-label="Canvas mode">
+        <div className="maximal-surface-cluster__modes" aria-label="Canvas mode" role="group">
           <ToggleButton selected type="button">Design</ToggleButton>
           <ToggleButton selected={false} type="button">Prototype</ToggleButton>
         </div>

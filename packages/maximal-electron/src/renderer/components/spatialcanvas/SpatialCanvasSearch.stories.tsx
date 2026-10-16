@@ -7,7 +7,7 @@ import {
 } from './SpatialCanvasSearch.js';
 
 const meta = {
-  title: 'Canvas/SpatialCanvasSearch',
+  title: 'Deprecated/SpatialCanvasSearch',
   component: SpatialCanvasSearchResults,
 } satisfies Meta<typeof SpatialCanvasSearchResults>;
 

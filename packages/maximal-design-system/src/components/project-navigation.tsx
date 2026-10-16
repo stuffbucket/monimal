@@ -94,7 +94,9 @@ export function ProjectNavigation({
     <div className="maximal-project-navigation">
       <SidebarSectionSplit
         label="Resize Pages section"
-        onPrimarySizeChange={onPagesHeightChange}
+        {...(onPagesHeightChange === undefined
+          ? {}
+          : { onPrimarySizeChange: onPagesHeightChange })}
         primary={
           <SidebarSection
             actions={
@@ -152,7 +154,7 @@ export function ProjectNavigation({
             </nav>
           </SidebarSection>
         }
-        primarySize={pagesHeight}
+        {...(pagesHeight === undefined ? {} : { primarySize: pagesHeight })}
         secondary={
           <SidebarSection
             className="maximal-project-content"

@@ -56,7 +56,7 @@ function Selectable({
   );
 }
 
-export type TileProps = Omit<Parameters<typeof Selectable>[0], 'base'>;
+type TileProps = Omit<Parameters<typeof Selectable>[0], 'base'>;
 
 /**
  * A tile in a grid.

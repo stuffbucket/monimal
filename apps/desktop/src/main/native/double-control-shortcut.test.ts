@@ -1,9 +1,13 @@
 import { EventEmitter } from 'node:events'
 
 import { describe, expect, it, vi } from 'vitest'
-import { UiohookKey, type UiohookKeyboardEvent } from 'uiohook-napi'
+import type { UiohookKeyboardEvent } from 'uiohook-napi'
 
 import { DoubleControlShortcut } from './double-control-shortcut'
+
+const LEFT_CONTROL_KEY_CODE = 29
+const RIGHT_CONTROL_KEY_CODE = 3_613
+const C_KEY_CODE = 46
 
 class FakeHook extends EventEmitter {
   start = vi.fn()
@@ -29,10 +33,10 @@ function key(keycode: number): UiohookKeyboardEvent {
 }
 
 function isControl(keycode: number): boolean {
-  return keycode === UiohookKey.Ctrl || keycode === UiohookKey.CtrlRight
+  return keycode === LEFT_CONTROL_KEY_CODE || keycode === RIGHT_CONTROL_KEY_CODE
 }
 
-function tap(hook: FakeHook, keycode: number = UiohookKey.Ctrl): void {
+function tap(hook: FakeHook, keycode: number = LEFT_CONTROL_KEY_CODE): void {
   hook.emit('keydown', key(keycode))
   hook.emit('keyup', key(keycode))
 }
@@ -48,7 +52,7 @@ describe('DoubleControlShortcut', () => {
     tap(hook)
     expect(activate).not.toHaveBeenCalled()
     now += 300
-    tap(hook, UiohookKey.CtrlRight)
+    tap(hook, RIGHT_CONTROL_KEY_CODE)
 
     expect(activate).toHaveBeenCalledOnce()
     expect(hook.start).toHaveBeenCalledOnce()
@@ -61,9 +65,9 @@ describe('DoubleControlShortcut', () => {
     const shortcut = new DoubleControlShortcut(hook, activate, () => now)
     shortcut.start()
 
-    hook.emit('keydown', key(UiohookKey.Ctrl))
-    hook.emit('keydown', key(UiohookKey.Ctrl))
-    hook.emit('keyup', key(UiohookKey.Ctrl))
+    hook.emit('keydown', key(LEFT_CONTROL_KEY_CODE))
+    hook.emit('keydown', key(LEFT_CONTROL_KEY_CODE))
+    hook.emit('keyup', key(LEFT_CONTROL_KEY_CODE))
     expect(activate).not.toHaveBeenCalled()
 
     now += 350
@@ -82,9 +86,9 @@ describe('DoubleControlShortcut', () => {
     tap(hook)
     now += 351
     tap(hook)
-    hook.emit('keydown', key(UiohookKey.Ctrl))
-    hook.emit('keydown', key(UiohookKey.C))
-    hook.emit('keyup', key(UiohookKey.Ctrl))
+    hook.emit('keydown', key(LEFT_CONTROL_KEY_CODE))
+    hook.emit('keydown', key(C_KEY_CODE))
+    hook.emit('keyup', key(LEFT_CONTROL_KEY_CODE))
     now += 100
     tap(hook)
 
@@ -98,17 +102,17 @@ describe('DoubleControlShortcut', () => {
     const shortcut = new DoubleControlShortcut(hook, activate, () => now)
     shortcut.start()
 
-    hook.emit('keyup', key(UiohookKey.Ctrl))
+    hook.emit('keyup', key(LEFT_CONTROL_KEY_CODE))
     tap(hook)
     expect(activate).not.toHaveBeenCalled()
     now += 100
 
-    hook.emit('keydown', key(UiohookKey.Ctrl))
-    hook.emit('keyup', key(UiohookKey.C))
+    hook.emit('keydown', key(LEFT_CONTROL_KEY_CODE))
+    hook.emit('keyup', key(C_KEY_CODE))
     expect(activate).not.toHaveBeenCalled()
-    hook.emit('keydown', key(UiohookKey.C))
-    hook.emit('keydown', key(UiohookKey.Ctrl))
-    hook.emit('keyup', key(UiohookKey.Ctrl))
+    hook.emit('keydown', key(C_KEY_CODE))
+    hook.emit('keydown', key(LEFT_CONTROL_KEY_CODE))
+    hook.emit('keyup', key(LEFT_CONTROL_KEY_CODE))
 
     now += 100
     tap(hook)
@@ -139,7 +143,7 @@ describe('DoubleControlShortcut', () => {
 
     shortcut.start()
     expect(hook.start).toHaveBeenCalledTimes(2)
-    hook.emit('keyup', key(UiohookKey.Ctrl))
+    hook.emit('keyup', key(LEFT_CONTROL_KEY_CODE))
     tap(hook)
     expect(activate).not.toHaveBeenCalled()
     tap(hook)

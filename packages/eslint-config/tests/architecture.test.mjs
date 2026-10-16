@@ -97,6 +97,13 @@ for (const fixture of [
     source: 'import "@maximal/maximal-electron/src/main/index.js"\n',
     ruleId: "no-restricted-imports",
   },
+  {
+    name: "packages cannot reach the Electron source tree by relative path",
+    from: "src/renderer/view.js",
+    source: 'import "../../../maximal-electron/src/renderer/components/NavRail.js"\n',
+    kind: "client",
+    ruleId: "no-restricted-imports",
+  },
 ]) {
   test(fixture.name, async () => {
     const messages = await lintFixture(fixture)

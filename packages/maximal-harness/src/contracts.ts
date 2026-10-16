@@ -101,7 +101,7 @@ export interface AssistantAttachment {
 }
 
 export type AskAccepted =
-  | { started: true; chatId: string }
+  | { started: true; chatId: string; runId: string }
   | { started: false; reason: string }
 
 export interface AgentToolEvent {
@@ -112,6 +112,16 @@ export interface AgentToolEvent {
 }
 
 export type AgentEnd = { ok: true } | { ok: false; error: string }
+
+export interface AssistantRunDelta {
+  runId: string
+  text: string
+}
+
+export interface AssistantRunEnd {
+  runId: string
+  result: AgentEnd
+}
 
 export interface AgentApprovalRequest {
   id: string
@@ -124,3 +134,27 @@ export interface ApproveRequest {
   allow: boolean
   remember: boolean
 }
+
+export interface AssistantRunToolEvent extends AgentToolEvent {
+  runId: string
+}
+
+export interface AssistantRunApprovalRequest extends AgentApprovalRequest {
+  runId: string
+}
+
+export interface AssistantRunApprovalDecision extends ApproveRequest {
+  runId: string
+}
+
+export interface ModelDownloadRequest {
+  downloadId: string
+  model: string
+}
+
+export interface ModelDownloadProgress {
+  downloadId: string
+  model: string
+  progress: ModelProgress
+}
+import type { ModelProgress } from '@maximal/maximal-runner-llama-cpp'

@@ -27,7 +27,7 @@ function Example() {
 }
 
 const meta = {
-  title: 'Controls/EditableLabel',
+  title: 'Deprecated/EditableLabel',
   component: EditableLabel,
   args: {
     value: 'quarterly-report.md',

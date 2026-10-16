@@ -1,7 +1,7 @@
+import { Button } from '@maximal/maximal-design-system'
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
 
 import {
-  Button,
   ModelCardGrid,
   Note,
   SettingsActions,
@@ -117,7 +117,6 @@ export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElemen
     setHeaderActions(
       <Button
         variant="primary"
-        size="sm"
         onClick={() => void refresh()}
         disabled={refreshing}
       >
@@ -176,7 +175,6 @@ export function ModelsSection({ capabilities }: ModelsSectionProps): ReactElemen
         <div className="settings-section__actions">
           <Button
             variant="primary"
-            size="sm"
             onClick={() => void refresh()}
             disabled={refreshing}
           >

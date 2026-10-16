@@ -348,10 +348,7 @@ describe('ProjectBrowser', () => {
     )!
     const openMenu = async () => {
       await act(async () => {
-        menu.dispatchEvent(new MouseEvent('pointerdown', {
-          bubbles: true,
-          button: 0,
-        }))
+        menu.click()
       })
     }
     const menuItem = (label: string) =>

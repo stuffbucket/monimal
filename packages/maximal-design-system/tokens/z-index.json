@@ -46,6 +46,11 @@
       "$description": "Modal dialog above its backdrop.",
       "$value": 31,
       "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--z-index-dialog"] } }
+    },
+    "assistant": {
+      "$description": "Persistent assistant surfaces above dialogs and other application overlays.",
+      "$value": 40,
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--z-index-assistant"] } }
     }
   }
 }

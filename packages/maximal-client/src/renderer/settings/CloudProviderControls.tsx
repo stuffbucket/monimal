@@ -1,18 +1,22 @@
-import { useState, type ReactElement } from 'react'
-
 import {
   Button,
   Dialog,
+  Switch,
+  Tooltip,
+} from '@maximal/maximal-design-system'
+import { useState, type ReactElement } from 'react'
+
+import {
   Note,
   SettingsActions,
   SettingsGroup,
   SettingsItem,
   SettingsSection,
-  Switch,
 } from '@maximal/maximal-electron/renderer'
 
 import type { ModelProviderInventory } from './useModelProviderRegistry'
 import { AccountAvatar } from './service-icons'
+import { shellOverlayContainer } from '../shell-overlay-container'
 
 interface CloudProviderControlsProps {
   providers: ModelProviderInventory[]
@@ -99,24 +103,29 @@ export function CloudProviderControls({
                   />
                 )}
                 actions={(
-                  <Switch
-                    label={toggleLabel}
-                    displayLabel={null}
-                    tooltip={toggleLabel}
-                    checked={provider.enabled}
-                    disabled={
-                      !provider.configurable
-                      || updating !== null
-                    }
-                    onChange={(enabled) => {
-                      if (enabled && !provider.available) {
-                        onRequestedProviderChange(provider)
-                        return
-                      }
-                      void onEnabledChange(provider.id, enabled)
-                    }}
-                    testId={`cloud-provider-${provider.id}`}
-                  />
+                  <Tooltip
+                    trigger={(
+                      <Switch
+                        aria-label={toggleLabel}
+                        label={null}
+                        checked={provider.enabled}
+                        disabled={
+                          !provider.configurable
+                          || updating !== null
+                        }
+                        onCheckedChange={(enabled) => {
+                          if (enabled && !provider.available) {
+                            onRequestedProviderChange(provider)
+                            return
+                          }
+                          void onEnabledChange(provider.id, enabled)
+                        }}
+                        data-testid={`cloud-provider-${provider.id}`}
+                      />
+                    )}
+                  >
+                    {toggleLabel}
+                  </Tooltip>
                 )}
               />
             )
@@ -142,7 +151,8 @@ export function CloudProviderControls({
         }
         showTitle
         showDescription
-        testId="enable-cloud-provider-dialog"
+        popupProps={{ 'data-testid': 'enable-cloud-provider-dialog' }}
+        container={shellOverlayContainer}
       >
         <SettingsActions>
           <Button

@@ -1,14 +1,7 @@
+import { Button, Dialog, Switch } from '@maximal/maximal-design-system'
 import type { ReactElement } from 'react'
 
-import {
-  Button,
-  Dialog,
-  FormField,
-  SettingsActions,
-  SettingsItem,
-  Switch,
-  TextInput,
-} from '@maximal/maximal-electron/renderer'
+import { SettingsActions, SettingsItem } from '@maximal/maximal-electron/renderer'
 
 import type {
   OllamaRuntimePreferences,
@@ -16,6 +9,8 @@ import type {
   OllamaSettingsResponse,
   SettingsCapabilities,
 } from '../capabilities'
+import { SettingsTextInput } from '../SettingsTextInput'
+import { shellOverlayContainer } from '../../shell-overlay-container'
 
 interface OllamaLocalSettingsProps {
   settings: OllamaSettingsResponse
@@ -66,8 +61,9 @@ function EndpointSuggestionDialog({
       }
       showTitle
       showDescription
-      className="dialog unsaved-changes-dialog"
-      testId="ollama-endpoint-suggestion-dialog"
+      className="unsaved-changes-dialog"
+      popupProps={{ 'data-testid': 'ollama-endpoint-suggestion-dialog' }}
+      container={shellOverlayContainer}
     >
       <div className="unsaved-changes-dialog__actions">
         <Button onClick={onDismiss} disabled={saving}>
@@ -106,8 +102,9 @@ function StartOllamaDialog({
       description="Maximal could not find a running Ollama process. Start the installed Ollama application now?"
       showTitle
       showDescription
-      className="dialog unsaved-changes-dialog"
-      testId="ollama-start-dialog"
+      className="unsaved-changes-dialog"
+      popupProps={{ 'data-testid': 'ollama-start-dialog' }}
+      container={shellOverlayContainer}
     >
       <div className="unsaved-changes-dialog__actions">
         <Button onClick={() => onOpenChange(false)} disabled={saving}>
@@ -136,10 +133,10 @@ function localApplicationAction(
 ): ReactElement | undefined {
   if (runtime === null || runtime.running) return undefined
   if (!runtime.installed) {
-    return <Button size="sm" onClick={onOpenDownload}>Get Ollama</Button>
+    return <Button onClick={onOpenDownload}>Get Ollama</Button>
   }
   return (
-    <Button variant="primary" size="sm" onClick={onLaunch} disabled={saving}>
+    <Button variant="primary" onClick={onLaunch} disabled={saving}>
       {saving ? 'Starting…' : 'Start Ollama'}
     </Button>
   )
@@ -179,67 +176,59 @@ export function OllamaLocalSettings({
           onOpenDownload,
         )}
       >
-        <FormField
-          label="Ollama Application URL"
-          hint={
-            <span aria-live="polite">
-              {endpointMessage ?? localStatus(runtime)}
-            </span>
-          }
-          error={endpointError ?? undefined}
-        >
-          {(control) => (
-            <span className="settings-credential-field">
-              <span className="settings-credential-input">
-                <TextInput
-                  {...control}
-                  value={endpoint}
-                  placeholder={settings.local_endpoint}
-                  disabled={saving}
-                  active={available}
-                  title={endpointError ?? undefined}
-                  testId="ollama-endpoint"
-                  onChange={onEndpointChange}
-                />
-              </span>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => onSaveEndpoint()}
-                disabled={saving || !endpointChanged || endpointError !== null}
-              >
-                {saving ? 'Saving…' : 'Save location'}
-              </Button>
-            </span>
-          )}
-        </FormField>
+        <span className="settings-credential-field">
+          <span className="settings-credential-input">
+            <SettingsTextInput
+              available={available}
+              data-testid="ollama-endpoint"
+              description={
+                <span aria-live="polite">
+                  {endpointMessage ?? localStatus(runtime)}
+                </span>
+              }
+              disabled={saving}
+              error={endpointError ?? undefined}
+              label="Ollama Application URL"
+              onValueChange={onEndpointChange}
+              placeholder={settings.local_endpoint}
+              value={endpoint}
+            />
+          </span>
+          <Button
+            variant="primary"
+            onClick={() => onSaveEndpoint()}
+            disabled={saving || !endpointChanged || endpointError !== null}
+          >
+            {saving ? 'Saving…' : 'Save location'}
+          </Button>
+        </span>
         <div className="settings-field">
           <Switch
-            label="Start Ollama when Maximal starts"
-            displayLabel="Ollama starts when Maximal starts"
+            aria-label="Start Ollama when Maximal starts"
+            label="Ollama starts when Maximal starts"
             checked={preferences.start_on_maximal_launch}
             disabled={saving}
-            onChange={(next) => onUpdatePreferences({
+            onCheckedChange={(next) => onUpdatePreferences({
               start_on_maximal_launch: next,
             })}
-            testId="ollama-start-on-launch"
+            data-testid="ollama-start-on-launch"
           />
         </div>
         <div className="settings-field">
           <Switch
-            label="Access cloud models via local Ollama application"
-            displayLabel="Access Ollama Cloud via the local Ollama application"
+            aria-label="Access cloud models via local Ollama application"
+            label="Access Ollama Cloud via the local Ollama application"
             checked={!preferences.cloud_disabled}
             disabled={saving}
-            onChange={(next) => onUpdatePreferences({
+            onCheckedChange={(next) => onUpdatePreferences({
               cloud_disabled: !next,
             })}
-            testId="ollama-disable-cloud"
+            data-testid="ollama-disable-cloud"
           />
         </div>
         {runtime?.installed ? (
           <SettingsActions>
-            <Button size="sm" onClick={onOpenLocalModels}>
+            <Button onClick={onOpenLocalModels}>
               Local models
             </Button>
           </SettingsActions>

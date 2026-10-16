@@ -14,6 +14,7 @@ import {
 } from '@maximal/maximal-design-system'
 
 import type { TerminalTypographySource } from '../terminal/useTerminalPresentation'
+import { TerminalLauncher } from '../terminal/TerminalLauncher'
 import type { TerminalTabsState } from '../useTerminalTabs'
 import { DesignSystemTerminal } from './DesignSystemTerminal'
 import { PORTED_SURFACES, workspaceTabItem } from './workspace-tabs'
@@ -30,7 +31,6 @@ export type WorkspaceTerminalState = Pick<
   | 'closeTerminal'
   | 'onTerminalLaunched'
   | 'openSettings'
-  | 'setTerminalError'
   | 'terminalError'
   | 'updateTerminalTitle'
 >
@@ -61,20 +61,13 @@ export function DesignSystemWorkspace({
     closeTerminal,
     onTerminalLaunched,
     openSettings,
-    setTerminalError,
     terminalError,
     updateTerminalTitle,
   } = terminalState
   const [sidebarsOpen, setSidebarsOpen] = useState(true)
+  const [terminalLauncherOpen, setTerminalLauncherOpen] = useState(false)
   const items = useMemo(() => tabs.map(workspaceTabItem), [tabs])
   const terminalTabs = useMemo(() => tabs.filter((tab) => tab.kind === 'terminal'), [tabs])
-
-  const launchTerminal = useCallback(() => {
-    void window.maximal.terminal.launch({ profileId: 'local', cols: 80, rows: 24 }).then(
-      onTerminalLaunched,
-      () => setTerminalError('A terminal could not be started.'),
-    )
-  }, [onTerminalLaunched, setTerminalError])
 
   const close = useCallback((id: string) => {
     const tab = tabs.find((candidate) => candidate.id === id)
@@ -99,7 +92,8 @@ export function DesignSystemWorkspace({
   }, [closeTab, tabs, typography, updateTerminalTitle])
 
   return (
-    <WorkspaceShell
+    <>
+      <WorkspaceShell
       activeTab={activeTab}
       fill
       leftSidebar={{
@@ -132,7 +126,7 @@ export function DesignSystemWorkspace({
       navigation={{
         header: <MaximalMarkIcon />,
         items: (
-          <IconButton label="New terminal" onClick={launchTerminal}>
+          <IconButton label="New terminal" onClick={() => setTerminalLauncherOpen(true)}>
             <CommandIcon />
           </IconButton>
         ),
@@ -150,13 +144,22 @@ export function DesignSystemWorkspace({
       tabLeading={NATIVE_WINDOW_CONTROLS ? <WindowControls native /> : null}
       tabTrailing={
         <>
-          <IconButton label="New terminal" onClick={launchTerminal}>
+          <IconButton label="New terminal" onClick={() => setTerminalLauncherOpen(true)}>
             <PlusIcon />
           </IconButton>
           <TabSearch activeTab={activeTab} onActiveTabChange={setActiveTab} tabs={items} />
         </>
       }
       tabs={items}
-    />
+      />
+      <TerminalLauncher
+        discover={window.maximal.terminal.discover}
+        launch={window.maximal.terminal.launch}
+        onLaunched={onTerminalLaunched}
+        onOpenChange={setTerminalLauncherOpen}
+        open={terminalLauncherOpen}
+        profiles={window.maximal.terminal.profiles}
+      />
+    </>
   )
 }

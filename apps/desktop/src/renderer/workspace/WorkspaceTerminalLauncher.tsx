@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react'
-import { TerminalLauncher } from '@maximal/maximal-electron/renderer'
 
+import { TerminalLauncher } from '@maximal/maximal-client/renderer/terminal/TerminalLauncher'
 import type { TerminalTabsState } from '@maximal/maximal-client/renderer/useTerminalTabs'
 import { renderTerminalProfileIcon } from './TerminalProfileIcon'
 

@@ -12,7 +12,7 @@
  * the capture fixture had to change when it was split.
  */
 
-export { Button, IconButton, type ButtonSize, type ButtonVariant } from './Button.js';
+export { Button, IconButton } from './Button.js';
 
 export { Callout } from './Callout.js';
 
@@ -29,13 +29,11 @@ export {
   Textarea,
   type FieldControl,
   type Option,
-  type SliderOption,
 } from './Fields.js';
 
 export { NumberInput } from './NumberInput.js';
 export {
   EditableLabel,
-  type EditableLabelProps,
   type EditableLabelState,
 } from './EditableLabel.js';
 export {
@@ -43,7 +41,6 @@ export {
   EditableListItem,
   EditableMenubarItem,
   EditableTab,
-  type EditableMoleculeProps,
 } from './EditableLabelMolecules.js';
 export {
   UnitValueInput,
@@ -53,8 +50,6 @@ export {
 export {
   TypefaceControls,
   type TypefaceMetric,
-  type TypefaceSelectField,
-  type TypefaceWeightField,
 } from './TypefaceControls.js';
 
 export {
@@ -75,4 +70,4 @@ export { Dialog, Menu, Tooltip, TooltipProvider, type MenuItem } from './Overlay
 
 export { UnsavedChangesDialog } from './UnsavedChangesDialog.js';
 
-export { Card, Row, type TileProps } from './Tile.js';
+export { Card, Row } from './Tile.js';

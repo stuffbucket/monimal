@@ -1,0 +1,21 @@
+.maximal-story-menu-avatar {
+  display: inline-grid;
+  width: var(--icon-size-standard);
+  height: var(--icon-size-standard);
+  place-items: center;
+  color: var(--maximal-color-text-onbrand);
+  font: var(--body-small-strong);
+  background: var(--maximal-color-bg-brand);
+  border-radius: var(--radius-small);
+}
+
+.maximal-story-menu-avatar--round {
+  border-radius: var(--radius-full);
+}
+
+.maximal-story-menu-badge {
+  padding-inline: var(--spacer-1);
+  color: var(--maximal-color-text-default);
+  background: var(--maximal-color-bg-secondary);
+  border-radius: var(--radius-small);
+}

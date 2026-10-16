@@ -4,7 +4,7 @@ import {
   DataVizTooltip,
   useDataVizTooltip,
 } from "@maximal/maximal-data-visualization"
-import { FormField, Select, Tooltip } from "@maximal/maximal-electron/renderer"
+import { Select, Tooltip } from "@maximal/maximal-design-system"
 import { useState } from "react"
 
 import {
@@ -99,16 +99,12 @@ export function ContextWindowSessionPanel({
 }) {
   return (
     <div className="mcw-panel data-viz-root">
-      <FormField label="Session">
-        {(field) => (
-          <Select
-            {...field}
-            value={session.id}
-            options={sessionIds.map((id) => ({ value: id, label: id }))}
-            onChange={onSelectSession}
-          />
-        )}
-      </FormField>
+      <Select
+        label="Session"
+        value={session.id}
+        options={sessionIds.map((id) => ({ value: id, label: id }))}
+        onValueChange={onSelectSession}
+      />
       <ContextWindowTurns
         key={session.id}
         session={session}
@@ -314,18 +310,20 @@ function TurnPicker({
       {turns.map((turn, index) => (
         <Tooltip
           key={turn.identity.requestId}
-          content={formatTimestamp(turn.timing.acceptedAt)}
+          trigger={
+            <button
+              type="button"
+              className="mcw-turn-picker-button"
+              aria-pressed={index === selectedIndex}
+              onClick={() => {
+                onSelect(index)
+              }}
+            >
+              Turn {index + 1}
+            </button>
+          }
         >
-          <button
-            type="button"
-            className="mcw-turn-picker-button"
-            aria-pressed={index === selectedIndex}
-            onClick={() => {
-              onSelect(index)
-            }}
-          >
-            Turn {index + 1}
-          </button>
+          {formatTimestamp(turn.timing.acceptedAt)}
         </Tooltip>
       ))}
     </div>

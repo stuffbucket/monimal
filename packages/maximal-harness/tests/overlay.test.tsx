@@ -4,12 +4,14 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
-  AgentApprovalRequest,
   AgentEffort,
-  AgentEnd,
-  AgentToolEvent,
+  AssistantChatMessage,
   AssistantOverlayPreferences,
-  ModelProgress,
+  AssistantRunApprovalRequest,
+  AssistantRunDelta,
+  AssistantRunEnd,
+  AssistantRunToolEvent,
+  ModelDownloadProgress,
   ProviderStatus,
 } from '../src/contracts.js';
 import { Overlay, type HarnessTransport } from '../src/renderer/Overlay.js';
@@ -54,16 +56,17 @@ function fakeTransport(initialStatus: ProviderStatus = {
   ],
 }) {
   let status = initialStatus;
-  const delta = channel<string>();
-  const tool = channel<AgentToolEvent>();
-  const approval = channel<AgentApprovalRequest>();
-  const end = channel<AgentEnd>();
-  const modelProgress = channel<ModelProgress>();
+  const delta = channel<AssistantRunDelta>();
+  const tool = channel<AssistantRunToolEvent>();
+  const approval = channel<AssistantRunApprovalRequest>();
+  const end = channel<AssistantRunEnd>();
+  const modelProgress = channel<ModelDownloadProgress>();
   const shown = channel<void>();
   const dismissRequested = channel<void>();
   const preferences = channel<AssistantOverlayPreferences>();
   const chatSelected = channel<string>();
   const transport: HarnessTransport = {
+    initialRunId: 'fixture-run',
     hide: vi.fn(() => Promise.resolve()),
     provider: vi.fn(() => Promise.resolve(status)),
     selectModel: vi.fn((modelKey: string) => {
@@ -81,14 +84,18 @@ function fakeTransport(initialStatus: ProviderStatus = {
       return Promise.resolve(status);
     }),
     selectEffort: vi.fn(() => Promise.resolve(status)),
-    ask: vi.fn(() => Promise.resolve({
+    ask: vi.fn((_prompt: string, runId: string) => Promise.resolve({
       started: true as const,
       chatId: 'chat-1',
+      runId,
     })),
     steer: vi.fn(() => Promise.resolve(true)),
     abort: vi.fn(() => Promise.resolve()),
     approve: vi.fn(() => Promise.resolve()),
-    ensureModel: vi.fn(() => Promise.resolve({ state: 'ready' as const })),
+    ensureModel: vi.fn((request) => Promise.resolve({
+      ...request,
+      progress: { state: 'ready' as const },
+    })),
     preferences: vi.fn(() => Promise.resolve({
       candy: true,
       approval: 'writes' as const,
@@ -150,6 +157,13 @@ function fakeTransport(initialStatus: ProviderStatus = {
     modelProgress,
     shown,
     dismissRequested,
+    preferences,
+    chatSelected,
+    runId(index = vi.mocked(transport.ask).mock.calls.length - 1) {
+      const runId = vi.mocked(transport.ask).mock.calls[index]?.[1];
+      if (runId === undefined) throw new Error(`Missing run id at ask call ${String(index)}.`);
+      return runId;
+    },
     setStatus(next: ProviderStatus) {
       status = next;
     },
@@ -179,6 +193,16 @@ async function settle(): Promise<void> {
     await Promise.resolve();
     await Promise.resolve();
   });
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
 }
 
 async function renderOverlay(transport: HarnessTransport): Promise<void> {
@@ -258,8 +282,8 @@ describe('Overlay', () => {
       'overlay-conversation',
       'overlay-permissions',
     ]) {
-      expect(byTestId(id).classList).toContain('btn');
-      expect(byTestId(id).classList).toContain('btn--lg');
+      expect(byTestId(id).classList).toContain('maximal-button');
+      expect(byTestId(id).classList).toContain('mh-select-trigger');
     }
     input.blur();
 
@@ -280,6 +304,63 @@ describe('Overlay', () => {
     expect((input as HTMLTextAreaElement).disabled).toBe(true);
   });
 
+  it('ignores stale provider and preference responses', async () => {
+    const fake = fakeTransport();
+    const firstProvider = deferred<ProviderStatus>();
+    const secondProvider = deferred<ProviderStatus>();
+    const initialPreferences = deferred<AssistantOverlayPreferences>();
+    vi.mocked(fake.transport.provider)
+      .mockReturnValueOnce(firstProvider.promise)
+      .mockReturnValueOnce(secondProvider.promise);
+    vi.mocked(fake.transport.preferences).mockReturnValue(initialPreferences.promise);
+    await renderOverlay(fake.transport);
+
+    act(() => {
+      window.dispatchEvent(new Event('focus'));
+    });
+    await act(async () => {
+      secondProvider.resolve({
+        state: 'ready',
+        provider: 'embedded',
+        model: 'newer-model',
+        modelKey: 'embedded:newer-model',
+        models: [{
+          key: 'embedded:newer-model',
+          label: 'newer-model',
+          model: 'newer-model',
+          provider: 'embedded',
+          description: 'newer',
+          efforts: [],
+        }],
+      });
+      await secondProvider.promise;
+    });
+    await act(async () => {
+      firstProvider.resolve({ state: 'unavailable', reason: 'stale provider result' });
+      await firstProvider.promise;
+    });
+    expect(byTestId('overlay-model-picker').textContent).toContain('newer-model');
+    expect(byTestId('overlay-status').textContent).not.toContain('stale provider result');
+
+    act(() => fake.preferences.emit({
+      candy: false,
+      approval: 'all',
+      outputFont: 'terminal',
+      hotkey: 'new',
+    }));
+    await act(async () => {
+      initialPreferences.resolve({
+        candy: true,
+        approval: 'writes',
+        outputFont: 'auto',
+        hotkey: 'stale',
+      });
+      await initialPreferences.promise;
+    });
+    expect(byTestId('overlay-card').classList).toContain('mh-card--font-terminal');
+    expect(byTestId('overlay-card').classList).not.toContain('mh-card-candy');
+  });
+
   it('submits trimmed input and renders streamed text, tool state, and completion', async () => {
     const fake = fakeTransport();
     await renderOverlay(fake.transport);
@@ -291,16 +372,25 @@ describe('Overlay', () => {
 
     await settle();
 
-    expect(fake.transport.ask).toHaveBeenCalledWith('explain this', undefined);
+    expect(fake.transport.ask).toHaveBeenCalledWith(
+      'explain this',
+      fake.runId(),
+      undefined,
+    );
     expect((byTestId('overlay-input') as HTMLTextAreaElement).value).toBe('');
     expect(byTestId('overlay-status').textContent).toBe('Thinking…');
     expect(byTestId('overlay-answer').textContent).toContain('Youexplain this');
     expect(byTestId('overlay-stop')).toBeInstanceOf(HTMLButtonElement);
 
     act(() => {
-      fake.delta.emit('Hello');
-      fake.delta.emit(' world');
-      fake.tool.emit({ id: 'tool-1', name: 'read', phase: 'start' });
+      fake.delta.emit({ runId: fake.runId(), text: 'Hello' });
+      fake.delta.emit({ runId: fake.runId(), text: ' world' });
+      fake.tool.emit({
+        runId: fake.runId(),
+        id: 'tool-1',
+        name: 'read',
+        phase: 'start',
+      });
     });
     expect(byTestId('overlay-answer').textContent).toContain('Hello world');
     expect(byTestId('overlay-status').textContent).toBe('Running read…');
@@ -308,14 +398,46 @@ describe('Overlay', () => {
     expect(byTestId('overlay-tools').querySelector('details')?.open).toBe(true);
     expect(byTestId('overlay-tools').querySelector('.mh-tool-running')).toBeTruthy();
 
-    act(() => fake.tool.emit({ id: 'tool-1', name: 'read', phase: 'end' }));
+    act(() => fake.tool.emit({
+      runId: fake.runId(),
+      id: 'tool-1',
+      name: 'read',
+      phase: 'end',
+    }));
     expect(byTestId('overlay-status').textContent).toBe('Thinking…');
     expect(byTestId('overlay-tools').textContent).toContain('Reading context⌄readcomplete');
     expect(byTestId('overlay-tools').querySelector('details')?.open).toBe(false);
 
-    act(() => fake.end.emit({ ok: false, error: 'Model stopped' }));
+    act(() => fake.end.emit({
+      runId: fake.runId(),
+      result: { ok: false, error: 'Model stopped' },
+    }));
     expect(byTestId('overlay-answer').textContent).toContain('Hello worldModel stopped');
     expect(byTestId('overlay-status').textContent).toBe('');
+  });
+
+  it('rejects an ask response with a different run identity', async () => {
+    const fake = fakeTransport();
+    vi.mocked(fake.transport.ask).mockResolvedValueOnce({
+      started: true,
+      chatId: 'chat-unexpected',
+      runId: 'unexpected-run',
+    });
+    await renderOverlay(fake.transport);
+
+    act(() => {
+      inputText('explain this');
+      keyDown(byTestId('overlay-input'), 'Enter');
+    });
+    await settle();
+
+    expect(byTestId('overlay-answer').textContent).toContain(
+      'The response started with an unexpected operation identity.',
+    );
+    expect(byTestId('overlay-status').textContent).toBe('');
+    expect((byTestId('overlay-input') as HTMLTextAreaElement).value).toBe(
+      'explain this',
+    );
   });
 
   it('supports shell history, transcript toggling, and steering a busy run', async () => {
@@ -336,7 +458,7 @@ describe('Overlay', () => {
     expect(fake.transport.steer).toHaveBeenCalledWith('focus on tests', 'chat-1');
 
     act(() => {
-      fake.end.emit({ ok: true });
+      fake.end.emit({ runId: fake.runId(), result: { ok: true } });
     });
     act(() => {
       keyDown(byTestId('overlay-input'), 'ArrowUp');
@@ -377,12 +499,372 @@ describe('Overlay', () => {
     await settle();
     expect(fake.transport.ask).toHaveBeenCalledWith(
       expect.stringContaining('<attachment name="notes.txt">'),
+      fake.runId(),
       undefined,
-      [{
-        name: 'notes.txt',
-        mimeType: 'text/plain',
-        data: 'hello from the file',
-      }],
+    );
+  });
+
+  it('restores the complete draft when a request is rejected', async () => {
+    const fake = fakeTransport();
+    vi.mocked(fake.transport.ask).mockRejectedValue(new Error('IPC failed'));
+    await renderOverlay(fake.transport);
+    const fileInput = byTestId('overlay-file-input');
+    const file = new File(['keep this'], 'draft.txt', { type: 'text/plain' });
+    Object.defineProperty(fileInput, 'files', { configurable: true, value: [file] });
+
+    act(() => {
+      fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await settle();
+    act(() => {
+      inputText('keep this prompt');
+      keyDown(byTestId('overlay-input'), 'Enter');
+    });
+    await settle();
+
+    expect((byTestId('overlay-input') as HTMLTextAreaElement).value).toBe('keep this prompt');
+    expect(byTestId('overlay-attachments').textContent).toContain('draft.txt');
+    expect(byTestId('overlay-answer').textContent).not.toContain('Youkeep this prompt');
+  });
+
+  it('rejects oversized attachments before reading or invoking the transport', async () => {
+    const fake = fakeTransport();
+    await renderOverlay(fake.transport);
+    const fileInput = byTestId('overlay-file-input');
+    const file = new File(['small'], 'oversized.txt', { type: 'text/plain' });
+    Object.defineProperty(file, 'size', { configurable: true, value: 10_000_001 });
+    Object.defineProperty(fileInput, 'files', { configurable: true, value: [file] });
+
+    act(() => {
+      fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await settle();
+
+    expect(byTestId('overlay-answer').textContent).toContain(
+      'oversized.txt exceeds the 10 MB attachment limit.',
+    );
+    expect(document.body.querySelector('[data-testid="overlay-attachments"]')).toBeNull();
+    expect(fake.transport.ask).not.toHaveBeenCalled();
+  });
+
+  it('keeps aborting busy until the matching run ends', async () => {
+    const fake = fakeTransport();
+    const abortResult = deferred<void>();
+    vi.mocked(fake.transport.abort).mockReturnValue(abortResult.promise);
+    await renderOverlay(fake.transport);
+
+    act(() => {
+      inputText('first');
+      keyDown(byTestId('overlay-input'), 'Enter');
+    });
+    await settle();
+    act(() => click('overlay-stop'));
+
+    expect(fake.transport.abort).toHaveBeenCalledTimes(1);
+    expect(byTestId('overlay-stop')).toBeInstanceOf(HTMLButtonElement);
+    act(() => {
+      inputText('must wait');
+      keyDown(byTestId('overlay-input'), 'Enter');
+    });
+    expect(fake.transport.ask).toHaveBeenCalledTimes(1);
+    expect(fake.transport.steer).not.toHaveBeenCalled();
+
+    act(() => fake.end.emit({ runId: fake.runId(), result: { ok: true } }));
+    expect(byTestId('overlay-send')).toBeInstanceOf(HTMLButtonElement);
+    abortResult.resolve();
+  });
+
+  it('ignores a delayed delta from a completed run after a new run starts', async () => {
+    const fake = fakeTransport();
+    await renderOverlay(fake.transport);
+
+    act(() => {
+      inputText('first');
+      keyDown(byTestId('overlay-input'), 'Enter');
+    });
+    await settle();
+    const firstRunId = fake.runId();
+    act(() => fake.end.emit({ runId: firstRunId, result: { ok: true } }));
+    act(() => {
+      inputText('second');
+      keyDown(byTestId('overlay-input'), 'Enter');
+    });
+    await settle();
+    const secondRunId = fake.runId();
+
+    act(() => fake.delta.emit({ runId: firstRunId, text: 'stale first response' }));
+
+    expect(byTestId('overlay-answer').textContent).not.toContain(
+      'stale first response',
+    );
+    expect(byTestId('overlay-status').textContent).toBe('Thinking…');
+    act(() => fake.delta.emit({ runId: secondRunId, text: 'current response' }));
+    expect(byTestId('overlay-answer').textContent).toContain('current response');
+  });
+
+  it('ignores a duplicated end from a completed run after a new run starts', async () => {
+    const fake = fakeTransport();
+    await renderOverlay(fake.transport);
+
+    act(() => {
+      inputText('first');
+      keyDown(byTestId('overlay-input'), 'Enter');
+    });
+    await settle();
+    const firstRunId = fake.runId();
+    act(() => fake.end.emit({ runId: firstRunId, result: { ok: true } }));
+    act(() => {
+      inputText('second');
+      keyDown(byTestId('overlay-input'), 'Enter');
+    });
+    await settle();
+    const secondRunId = fake.runId();
+
+    act(() => fake.end.emit({
+      runId: firstRunId,
+      result: { ok: false, error: 'stale first failure' },
+    }));
+
+    expect(byTestId('overlay-status').textContent).toBe('Thinking…');
+    expect(byTestId('overlay-stop')).toBeInstanceOf(HTMLButtonElement);
+    expect(byTestId('overlay-answer').textContent).not.toContain(
+      'stale first failure',
+    );
+    act(() => fake.end.emit({ runId: secondRunId, result: { ok: true } }));
+    expect(byTestId('overlay-send')).toBeInstanceOf(HTMLButtonElement);
+  });
+
+  it('ignores a late abort rejection after the run already ended', async () => {
+    const fake = fakeTransport();
+    const abortResult = deferred<void>();
+    vi.mocked(fake.transport.abort).mockReturnValue(abortResult.promise);
+    await renderOverlay(fake.transport);
+
+    act(() => {
+      inputText('first');
+      keyDown(byTestId('overlay-input'), 'Enter');
+    });
+    await settle();
+    act(() => click('overlay-stop'));
+    const firstRunId = fake.runId();
+    act(() => fake.end.emit({ runId: firstRunId, result: { ok: true } }));
+    act(() => {
+      inputText('replacement');
+      keyDown(byTestId('overlay-input'), 'Enter');
+    });
+    await settle();
+    const replacementRunId = fake.runId();
+    await act(async () => {
+      abortResult.reject(new Error('late abort failure'));
+      await abortResult.promise.catch(() => undefined);
+    });
+
+    expect(byTestId('overlay-answer').textContent).not.toContain(
+      'The current response could not be stopped.',
+    );
+    expect(byTestId('overlay-status').textContent).toBe('Thinking…');
+    act(() => fake.end.emit({
+      runId: replacementRunId,
+      result: { ok: true },
+    }));
+    expect(byTestId('overlay-status').textContent).toBe('');
+  });
+
+  it('ignores unsolicited run events before a request exists', async () => {
+    const fake = fakeTransport();
+    await renderOverlay(fake.transport);
+
+    act(() => {
+      fake.delta.emit({ runId: 'unknown', text: 'unsolicited' });
+      fake.end.emit({
+        runId: 'unknown',
+        result: { ok: false, error: 'unsolicited failure' },
+      });
+    });
+
+    expect(document.body.textContent).not.toContain('unsolicited');
+    expect(document.body.textContent).not.toContain(
+      'unsolicited failure',
+    );
+    expect(byTestId('overlay-status').textContent).toBe('');
+  });
+
+  it('ignores stale tool and approval events after a replacement run starts', async () => {
+    const fake = fakeTransport();
+    await renderOverlay(fake.transport);
+
+    act(() => {
+      inputText('first');
+      keyDown(byTestId('overlay-input'), 'Enter');
+    });
+    await settle();
+    const firstRunId = fake.runId();
+    act(() => fake.end.emit({ runId: firstRunId, result: { ok: true } }));
+
+    act(() => {
+      inputText('second');
+      keyDown(byTestId('overlay-input'), 'Enter');
+    });
+    await settle();
+    const secondRunId = fake.runId();
+
+    act(() => {
+      fake.tool.emit({
+        runId: firstRunId,
+        id: 'stale-tool',
+        name: 'bash',
+        phase: 'start',
+      });
+      fake.approval.emit({
+        runId: firstRunId,
+        id: 'stale-approval',
+        tool: 'write',
+        summary: 'stale.txt',
+      });
+    });
+    expect(document.body.textContent).not.toContain('stale-tool');
+    expect(document.body.textContent).not.toContain('stale.txt');
+    expect(byTestId('overlay-status').textContent).toBe('Thinking…');
+
+    act(() => {
+      fake.tool.emit({
+        runId: secondRunId,
+        id: 'current-tool',
+        name: 'read',
+        phase: 'start',
+      });
+      fake.approval.emit({
+        runId: secondRunId,
+        id: 'current-approval',
+        tool: 'read',
+        summary: 'current.txt',
+      });
+    });
+    expect(byTestId('overlay-tools').textContent).toContain('read');
+    expect(byTestId('overlay-tools').textContent).not.toContain('bash');
+    expect(byTestId('overlay-approval-summary').textContent).toBe('current.txt');
+  });
+
+  it('ignores a late approval rejection after a replacement run asks for approval', async () => {
+    const fake = fakeTransport();
+    const firstDecision = deferred<void>();
+    vi.mocked(fake.transport.approve).mockReturnValueOnce(firstDecision.promise);
+    await renderOverlay(fake.transport);
+
+    act(() => fake.approval.emit({
+      runId: 'fixture-run',
+      id: 'approval-1',
+      tool: 'write',
+      summary: 'first.txt',
+    }));
+    act(() => click('overlay-allow'));
+    act(() => fake.end.emit({
+      runId: 'fixture-run',
+      result: { ok: true },
+    }));
+
+    act(() => {
+      inputText('replacement');
+      keyDown(byTestId('overlay-input'), 'Enter');
+    });
+    await settle();
+    const replacementRunId = fake.runId();
+    act(() => fake.approval.emit({
+      runId: replacementRunId,
+      id: 'approval-2',
+      tool: 'write',
+      summary: 'replacement.txt',
+    }));
+
+    await act(async () => {
+      firstDecision.reject(new Error('late approval failure'));
+      await firstDecision.promise.catch(() => undefined);
+    });
+
+    expect(byTestId('overlay-approval-summary').textContent).toBe(
+      'replacement.txt',
+    );
+    expect((byTestId('overlay-allow') as HTMLButtonElement).disabled).toBe(false);
+    expect(document.body.textContent).not.toContain(
+      'The approval decision could not be sent.',
+    );
+  });
+
+  it('prevents conversation changes while operation events are in flight', async () => {
+    const fake = fakeTransport();
+    await renderOverlay(fake.transport);
+
+    act(() => {
+      inputText('first');
+      keyDown(byTestId('overlay-input'), 'Enter');
+    });
+    await settle();
+    expect((byTestId('overlay-conversation') as HTMLButtonElement).disabled).toBe(true);
+
+    act(() => fake.chatSelected.emit('other-chat'));
+    await settle();
+    expect(fake.transport.chats.open).not.toHaveBeenCalled();
+    expect(fake.transport.chats.messages).not.toHaveBeenCalled();
+  });
+
+  it('ignores a stale conversation response after a newer selection', async () => {
+    const fake = fakeTransport();
+    const first = deferred<AssistantChatMessage[]>();
+    const second = deferred<AssistantChatMessage[]>();
+    vi.mocked(fake.transport.chats.messages)
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
+    await renderOverlay(fake.transport);
+
+    act(() => fake.chatSelected.emit('chat-a'));
+    await settle();
+    act(() => fake.chatSelected.emit('chat-b'));
+    await settle();
+    await act(async () => {
+      second.resolve([{
+        id: 2,
+        chatId: 'chat-b',
+        role: 'assistant',
+        content: 'newer',
+        createdAt: 2,
+      }]);
+      await second.promise;
+    });
+    expect(byTestId('overlay-answer').textContent).toContain('newer');
+
+    await act(async () => {
+      first.resolve([{
+        id: 1,
+        chatId: 'chat-a',
+        role: 'assistant',
+        content: 'stale',
+        createdAt: 1,
+      }]);
+      await first.promise;
+    });
+    expect(byTestId('overlay-answer').textContent).not.toContain('stale');
+    expect(byTestId('overlay-conversation').textContent).toContain('Recent chat');
+  });
+
+  it('keeps an approval available when sending its decision fails', async () => {
+    const fake = fakeTransport();
+    vi.mocked(fake.transport.approve).mockRejectedValue(new Error('IPC failed'));
+    await renderOverlay(fake.transport);
+
+    act(() => fake.approval.emit({
+      runId: 'fixture-run',
+      id: 'approval-1',
+      tool: 'write',
+      summary: 'file.txt',
+    }));
+    act(() => click('overlay-allow'));
+    expect((byTestId('overlay-allow') as HTMLButtonElement).disabled).toBe(true);
+    await settle();
+
+    expect(byTestId('overlay-approval-summary').textContent).toBe('file.txt');
+    expect((byTestId('overlay-allow') as HTMLButtonElement).disabled).toBe(false);
+    expect(byTestId('overlay-answer').textContent).toContain(
+      'The approval decision could not be sent.',
     );
   });
 
@@ -430,7 +912,7 @@ describe('Overlay', () => {
     );
 
     act(() => {
-      keyDown(picker, 'Enter');
+      picker.click();
     });
     expect(document.body.querySelectorAll('[data-testid^="menu-"]')).toHaveLength(2);
     expect(byTestId('menu-ollama:qwen3:4b').textContent).toBe('qwen3:4b');
@@ -444,6 +926,66 @@ describe('Overlay', () => {
     );
     expect((byTestId('overlay-input') as HTMLTextAreaElement).disabled).toBe(false);
     expect(document.activeElement).toBe(byTestId('overlay-input'));
+  });
+
+  it('keeps the latest model selection when an earlier request finishes last', async () => {
+    const models = [
+      {
+        key: 'ollama:first',
+        label: 'first',
+        model: 'first',
+        provider: 'ollama' as const,
+        description: 'First model',
+        efforts: [],
+      },
+      {
+        key: 'embedded:second',
+        label: 'second',
+        model: 'second',
+        provider: 'embedded' as const,
+        description: 'Second model',
+        efforts: [],
+      },
+    ];
+    const fake = fakeTransport({
+      state: 'select-model',
+      models,
+    });
+    const first = deferred<ProviderStatus>();
+    const second = deferred<ProviderStatus>();
+    vi.mocked(fake.transport.selectModel)
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
+    await renderOverlay(fake.transport);
+
+    act(() => click('overlay-model-picker'));
+    act(() => byTestId('menu-ollama:first').click());
+    act(() => click('overlay-model-picker'));
+    act(() => byTestId('menu-embedded:second').click());
+
+    await act(async () => {
+      second.resolve({
+        state: 'ready',
+        provider: 'embedded',
+        model: 'second',
+        modelKey: 'embedded:second',
+        models,
+      });
+      await second.promise;
+    });
+    expect(byTestId('overlay-model-picker').textContent).toContain('second');
+
+    await act(async () => {
+      first.resolve({
+        state: 'ready',
+        provider: 'ollama',
+        model: 'first',
+        modelKey: 'ollama:first',
+        models,
+      });
+      await first.promise;
+    });
+    expect(byTestId('overlay-model-picker').textContent).toContain('second');
   });
 
   it('keeps a transparent outside-click target and hides when it is pressed', async () => {
@@ -490,9 +1032,10 @@ describe('Overlay', () => {
     }));
     await renderOverlay(fake.transport);
 
-    expect(byTestId('overlay-effort').classList).toContain('btn--lg');
+    expect(byTestId('overlay-effort').classList).toContain('maximal-button');
+    expect(byTestId('overlay-effort').classList).toContain('mh-select-trigger');
     act(() => {
-      keyDown(byTestId('overlay-effort'), 'Enter');
+      byTestId('overlay-effort').click();
     });
     act(() => {
       byTestId('menu-max').click();
@@ -508,7 +1051,7 @@ describe('Overlay', () => {
     await renderOverlay(fake.transport);
 
     act(() => {
-      keyDown(byTestId('overlay-permissions'), 'Enter');
+      byTestId('overlay-permissions').click();
     });
     expect(byTestId('overlay-card')).toBeTruthy();
     expect(byTestId('overlay-permissions-menu')).toBeTruthy();
@@ -559,7 +1102,10 @@ describe('Overlay', () => {
     expect((byTestId('overlay-open-terminal') as HTMLButtonElement).disabled).toBe(true);
     expect(document.body.querySelector('.mh-open-terminal')).toBeNull();
     act(() => {
-      fake.delta.emit('A terminal-ready response');
+      fake.delta.emit({
+        runId: fake.runId(),
+        text: 'A terminal-ready response',
+      });
     });
     expect((byTestId('overlay-open-terminal') as HTMLButtonElement).disabled).toBe(false);
     act(() => click('overlay-open-terminal'));
@@ -635,6 +1181,8 @@ describe('Overlay', () => {
     });
     expect(fake.transport.abort).toHaveBeenCalledTimes(1);
     expect(fake.transport.hide).not.toHaveBeenCalled();
+    expect(byTestId('overlay-stop')).toBeInstanceOf(HTMLButtonElement);
+    act(() => fake.end.emit({ runId: fake.runId(), result: { ok: true } }));
 
     act(() => {
       inputText('clear me');
@@ -699,11 +1247,18 @@ describe('Overlay', () => {
     const fake = fakeTransport();
     await renderOverlay(fake.transport);
 
-    act(() => fake.approval.emit({ id: 'approval-1', tool: 'write', summary: '/tmp/file' }));
+    act(() => fake.approval.emit({
+      runId: 'fixture-run',
+      id: 'approval-1',
+      tool: 'write',
+      summary: '/tmp/file',
+    }));
     expect(byTestId('overlay-approval-summary').textContent).toBe('/tmp/file');
     expect(byTestId('overlay-status').textContent).toBe('Waiting for you to approve write');
     act(() => click('overlay-allow'));
+    await settle();
     expect(fake.transport.approve).toHaveBeenLastCalledWith({
+      runId: 'fixture-run',
       id: 'approval-1',
       allow: true,
       remember: false,
@@ -711,7 +1266,12 @@ describe('Overlay', () => {
 
     act(() => {
       inputText('do not send this');
-      fake.approval.emit({ id: 'approval-2', tool: 'bash', summary: 'pwd' });
+      fake.approval.emit({
+        runId: 'fixture-run',
+        id: 'approval-2',
+        tool: 'bash',
+        summary: 'pwd',
+      });
     });
     act(() => {
       keyDown(byTestId('overlay-input'), 'Enter');
@@ -720,19 +1280,28 @@ describe('Overlay', () => {
     act(() => {
       keyDown(byTestId('overlay-input'), 'Enter', false, true);
     });
+    await settle();
 
     expect(fake.transport.approve).toHaveBeenLastCalledWith({
+      runId: 'fixture-run',
       id: 'approval-2',
       allow: true,
       remember: false,
     });
     expect(fake.transport.ask).not.toHaveBeenCalled();
 
-    act(() => fake.approval.emit({ id: 'approval-3', tool: 'edit', summary: 'notes.txt' }));
+    act(() => fake.approval.emit({
+      runId: 'fixture-run',
+      id: 'approval-3',
+      tool: 'edit',
+      summary: 'notes.txt',
+    }));
     act(() => {
       keyDown(document, 'Escape');
     });
+    await settle();
     expect(fake.transport.approve).toHaveBeenLastCalledWith({
+      runId: 'fixture-run',
       id: 'approval-3',
       allow: false,
       remember: false,
@@ -741,7 +1310,7 @@ describe('Overlay', () => {
 
   it('starts a model download, reports progress, and re-probes when ready', async () => {
     const fake = fakeTransport({ state: 'needs-model', model: 'coder.gguf', approxMb: 4000 });
-    let finishDownload!: (progress: ModelProgress) => void;
+    let finishDownload!: (progress: ModelDownloadProgress) => void;
     vi.mocked(fake.transport.ensureModel).mockReturnValue(new Promise((resolve) => {
       finishDownload = resolve;
     }));
@@ -750,12 +1319,32 @@ describe('Overlay', () => {
     expect(byTestId('overlay-setup').textContent).toContain('About 4000 MB');
     act(() => click('overlay-download-start'));
     expect(fake.transport.ensureModel).toHaveBeenCalledTimes(1);
+    const request = vi.mocked(fake.transport.ensureModel).mock.calls[0]?.[0];
+    if (!request) throw new Error('Missing model download request');
+    expect(request).toEqual({
+      downloadId: 'download-1',
+      model: 'coder.gguf',
+    });
     expect(byTestId('overlay-download').textContent).toContain('Starting…');
 
     act(() => fake.modelProgress.emit({
-      state: 'downloading',
-      received: 1_000_000,
-      total: 4_000_000,
+      ...request,
+      downloadId: 'stale-download',
+      progress: {
+        state: 'downloading',
+        received: 3_000_000,
+        total: 4_000_000,
+      },
+    }));
+    expect(byTestId('overlay-download').textContent).toContain('Starting…');
+
+    act(() => fake.modelProgress.emit({
+      ...request,
+      progress: {
+        state: 'downloading',
+        received: 1_000_000,
+        total: 4_000_000,
+      },
     }));
     expect(byTestId('overlay-download').textContent).toContain('1 MB of 4 MB');
     expect(document.body.querySelector<HTMLElement>('.mh-setup__bar')?.style.width).toBe('25%');
@@ -776,13 +1365,38 @@ describe('Overlay', () => {
         },
       ],
     });
-    act(() => fake.modelProgress.emit({ state: 'ready' }));
+    act(() => fake.modelProgress.emit({
+      ...request,
+      progress: { state: 'ready' },
+    }));
     await settle();
     expect(fake.transport.provider).toHaveBeenCalledTimes(2);
     expect(byTestId('overlay-status').textContent).toBe('');
 
-    act(() => finishDownload({ state: 'ready' }));
+    act(() => finishDownload({ ...request, progress: { state: 'ready' } }));
     await settle();
+  });
+
+  it('re-probes when model readiness arrives only in the correlated response', async () => {
+    const fake = fakeTransport({
+      state: 'needs-model',
+      model: 'coder.gguf',
+      approxMb: 4000,
+    });
+    await renderOverlay(fake.transport);
+    fake.setStatus({
+      state: 'ready',
+      provider: 'embedded',
+      model: 'coder',
+      modelKey: 'embedded:coder.gguf',
+      models: [],
+    });
+
+    act(() => click('overlay-download-start'));
+    await settle();
+
+    expect(fake.transport.provider).toHaveBeenCalledTimes(2);
+    expect(byTestId('overlay-status').textContent).toBe('');
   });
 
   it('unsubscribes transport and window listeners on unmount', async () => {

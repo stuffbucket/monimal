@@ -7,7 +7,7 @@ export interface PanelSize {
 }
 
 /** Geometry for each semantic shell region. */
-export interface ShellPanelSizes {
+interface ShellPanelSizes {
   readonly sidebar: Readonly<PanelSize>;
   readonly inspector: Readonly<PanelSize>;
   readonly drawer: Readonly<PanelSize>;

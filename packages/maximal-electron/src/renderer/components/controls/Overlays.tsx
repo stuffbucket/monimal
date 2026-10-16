@@ -85,7 +85,11 @@ export function Tooltip({
       <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
       {empty ? null : (
         <TooltipPrimitive.Portal container={container}>
-          <TooltipPrimitive.Content className="tooltip" side={side} sideOffset={6}>
+          <TooltipPrimitive.Content
+            className="tooltip"
+            {...(side === undefined ? {} : { side })}
+            sideOffset={6}
+          >
             {content}
           </TooltipPrimitive.Content>
         </TooltipPrimitive.Portal>
@@ -187,15 +191,21 @@ export function Dialog({
   const returnFocus = useRef<HTMLElement | null>(null);
 
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange} modal={modal}>
+    <DialogPrimitive.Root
+      open={open}
+      {...(onOpenChange === undefined ? {} : { onOpenChange })}
+      modal={modal}
+    >
       <DialogPrimitive.Portal container={container}>
         <DialogPrimitive.Overlay className={overlayClassName} />
         <DialogPrimitive.Content
           className={className}
-          data-testid={testId}
-          onEscapeKeyDown={onEscapeKeyDown}
-          onKeyDown={onKeyDown}
-          onPointerDownOutside={onPointerDownOutside}
+          {...(testId === undefined ? {} : { 'data-testid': testId })}
+          {...(onEscapeKeyDown === undefined ? {} : { onEscapeKeyDown })}
+          {...(onKeyDown === undefined ? {} : { onKeyDown })}
+          {...(
+            onPointerDownOutside === undefined ? {} : { onPointerDownOutside }
+          )}
           onOpenAutoFocus={(event) => {
             const activeElement = (container?.ownerDocument ?? document).activeElement;
             returnFocus.current = activeElement instanceof HTMLElement ? activeElement : null;
@@ -350,7 +360,7 @@ export function Menu({
                 className={`menu__item${item.danger ? ' menu__item--danger' : ''}`}
                 data-described={item.description ? '' : undefined}
                 data-selected={item.selected ? '' : undefined}
-                disabled={item.disabled}
+                {...(item.disabled === undefined ? {} : { disabled: item.disabled })}
                 onSelect={item.onSelect}
                 aria-current={item.selected ? 'true' : undefined}
                 data-testid={`menu-${item.id}`}

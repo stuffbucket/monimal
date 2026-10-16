@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@maximal/maximal-storybook';
 import { expect, fn, userEvent, within } from '@maximal/maximal-storybook/test';
+import '@maximal/maximal-design-system/styles.css';
 
 import type { Account } from '../lib/account.js';
 
@@ -30,7 +31,7 @@ const ADA: Account = {
 };
 
 const meta = {
-  title: 'Layout/Profile',
+  title: 'Deprecated/Profile',
   component: Profile,
   args: {
     account: ADA,

@@ -1,4 +1,5 @@
-import { Field, FieldList, Note } from '@maximal/maximal-electron/renderer'
+import { Property, PropertyList } from '@maximal/maximal-design-system'
+import { Note } from '@maximal/maximal-electron/renderer'
 
 import { displayAccountLogin } from '../../shared/account-login'
 import { formatTimestamp } from '../../shared/format'
@@ -55,21 +56,21 @@ export function AccountStatusBody({
         />
       ) : status.state === 'authenticated' ? (
         <>
-          <FieldList>
-            <Field
+          <PropertyList>
+            <Property
               label="Signed in as"
               value={displayAccountLogin(status.account_login)}
             />
             {status.account_type ? (
-              <Field label="Plan" value={status.account_type} />
+              <Property label="Plan" value={status.account_type} />
             ) : null}
             {status.connected_since ? (
-              <Field
+              <Property
                 label="Connected since"
                 value={formatTimestamp(status.connected_since)}
               />
             ) : null}
-          </FieldList>
+          </PropertyList>
           {status.last_upstream_rejection ? (
             <Note status="needs-approval">
               {status.last_upstream_rejection.message}

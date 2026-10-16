@@ -84,7 +84,7 @@ function RailCollapse({
   return null;
 }
 
-export type AppFrameProps<T extends Tab> = Omit<
+type AppFrameProps<T extends Tab> = Omit<
   ShellLayoutProps<T>,
   'top' | 'activity' | 'left' | 'main' | 'right' | 'status'
 > & {

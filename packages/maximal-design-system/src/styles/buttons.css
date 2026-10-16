@@ -16,13 +16,18 @@
 .maximal-control-button {
   color: inherit;
   font: inherit;
+  min-height: var(--height-control-compact);
+  padding: 0;
+  appearance: none;
+  background: transparent;
+  border: 0;
   cursor: pointer;
 }
 
 .maximal-button[data-variant="primary"] {
-  color: var(--maximal-color-text-onbrand);
-  background: var(--maximal-color-bg-brand);
-  border-color: var(--maximal-color-border-brand);
+  color: var(--maximal-color-text-onbrand-strong);
+  background: var(--maximal-color-bg-brand-strong);
+  border-color: transparent;
 }
 
 .maximal-button[data-variant="secondary"] {
@@ -30,9 +35,9 @@
 }
 
 .maximal-button[data-variant="danger"] {
-  color: var(--maximal-color-text-ondanger);
-  background: var(--maximal-color-bg-danger);
-  border-color: var(--maximal-color-border-danger);
+  color: var(--maximal-color-text-ondanger-strong);
+  background: var(--maximal-color-bg-danger-strong);
+  border-color: transparent;
 }
 
 .maximal-button[data-variant="secondary-danger"] {
@@ -42,9 +47,9 @@
 }
 
 .maximal-button[data-variant="inverse"] {
-  color: var(--maximal-color-text-onbrand);
-  background: var(--maximal-color-bg-brand);
-  border-color: var(--maximal-color-border-brand);
+  color: var(--maximal-color-text-onbrand-strong);
+  background: var(--maximal-color-bg-brand-strong);
+  border-color: transparent;
 }
 
 .maximal-button[data-variant="link"],
@@ -66,6 +71,22 @@
 .maximal-button:active:not([data-disabled]),
 .maximal-icon-button:active:not([data-disabled]) {
   background: var(--maximal-color-bg-pressed);
+}
+
+.maximal-button:is([data-variant="primary"], [data-variant="inverse"]):hover:not([data-disabled]) {
+  background: var(--maximal-color-bg-brand-strong-hover);
+}
+
+.maximal-button:is([data-variant="primary"], [data-variant="inverse"]):active:not([data-disabled]) {
+  background: var(--maximal-color-bg-brand-strong-pressed);
+}
+
+.maximal-button[data-variant="danger"]:hover:not([data-disabled]) {
+  background: var(--maximal-color-bg-danger-strong-hover);
+}
+
+.maximal-button[data-variant="danger"]:active:not([data-disabled]) {
+  background: var(--maximal-color-bg-danger-strong-pressed);
 }
 
 .maximal-button:focus-visible,

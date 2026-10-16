@@ -1,6 +1,5 @@
 import {
   act,
-  type ButtonHTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
 } from 'react'
@@ -77,11 +76,6 @@ vi.mock('@maximal/maximal-electron/renderer', () => ({
     second?: { sessionId: string }
   }) => pane.sessionId ? [pane.sessionId] : [pane.first!.sessionId, pane.second!.sessionId]),
   terminalProcessTitle: (value: string) => value.trim(),
-  Button: ({ children, ...props }: ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button {...props}>{children}</button>
-  ),
-  Dialog: ({ children, open, title }: { children: ReactNode; open: boolean; title: string }) =>
-    open ? <div role="dialog" aria-label={title}>{children}</div> : null,
   Note: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SpatialCanvasSurface: ({
     children,
@@ -92,7 +86,15 @@ vi.mock('@maximal/maximal-electron/renderer', () => ({
     open: boolean
     testId?: string
   }) => open ? <div data-testid={testId}>{children}</div> : null,
-  UnsavedChangesDialog: () => null,
+  TextInput: ({
+    onChange,
+    ...props
+  }: Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange'> & {
+    onChange: (value: string) => void
+  }) => <input {...props} onChange={(event) => onChange(event.currentTarget.value)} />,
+}))
+
+vi.mock('@maximal/maximal-client/renderer/terminal/TerminalLauncher', () => ({
   TerminalLauncher: ({ open, onLaunched }: {
     open: boolean
     onLaunched: (result: {
@@ -109,12 +111,6 @@ vi.mock('@maximal/maximal-electron/renderer', () => ({
       Launch zsh
     </button>
   ) : null,
-  TextInput: ({
-    onChange,
-    ...props
-  }: Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange'> & {
-    onChange: (value: string) => void
-  }) => <input {...props} onChange={(event) => onChange(event.currentTarget.value)} />,
 }))
 
 vi.mock('@maximal/maximal-observability', () => ({
@@ -481,6 +477,13 @@ afterEach(() => {
 
 const uiModeGet = vi.fn<() => Promise<{ mode: 'legacy' | 'design-system' | 'spike'; switchable: boolean }>>()
 const uiModeSet = vi.fn<(mode: 'legacy' | 'design-system' | 'spike') => Promise<void>>()
+
+/* Design-system dialogs portal out of the render container and are named by their visible title. */
+function dialogTitle(): string | undefined {
+  const dialog = document.querySelector('[role="dialog"]')
+  const titleId = dialog?.getAttribute('aria-labelledby')
+  return titleId ? document.getElementById(titleId)?.textContent ?? undefined : undefined
+}
 
 async function renderApp(): Promise<HTMLElement> {
   if (root === null || container === null) throw new Error('test root not ready')
@@ -884,19 +887,19 @@ describe('App routing', () => {
     expect(background).toBeDefined()
 
     act(() => rename?.click())
-    expect(shell.querySelector('[role="dialog"]')?.getAttribute('aria-label')).toBe(
+    expect(dialogTitle()).toBe(
       'Rename terminal tab',
     )
-    const confirmRename = [...shell.querySelectorAll('button')].find(
+    const confirmRename = [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(
       (button) => button.textContent === 'Rename',
     )
     act(() => confirmRename?.click())
 
     act(() => close?.click())
-    expect(shell.querySelector('[role="dialog"]')?.getAttribute('aria-label')).toBe(
+    expect(dialogTitle()).toBe(
       'Close terminal?',
     )
-    const confirmClose = [...shell.querySelectorAll('button')].find(
+    const confirmClose = [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(
       (button) => button.textContent === 'Close Terminal',
     )
     await act(async () => confirmClose?.click())
@@ -1047,7 +1050,7 @@ describe('App routing', () => {
     act(() => [...shell.querySelectorAll('button')].find(
       (button) => button.textContent === 'Close Terminal zsh',
     )?.click())
-    await act(async () => [...shell.querySelectorAll('button')].find(
+    await act(async () => [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(
       (button) => button.textContent === 'Close Terminal',
     )?.click())
 

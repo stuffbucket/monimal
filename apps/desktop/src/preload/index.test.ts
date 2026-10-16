@@ -420,11 +420,19 @@ describe('preload bridge allowlist', () => {
     await bridge.harness.provider()
     await bridge.harness.selectModel('ollama:qwen3:4b')
     await bridge.harness.selectEffort('high')
-    await bridge.harness.ask('Explain this file')
+    await bridge.harness.ask('Explain this file', 'run-1')
     await bridge.harness.steer('Focus on tests')
     await bridge.harness.abort()
-    await bridge.harness.approve({ id: 'approval-1', allow: true, remember: false })
-    await bridge.harness.ensureModel()
+    await bridge.harness.approve({
+      runId: 'run-1',
+      id: 'approval-1',
+      allow: true,
+      remember: false,
+    })
+    await bridge.harness.ensureModel({
+      downloadId: 'download-1',
+      model: 'Qwen3 0.6B',
+    })
     await bridge.harness.chats.terminal('chat-1', 80, 24)
     await bridge.terminal.spawn({ id: 'terminal-1', cols: 80, rows: 24 })
     await bridge.terminal.write('terminal-1', 'pwd\r')
@@ -594,11 +602,22 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.harnessProvider],
       [BRIDGE_CHANNELS.harnessSelectModel, 'ollama:qwen3:4b'],
       [BRIDGE_CHANNELS.harnessSelectEffort, 'high'],
-      [BRIDGE_CHANNELS.harnessAsk, { prompt: 'Explain this file' }],
+      [BRIDGE_CHANNELS.harnessAsk, {
+        prompt: 'Explain this file',
+        runId: 'run-1',
+      }],
       [BRIDGE_CHANNELS.harnessSteer, { prompt: 'Focus on tests' }],
       [BRIDGE_CHANNELS.harnessAbort],
-      [BRIDGE_CHANNELS.harnessApprove, { id: 'approval-1', allow: true, remember: false }],
-      [BRIDGE_CHANNELS.harnessEnsureModel],
+      [BRIDGE_CHANNELS.harnessApprove, {
+        runId: 'run-1',
+        id: 'approval-1',
+        allow: true,
+        remember: false,
+      }],
+      [BRIDGE_CHANNELS.harnessEnsureModel, {
+        downloadId: 'download-1',
+        model: 'Qwen3 0.6B',
+      }],
       [BRIDGE_CHANNELS.harnessChatTerminal, { id: 'chat-1', cols: 80, rows: 24 }],
       [BRIDGE_CHANNELS.terminalSpawn, { id: 'terminal-1', cols: 80, rows: 24 }],
       [BRIDGE_CHANNELS.terminalWrite, { id: 'terminal-1', data: 'pwd\r' }],

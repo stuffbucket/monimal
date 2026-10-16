@@ -123,10 +123,10 @@ export function Sidebar({
           {showToggle ? (
             <ToggleSidebar
               controls={id}
-              label={toggleLabel}
               onPressedChange={onOpenChange}
               open={open}
               side={side}
+              {...(toggleLabel === undefined ? {} : { label: toggleLabel })}
             />
           ) : null}
         </header>
@@ -151,7 +151,7 @@ export function Sidebar({
           onResize={handleResize}
           overlap={overlapResizer}
           resizeTargetRef={positionRef}
-          scrollTargetRef={bodyScrollable ? bodyRef : undefined}
+          {...(bodyScrollable ? { scrollTargetRef: bodyRef } : {})}
         />
       ) : null}
     </aside>

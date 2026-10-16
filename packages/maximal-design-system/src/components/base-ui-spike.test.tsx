@@ -8,7 +8,7 @@ import {
   CANVAS_ZOOM,
   normalizeCanvasZoom,
   stepCanvasZoom,
-} from './canvas-zoom'
+} from '../utilities/canvas-zoom'
 import {
   CompactProjectCluster,
   ProjectDetails,

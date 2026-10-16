@@ -21,7 +21,7 @@
   ],
   "scripts": {
     "analyze": "bun ../maximal-core/scripts/analyze.ts",
-    "build": "tsup src/index.ts --format esm --dts --clean --target es2022 --external react --external @maximal/maximal-data-visualization --external @maximal/maximal-electron --external @maximal/maximal-observability-contract --external @maximal/maximal-context-window --out-dir dist && cp src/styles.css dist/styles.css",
+    "build": "tsup src/index.ts --format esm --dts --clean --target es2022 --external react --external @maximal/maximal-data-visualization --external @maximal/maximal-design-system --external @maximal/maximal-observability-contract --external @maximal/maximal-context-window --out-dir dist && cp src/styles.css dist/styles.css",
     "lint": "eslint",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
@@ -29,12 +29,11 @@
   "dependencies": {
     "@maximal/maximal-context-window": "workspace:*",
     "@maximal/maximal-data-visualization": "workspace:*",
+    "@maximal/maximal-design-system": "workspace:*",
     "@maximal/maximal-observability-contract": "workspace:*"
   },
   "devDependencies": {
     "@maximal/eslint-config": "workspace:*",
-    "@maximal/maximal-electron": "workspace:*",
-    "@maximal/maximal-terminal": "workspace:*",
     "@types/node": "^26.4.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.5",
@@ -49,7 +48,6 @@
     "vitest": "^5.0.1"
   },
   "peerDependencies": {
-    "@maximal/maximal-electron": "^0.0.9",
     "react": ">=18.0.0 <20.0.0"
   },
   "engines": {

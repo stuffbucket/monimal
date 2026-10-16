@@ -14,7 +14,7 @@ import {
 } from './SpatialCanvasDiscussion.js';
 
 const meta = {
-  title: 'Canvas/SpatialCanvas/Discussion',
+  title: 'Deprecated/SpatialCanvas/Discussion',
   component: SpatialCanvasCommentThreadCard,
   parameters: {
     controls: { disable: true },

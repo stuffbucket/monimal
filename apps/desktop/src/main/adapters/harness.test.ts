@@ -360,11 +360,11 @@ describe('harness host IPC boundary', () => {
     await startHost()
     const foreignEvent = { sender: { send: vi.fn() } }
     const inputs = new Map<string, unknown>([
-      [BRIDGE_CHANNELS.harnessAsk, { prompt: 'hello' }],
+      [BRIDGE_CHANNELS.harnessAsk, { prompt: 'hello', runId: 'run-1' }],
       [BRIDGE_CHANNELS.harnessSteer, { prompt: 'focus on tests' }],
       [
         BRIDGE_CHANNELS.harnessApprove,
-        { id: 'approval-1', allow: true, remember: false },
+        { runId: 'run-1', id: 'approval-1', allow: true, remember: false },
       ],
     ])
 
@@ -399,14 +399,25 @@ describe('harness host IPC boundary', () => {
     await startHost()
     const ask = handler(BRIDGE_CHANNELS.harnessAsk)
 
-    for (const input of [undefined, null, {}, { prompt: 42 }, { prompt: '  ' }]) {
+    for (const input of [
+      undefined,
+      null,
+      {},
+      { prompt: 42 },
+      { prompt: '  ' },
+      { prompt: 'hello' },
+    ]) {
       expect(() => ask(overlayEvent(), input)).toThrow()
     }
     expect(runAgentMock).not.toHaveBeenCalled()
 
-    expect(ask(overlayEvent(), { prompt: '  explain this  ' })).toEqual({
+    expect(ask(overlayEvent(), {
+      prompt: '  explain this  ',
+      runId: 'run-1',
+    })).toEqual({
       started: true,
       chatId: 'chat-1',
+      runId: 'run-1',
     })
     expect(runAgentMock).toHaveBeenCalledWith(
       'explain this',
@@ -493,9 +504,29 @@ describe('harness host IPC boundary', () => {
     }
     expect(resolveApprovalMock).not.toHaveBeenCalled()
 
-    const request = { id: 'approval-1', allow: false, remember: true }
+    handler(BRIDGE_CHANNELS.harnessAsk)(overlayEvent(), {
+      prompt: 'hello',
+      runId: 'run-1',
+    })
+    expect(() => approve(overlayEvent(), {
+      runId: 'stale-run',
+      id: 'approval-1',
+      allow: false,
+      remember: true,
+    })).toThrow('does not belong to the active assistant run')
+
+    const request = {
+      runId: 'run-1',
+      id: 'approval-1',
+      allow: false,
+      remember: true,
+    }
     expect(approve(overlayEvent(), request)).toBeUndefined()
-    expect(resolveApprovalMock).toHaveBeenCalledWith(request)
+    expect(resolveApprovalMock).toHaveBeenCalledWith({
+      id: 'approval-1',
+      allow: false,
+      remember: true,
+    })
   })
 
   it('validates, selects, and persists an available model', async () => {
@@ -550,7 +581,10 @@ describe('harness host IPC boundary', () => {
     await startHost()
     const foreignWebContents = { send: vi.fn() }
 
-    handler(BRIDGE_CHANNELS.harnessAsk)(overlayEvent(), { prompt: 'hello' })
+    handler(BRIDGE_CHANNELS.harnessAsk)(overlayEvent(), {
+      prompt: 'hello',
+      runId: 'run-1',
+    })
     const callbacks = runAgentMock.mock.calls[0]?.[1] as
       | HarnessCallbacks
       | undefined
@@ -561,8 +595,18 @@ describe('harness host IPC boundary', () => {
     callbacks.onApproval({ id: 'approval-1' })
     callbacks.onEnd({ status: 'complete' })
 
-    const modelResult = handler(BRIDGE_CHANNELS.harnessEnsureModel)(overlayEvent())
-    await expect(modelResult).resolves.toEqual({ state: 'ready' })
+    const download = {
+      downloadId: 'download-1',
+      model: 'Qwen3 0.6B',
+    }
+    const modelResult = handler(BRIDGE_CHANNELS.harnessEnsureModel)(
+      overlayEvent(),
+      download,
+    )
+    await expect(modelResult).resolves.toEqual({
+      ...download,
+      progress: { state: 'ready' },
+    })
     const onProgress = ensureModelMock.mock.calls[0]?.[0] as
       | ((progress: unknown) => void)
       | undefined
@@ -575,16 +619,31 @@ describe('harness host IPC boundary', () => {
     })
 
     expect(overlayWebContents.send.mock.calls).toEqual([
-      [BRIDGE_CHANNELS.harnessDelta, { text: 'partial' }],
+      [BRIDGE_CHANNELS.harnessDelta, { runId: 'run-1', text: 'partial' }],
       [
         BRIDGE_CHANNELS.harnessTool,
-        { id: 'tool-1', name: 'bash', phase: 'start', isError: false },
+        {
+          runId: 'run-1',
+          id: 'tool-1',
+          name: 'bash',
+          phase: 'start',
+          isError: false,
+        },
       ],
-      [BRIDGE_CHANNELS.harnessApproval, { id: 'approval-1' }],
-      [BRIDGE_CHANNELS.harnessEnd, { status: 'complete' }],
+      [BRIDGE_CHANNELS.harnessApproval, {
+        runId: 'run-1',
+        id: 'approval-1',
+      }],
+      [
+        BRIDGE_CHANNELS.harnessEnd,
+        { runId: 'run-1', result: { status: 'complete' } },
+      ],
       [
         BRIDGE_CHANNELS.harnessModelProgress,
-        { state: 'downloading', received: 2, total: 10 },
+        {
+          ...download,
+          progress: { state: 'downloading', received: 2, total: 10 },
+        },
       ],
     ])
     expect(foreignWebContents.send).not.toHaveBeenCalled()

@@ -1,4 +1,4 @@
-import { Button, StatusChip } from "@maximal/maximal-electron/renderer"
+import { Button, StatusChip } from "@maximal/maximal-design-system"
 import { useState } from "react"
 
 import { TokenSeriesChart } from "./charts/TokenSeries.tsx"
@@ -22,7 +22,7 @@ export function OverviewMain() {
           <p className="mo-eyebrow">Observability</p>
           <h1 id="mo-overview-title">Traffic overview</h1>
         </div>
-        <Button variant="primary" size="sm" onClick={() => void refresh()}>
+        <Button variant="primary" onClick={() => void refresh()}>
           Update
         </Button>
       </header>
@@ -144,9 +144,7 @@ function ErrorState({
     <div className="mo-state" role="alert">
       <strong>Traffic could not be loaded.</strong>
       <span>{message}</span>
-      <Button size="sm" onClick={() => void onRetry()}>
-        Try again
-      </Button>
+      <Button onClick={() => void onRetry()}>Try again</Button>
     </div>
   )
 }

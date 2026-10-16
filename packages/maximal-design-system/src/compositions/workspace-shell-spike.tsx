@@ -5,7 +5,7 @@ import {
   ProjectDetails,
   ProjectNavigation,
 } from '../components/project-navigation'
-import { CANVAS_ZOOM } from '../components/canvas-zoom'
+import { CANVAS_ZOOM } from '../utilities/canvas-zoom'
 import {
   CanvasToolbar,
   ShellStatusControls,
@@ -126,7 +126,9 @@ export function WorkspaceShellSpike({
         content: (
           <ProjectNavigation
             onPagesHeightChange={setLeftPagesHeight}
-            pagesHeight={leftPagesHeight}
+            {...(leftPagesHeight === undefined
+              ? {}
+              : { pagesHeight: leftPagesHeight })}
           />
         ),
       }}

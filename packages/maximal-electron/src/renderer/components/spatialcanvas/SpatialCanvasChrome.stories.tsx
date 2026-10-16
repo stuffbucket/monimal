@@ -17,7 +17,7 @@ import {
 } from './SpatialCanvasChrome.js';
 
 const meta = {
-  title: 'Canvas/SpatialCanvas/Control Clusters',
+  title: 'Deprecated/SpatialCanvas/Control Clusters',
   component: SpatialCanvasControlGroup,
   parameters: {
     controls: { disable: true },

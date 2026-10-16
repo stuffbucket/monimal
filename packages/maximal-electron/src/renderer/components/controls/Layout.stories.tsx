@@ -39,7 +39,7 @@ function resolveToken(root: HTMLElement, token: string): string {
 }
 
 const meta = {
-  title: 'Controls/Banner',
+  title: 'Deprecated/Banner',
   component: Banner,
   args: { children: 'An update is available.', status: undefined },
   argTypes: {

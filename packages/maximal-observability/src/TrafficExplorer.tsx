@@ -1,10 +1,10 @@
 import {
   Button,
-  Field,
-  FieldList,
   InspectorPanel,
+  Property,
+  PropertyList,
   StatusChip,
-} from "@maximal/maximal-electron/renderer"
+} from "@maximal/maximal-design-system"
 import { useState } from "react"
 
 import { ContextWindowPanel } from "./ContextWindowInspector.tsx"
@@ -41,7 +41,7 @@ export function TrafficExplorerMain() {
           <p className="mo-eyebrow">Observability</p>
           <h1 id="mo-traffic-title">Traffic explorer</h1>
         </div>
-        <Button variant="primary" size="sm" onClick={() => void refresh()}>
+        <Button variant="primary" onClick={() => void refresh()}>
           Update
         </Button>
       </header>
@@ -54,9 +54,7 @@ export function TrafficExplorerMain() {
         <div className="mo-state" role="alert">
           <strong>Request history could not be loaded.</strong>
           <span>{requests.message}</span>
-          <Button size="sm" onClick={() => void refresh()}>
-            Try again
-          </Button>
+          <Button onClick={() => void refresh()}>Try again</Button>
         </div>
       )}
       {requests.status === "unsupported" && (
@@ -134,40 +132,40 @@ export function TrafficExplorerInspector() {
         )}
         {(detail?.status === "ready" || detail?.status === "empty") && (
           <>
-            <FieldList>
-              <Field
+            <PropertyList>
+              <Property
                 label="Request ID"
                 value={detail.data.request.identity.requestId}
               />
-              <Field
+              <Property
                 label="Trace ID"
                 value={displayValue(detail.data.request.identity.traceId)}
               />
-              <Field
+              <Property
                 label="Session ID"
                 value={displayValue(detail.data.request.identity.sessionId)}
               />
-              <Field
+              <Property
                 label="Client"
                 value={displayValue(detail.data.request.attribution.client)}
               />
-              <Field
+              <Property
                 label="Endpoint"
                 value={`${detail.data.request.route.method} ${detail.data.request.route.path}`}
               />
-              <Field
+              <Property
                 label="Operation"
                 value={detail.data.request.route.operation}
               />
-              <Field
+              <Property
                 label="Provider"
                 value={displayValue(detail.data.request.attribution.provider)}
               />
-              <Field
+              <Property
                 label="Model"
                 value={displayValue(detail.data.request.attribution.model)}
               />
-              <Field
+              <Property
                 label="Outcome"
                 value={
                   <StatusChip
@@ -180,11 +178,11 @@ export function TrafficExplorerInspector() {
                   />
                 }
               />
-              <Field
+              <Property
                 label="Duration"
                 value={formatDuration(detail.data.request.timing.durationMs)}
               />
-              <Field
+              <Property
                 label="Tokens"
                 value={
                   detail.data.request.tokens ?
@@ -192,23 +190,23 @@ export function TrafficExplorerInspector() {
                   : "Not available"
                 }
               />
-              <Field
+              <Property
                 label="Request size"
                 value={formatBytes(detail.data.request.size.requestBytes)}
               />
-              <Field
+              <Property
                 label="Response size"
                 value={formatBytes(detail.data.request.size.responseBytes)}
               />
-              <Field
+              <Property
                 label="Attempts"
                 value={formatCount(detail.data.request.dispatch.attemptCount)}
               />
-              <Field
+              <Property
                 label="Retries"
                 value={formatCount(detail.data.request.dispatch.retryCount)}
               />
-            </FieldList>
+            </PropertyList>
             <section
               className="mo-lifecycle"
               aria-labelledby="mo-lifecycle-title"
@@ -223,9 +221,7 @@ export function TrafficExplorerInspector() {
                 ))}
               </ol>
             </section>
-            <Button size="sm" onClick={() => selectRequest(null)}>
-              Clear selection
-            </Button>
+            <Button onClick={() => selectRequest(null)}>Clear selection</Button>
           </>
         )}
       </InspectorPanel>
