@@ -506,6 +506,8 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
   assert.ok(turbo.tasks.build.inputs.includes("!**/.turbo/**"));
   assert.ok(turbo.tasks.build.inputs.includes("!**/resources/bin/**"));
   assert.deepEqual(turbo.tasks.test.env, [
+    "MAXIMAL_GITHUB_NETWORK_TESTS",
+    "MAXIMAL_NETWORK_TESTS",
     "MAXIMAL_TEST_CONTAINER",
     "MAXIMAL_TEST_HOST",
     "MAXIMAL_TEST_TRACE",

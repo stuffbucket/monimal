@@ -192,6 +192,8 @@
         "!.github/pr-artifacts/**"
       ],
       "env": [
+        "MAXIMAL_GITHUB_NETWORK_TESTS",
+        "MAXIMAL_NETWORK_TESTS",
         "MAXIMAL_TEST_CONTAINER",
         "MAXIMAL_TEST_HOST",
         "MAXIMAL_TEST_TRACE"
