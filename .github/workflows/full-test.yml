@@ -75,6 +75,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Install pinned Chromium for browser-backed tests
+        run: pnpm --filter @maximal/maximal-design-system exec playwright install chromium
+
       - name: Test complete workspace on disposable runner
         env:
           MONIMAL_PERF_MARKERS: 1

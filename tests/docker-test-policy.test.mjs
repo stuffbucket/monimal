@@ -57,6 +57,7 @@ import {
   formatPerformanceMarker,
   measurePerformancePhase,
   parseTestOptions,
+  playwrightBrowsersPath,
   turboTestArguments,
 } from "../scripts/test-workspace.mjs";
 import {
@@ -853,6 +854,10 @@ test("full tests run on main only and reconcile a non-blocking issue", () => {
   );
   assert.match(workflow, /persist-credentials: false/);
   assert.match(workflow, /pnpm install --frozen-lockfile/);
+  assert.match(
+    workflow,
+    /pnpm --filter @maximal\/maximal-design-system exec playwright install chromium/,
+  );
   assert.match(workflow, /pnpm run test:all/);
   assert.equal(workflow.split("uses: actions/cache/restore@").length - 1, 3);
   assert.equal(workflow.split("uses: actions/cache/save@").length - 1, 1);
@@ -1112,9 +1117,15 @@ test("native test isolation redirects state and scrubs credentials", () => {
   const priorToken = process.env.GITHUB_TOKEN;
   const priorProxy = process.env.HTTPS_PROXY;
   const priorPerformanceMarkers = process.env.MONIMAL_PERF_MARKERS;
+  const priorPlaywrightBrowsersPath = process.env.PLAYWRIGHT_BROWSERS_PATH;
   process.env.GITHUB_TOKEN = "secret";
   process.env.HTTPS_PROXY = "https://proxy.invalid";
   process.env.MONIMAL_PERF_MARKERS = "1";
+  process.env.PLAYWRIGHT_BROWSERS_PATH = path.join(
+    parent,
+    "toolchain",
+    "ms-playwright",
+  );
   try {
     const isolated = createIsolatedTestEnvironment(parent);
     assert.equal(fs.statSync(isolated.root).mode & 0o777, 0o700);
@@ -1124,6 +1135,15 @@ test("native test isolation redirects state and scrubs credentials", () => {
     assert.equal(isolated.environment.GITHUB_TOKEN, undefined);
     assert.equal(isolated.environment.HTTPS_PROXY, undefined);
     assert.equal(isolated.environment.MONIMAL_PERF_MARKERS, undefined);
+    assert.equal(
+      isolated.environment.PLAYWRIGHT_BROWSERS_PATH,
+      process.env.PLAYWRIGHT_BROWSERS_PATH,
+    );
+    assert.ok(
+      path
+        .relative(isolated.root, isolated.environment.PLAYWRIGHT_BROWSERS_PATH)
+        .startsWith(".."),
+    );
     for (const name of [
       "HOME",
       "XDG_CACHE_HOME",
@@ -1149,8 +1169,37 @@ test("native test isolation redirects state and scrubs credentials", () => {
     if (priorPerformanceMarkers === undefined)
       delete process.env.MONIMAL_PERF_MARKERS;
     else process.env.MONIMAL_PERF_MARKERS = priorPerformanceMarkers;
+    if (priorPlaywrightBrowsersPath === undefined)
+      delete process.env.PLAYWRIGHT_BROWSERS_PATH;
+    else process.env.PLAYWRIGHT_BROWSERS_PATH = priorPlaywrightBrowsersPath;
     fs.rmSync(parent, { recursive: true, force: true });
   }
+});
+
+test("native test isolation locates the installed Playwright toolchain", () => {
+  assert.equal(
+    playwrightBrowsersPath({
+      HOME: "/home/runner",
+      XDG_CACHE_HOME: "/cache",
+    }, "linux"),
+    path.join("/cache", "ms-playwright"),
+  );
+  assert.equal(
+    playwrightBrowsersPath({ HOME: "/Users/maximal" }, "darwin"),
+    path.join("/Users/maximal", "Library", "Caches", "ms-playwright"),
+  );
+  assert.equal(
+    playwrightBrowsersPath({
+      LOCALAPPDATA: "C:\\Users\\maximal\\AppData\\Local",
+    }, "win32"),
+    path.join("C:\\Users\\maximal\\AppData\\Local", "ms-playwright"),
+  );
+  assert.equal(
+    playwrightBrowsersPath({
+      PLAYWRIGHT_BROWSERS_PATH: "/toolchain/chromium",
+    }, "linux"),
+    "/toolchain/chromium",
+  );
 });
 
 test("affected base and linked worktree detection use Git state", () => {
