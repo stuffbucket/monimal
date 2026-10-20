@@ -518,6 +518,7 @@ test("the outer and fixed inner test scripts cannot recurse", () => {
     "LOCALAPPDATA",
     "MAXIMAL_HOME",
     "MAXIMAL_TEST_ROOT",
+    "PLAYWRIGHT_BROWSERS_PATH",
     "USERPROFILE",
     "XDG_CACHE_HOME",
     "XDG_CONFIG_HOME",
