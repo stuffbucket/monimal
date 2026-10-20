@@ -5,6 +5,7 @@
       "root": "packages/maximal-design-system",
       "dependsOn": [
         "@maximal/eslint-config",
+        "@maximal/maximal-design-system-tools",
         "@maximal/maximal-storybook"
       ],
       "cycleEdges": [],
@@ -115,6 +116,7 @@
       "root": "packages/maximal-electron",
       "dependsOn": [
         "@maximal/eslint-config",
+        "@maximal/maximal-design-system",
         "@maximal/maximal-storybook",
         "@maximal/maximal-terminal"
       ],
@@ -123,6 +125,14 @@
     },
     "@maximal/maximal-storybook": {
       "root": "packages/maximal-storybook",
+      "dependsOn": [
+        "@maximal/eslint-config"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
+    "@maximal/maximal-design-system-tools": {
+      "root": "packages/maximal-design-system-tools",
       "dependsOn": [
         "@maximal/eslint-config"
       ],
@@ -149,6 +159,7 @@
       "root": "packages/maximal-project-browser",
       "dependsOn": [
         "@maximal/eslint-config",
+        "@maximal/maximal-design-system",
         "@maximal/maximal-electron"
       ],
       "cycleEdges": [],
@@ -159,9 +170,8 @@
       "dependsOn": [
         "@maximal/eslint-config",
         "@maximal/maximal-data-visualization",
-        "@maximal/maximal-electron",
-        "@maximal/maximal-observability-contract",
-        "@maximal/maximal-terminal"
+        "@maximal/maximal-design-system",
+        "@maximal/maximal-observability-contract"
       ],
       "cycleEdges": [],
       "duplicatePairs": []
@@ -172,9 +182,8 @@
         "@maximal/eslint-config",
         "@maximal/maximal-context-window",
         "@maximal/maximal-data-visualization",
-        "@maximal/maximal-electron",
-        "@maximal/maximal-observability-contract",
-        "@maximal/maximal-terminal"
+        "@maximal/maximal-design-system",
+        "@maximal/maximal-observability-contract"
       ],
       "cycleEdges": [],
       "duplicatePairs": []
@@ -274,6 +283,7 @@
         "@maximal/maximal-configurators",
         "@maximal/maximal-core",
         "@maximal/maximal-core-contract",
+        "@maximal/maximal-design-system",
         "@maximal/maximal-electron",
         "@maximal/maximal-harness",
         "@maximal/maximal-runner-llama-cpp",
@@ -324,7 +334,8 @@
       "dependsOn": [
         "@maximal/eslint-config",
         "@maximal/maximal-assets",
-        "@maximal/maximal-electron",
+        "@maximal/maximal-design-system",
+        "@maximal/maximal-design-system-tools",
         "@maximal/maximal-runner-llama-cpp"
       ],
       "cycleEdges": [],
@@ -393,6 +404,14 @@
   },
   "packageRules": {
     "deny": [
+      {
+        "from": [
+          "@maximal/maximal-harness"
+        ],
+        "to": [
+          "@maximal/maximal-electron"
+        ]
+      },
       {
         "from": [
           "@maximal/maximal-core",

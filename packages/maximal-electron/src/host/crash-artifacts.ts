@@ -21,12 +21,12 @@ import type { App, CrashReporter } from 'electron';
  */
 
 /** What `startCrashArtifacts` needs of Electron. */
-export interface CrashArtifactRuntime {
+interface CrashArtifactRuntime {
   app: Pick<App, 'getPath'>;
   crashReporter: Pick<CrashReporter, 'start'>;
 }
 
-export interface CrashArtifacts {
+interface CrashArtifacts {
   /** The Crashpad database. `<userData>/Crashpad` on every platform measured. */
   directory: string;
   /** Minidumps already on disk, left by a crash in an earlier run. */

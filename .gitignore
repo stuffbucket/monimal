@@ -17,6 +17,7 @@ playwright-report/
 test-results/
 storybook-static/
 reports/
+/packages/maximal-design-system/debug-storybook.log
 
 # local agent state
 .claude/worktrees/

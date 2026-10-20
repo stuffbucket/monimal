@@ -7,16 +7,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   AppFrame,
   Status,
-  StatusProvider,
-  StatusViewport,
   SurfaceActivity,
   SurfaceRail,
   SurfaceRight,
   SurfaceTop,
-  WindowChrome,
   useTabPanelId,
   useTabTriggerId,
 } from '../src/renderer/index.js';
+import { StatusProvider, StatusViewport } from '../src/renderer/components/Status.js';
+import { WindowChrome } from '../src/renderer/components/WindowChrome.js';
 
 globalThis.ResizeObserver = class {
   observe(): void {}

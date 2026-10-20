@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from '@maximal/maximal-storybook';
 import { WindowChrome } from './WindowChrome.js';
 
 const meta = {
-  title: 'Shell/WindowChrome',
+  title: 'Deprecated/WindowChrome',
   component: WindowChrome,
   parameters: { layout: 'fullscreen' },
 } satisfies Meta<typeof WindowChrome>;

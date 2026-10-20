@@ -1,8 +1,9 @@
+import { Button, Checkbox, Dialog } from '@maximal/maximal-design-system'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type ReactElement } from 'react'
-import { Button, Checkbox, Dialog } from '@maximal/maximal-electron/renderer'
 
 import type { SettingsCapabilities } from './settings/capabilities'
+import { shellOverlayContainer } from './shell-overlay-container'
 
 interface ProviderOnboardingProps {
   capabilities: SettingsCapabilities
@@ -74,7 +75,8 @@ export function ProviderOnboarding({
       description="Set up a provider for model requests, or continue without one."
       showTitle
       showDescription
-      testId="provider-onboarding"
+      popupProps={{ 'data-testid': 'provider-onboarding' }}
+      container={shellOverlayContainer}
     >
       <p>
         Maximal can connect to GitHub Copilot or Ollama. You can skip this and
@@ -83,7 +85,7 @@ export function ProviderOnboarding({
       <Checkbox
         label="Don’t ask me again"
         checked={doNotAskAgain}
-        onChange={setDoNotAskAgain}
+        onCheckedChange={setDoNotAskAgain}
         disabled={busy}
       />
       {error ?? query.error ? (

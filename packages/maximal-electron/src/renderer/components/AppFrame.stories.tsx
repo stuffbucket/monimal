@@ -9,7 +9,7 @@ import {
 import { Status } from './Status.js';
 
 const meta = {
-  title: 'Shell/AppFrame',
+  title: 'Deprecated/AppFrame',
   component: AppFrame,
   parameters: { layout: 'fullscreen' },
 } satisfies Meta<typeof AppFrame>;

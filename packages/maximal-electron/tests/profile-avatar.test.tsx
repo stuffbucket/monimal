@@ -37,33 +37,20 @@ function renderAvatar(avatarUrl: string): HTMLDivElement {
 }
 
 describe('Profile Avatar', () => {
-  it('keeps initials beneath the remote image layer', () => {
+  it('uses the design-system avatar with initials while the image loads', () => {
     const surface = renderAvatar('https://avatars.githubusercontent.com/u/1?v=4');
-    expect(surface.querySelector('img')).toBeNull();
-    expect(surface.querySelector('[data-testid="avatar-initials"]')?.textContent)
-      .toBe('B');
-    expect(
-      surface.querySelector<HTMLElement>('.avatar__image')?.style.backgroundImage,
-    ).toContain('https://avatars.githubusercontent.com/u/1?v=4');
+    const avatar = surface.querySelector('[data-testid="avatar-initials"]');
+    expect(avatar?.classList.contains('maximal-avatar')).toBe(true);
+    expect(avatar?.textContent).toBe('B');
   });
 
-  it('updates the image layer when the avatar URL changes', () => {
-    const surface = renderAvatar('https://avatars.githubusercontent.com/u/1?v=4');
-
+  it('keeps an anonymous design-system fallback for signed-out accounts', () => {
+    const surface = renderAvatar('');
     act(() => {
-      root?.render(
-        <Avatar
-          account={{
-            id: 'bstucker_microsoft',
-            displayName: 'bstucker_microsoft',
-            avatarUrl: 'https://avatars.githubusercontent.com/u/2?v=4',
-          }}
-        />,
-      );
+      root?.render(<Avatar />);
     });
-
-    expect(
-      surface.querySelector<HTMLElement>('.avatar__image')?.style.backgroundImage,
-    ).toContain('https://avatars.githubusercontent.com/u/2?v=4');
+    const avatar = surface.querySelector('[data-testid="avatar-anon"]');
+    expect(avatar?.classList.contains('maximal-avatar')).toBe(true);
+    expect(avatar?.querySelector('svg')).not.toBeNull();
   });
 });

@@ -27,7 +27,6 @@ let root: Root
 
 beforeEach(() => {
   container = document.createElement("div")
-  container.className = "sb-shell"
   document.body.append(container)
   root = createRoot(container)
 })
@@ -82,11 +81,11 @@ describe("observability components", () => {
     expect(container.textContent).toContain("2.1% full")
     expect(container.textContent).toContain("request as of")
     expect(
-      [...container.querySelectorAll(".status-chip")].map(
+      [...container.querySelectorAll(".maximal-status-chip")].map(
         (chip) => chip.textContent,
       ),
     ).not.toContain("Live")
-    expect(button("Update").classList.contains("btn--primary")).toBe(true)
+    expect(button("Update").dataset.variant).toBe("primary")
     expect(
       container.querySelector(".mcw-grid")?.getAttribute("aria-label"),
     ).toContain("Other content: 120 tokens, 20 cached")
@@ -167,14 +166,16 @@ describe("observability components", () => {
         },
       },
     ]
-    source.invalidate({
-      contractVersion: 1,
-      revision: 1,
-      emittedAt: "2026-09-07T20:03:00.000Z",
-      activeCount: 0,
-      overflow: false,
-      scopes: ["requests"],
-      requestIds: ["req-2", "req-other"],
+    act(() => {
+      source.invalidate({
+        contractVersion: 1,
+        revision: 1,
+        emittedAt: "2026-09-07T20:03:00.000Z",
+        activeCount: 0,
+        overflow: false,
+        scopes: ["requests"],
+        requestIds: ["req-2", "req-other"],
+      })
     })
     await settle()
 
@@ -183,8 +184,12 @@ describe("observability components", () => {
       2,
     )
     expect(button("Turn 2").getAttribute("aria-pressed")).toBe("true")
-    const sessionSelect = container.querySelector("select")
-    expect(sessionSelect?.querySelectorAll("option")).toHaveLength(2)
+    const sessionSelect = container.querySelector('[role="combobox"]')
+    if (!(sessionSelect instanceof HTMLElement))
+      throw new Error("Session selector not found")
+    act(() => sessionSelect.click())
+    await settle()
+    expect(document.querySelectorAll('[role="option"]')).toHaveLength(2)
   })
 
   it("pauses live invalidation and exposes unsupported states", async () => {
@@ -202,7 +207,7 @@ describe("observability components", () => {
     )
     await settle()
     const liveSwitch = container.querySelector('[role="switch"]')
-    if (!(liveSwitch instanceof HTMLButtonElement))
+    if (!(liveSwitch instanceof HTMLElement))
       throw new Error("Live switch not found")
     act(() => liveSwitch.click())
     source.invalidate({

@@ -1,0 +1,143 @@
+.maximal-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--height-row-standard);
+  height: var(--height-row-standard);
+  gap: var(--spacer-1);
+  padding-inline: var(--spacer-3);
+  color: var(--maximal-color-text-default);
+  font: var(--body-medium-strong);
+  border: var(--border-width-thin) solid var(--maximal-color-border-strong);
+  border-radius: var(--radius-medium);
+  cursor: pointer;
+}
+
+.maximal-control-button {
+  color: inherit;
+  font: inherit;
+  min-height: var(--height-control-compact);
+  padding: 0;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.maximal-button[data-variant="primary"] {
+  color: var(--maximal-color-text-onbrand-strong);
+  background: var(--maximal-color-bg-brand-strong);
+  border-color: transparent;
+}
+
+.maximal-button[data-variant="secondary"] {
+  background: var(--maximal-color-bg-tertiary);
+}
+
+.maximal-button[data-variant="danger"] {
+  color: var(--maximal-color-text-ondanger-strong);
+  background: var(--maximal-color-bg-danger-strong);
+  border-color: transparent;
+}
+
+.maximal-button[data-variant="secondary-danger"] {
+  color: var(--maximal-color-text-danger);
+  background: transparent;
+  border-color: var(--maximal-color-border-danger);
+}
+
+.maximal-button[data-variant="inverse"] {
+  color: var(--maximal-color-text-onbrand-strong);
+  background: var(--maximal-color-bg-brand-strong);
+  border-color: transparent;
+}
+
+.maximal-button[data-variant="link"],
+.maximal-button[data-variant="ghost"] {
+  min-width: 0;
+  background: transparent;
+  border-color: transparent;
+}
+
+.maximal-button[data-variant="link"] {
+  color: var(--maximal-color-text-brand);
+}
+
+.maximal-button:hover:not([data-disabled]),
+.maximal-icon-button:hover:not([data-disabled]) {
+  background: var(--maximal-color-bg-hover);
+}
+
+.maximal-button:active:not([data-disabled]),
+.maximal-icon-button:active:not([data-disabled]) {
+  background: var(--maximal-color-bg-pressed);
+}
+
+.maximal-button:is([data-variant="primary"], [data-variant="inverse"]):hover:not([data-disabled]) {
+  background: var(--maximal-color-bg-brand-strong-hover);
+}
+
+.maximal-button:is([data-variant="primary"], [data-variant="inverse"]):active:not([data-disabled]) {
+  background: var(--maximal-color-bg-brand-strong-pressed);
+}
+
+.maximal-button[data-variant="danger"]:hover:not([data-disabled]) {
+  background: var(--maximal-color-bg-danger-strong-hover);
+}
+
+.maximal-button[data-variant="danger"]:active:not([data-disabled]) {
+  background: var(--maximal-color-bg-danger-strong-pressed);
+}
+
+.maximal-button:focus-visible,
+.maximal-control-button:focus-visible,
+.maximal-icon-button:focus-visible,
+.maximal-tab:focus-visible {
+  outline-offset: var(--border-width-thin);
+}
+
+.maximal-icon-button {
+  position: relative;
+  display: inline-flex;
+  width: var(--height-control-compact);
+  height: var(--height-control-compact);
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  color: var(--maximal-color-icon-secondary);
+}
+
+.maximal-icon-button[data-selected],
+.maximal-icon-button[data-variant="toggle"][aria-pressed="true"] {
+  background: var(--maximal-color-bg-selected-quiet);
+}
+
+.maximal-icon-button[data-selected] {
+  color: var(--maximal-color-icon-brand);
+}
+
+.maximal-icon-button[data-variant="toggle"][aria-pressed="true"] {
+  color: var(--maximal-color-icon-secondary);
+}
+
+.maximal-icon-button.maximal-page-controls__visibility,
+.maximal-icon-button.maximal-page-controls__visibility:hover:not([data-disabled]),
+.maximal-icon-button.maximal-page-controls__visibility:active:not([data-disabled]),
+.maximal-icon-button.maximal-page-controls__visibility[data-variant="toggle"][aria-pressed="true"] {
+  background: transparent;
+}
+
+.maximal-icon-button[data-selected]:hover:not([data-disabled]),
+.maximal-icon-button[data-variant="toggle"][aria-pressed="true"]:hover:not([data-disabled]) {
+  background: var(--maximal-color-bg-selected-quiet-hover);
+}
+
+.maximal-icon-button[data-selected]:active:not([data-disabled]),
+.maximal-icon-button[data-variant="toggle"][aria-pressed="true"]:active:not([data-disabled]) {
+  background: var(--maximal-color-bg-selected-quiet-pressed);
+}
+
+.maximal-icon-button[data-variant="grounded"] {
+  background: var(--maximal-color-bg-tertiary);
+  border-color: var(--maximal-color-border-default);
+}

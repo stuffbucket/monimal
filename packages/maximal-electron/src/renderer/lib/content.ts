@@ -58,7 +58,7 @@ export function fill(
 }
 
 /** What the frame and the copy control say. */
-export interface ShellChromeContent {
+interface ShellChromeContent {
   /** The resting label on a copy button. */
   copy: string;
   /** What it says for a moment after copying. */
@@ -66,7 +66,7 @@ export interface ShellChromeContent {
 }
 
 /** What the model catalogue says. */
-export interface ShellModelsContent {
+interface ShellModelsContent {
   empty: string;
   preview: string;
   disabled: string;
@@ -81,7 +81,7 @@ export interface ShellModelsContent {
 }
 
 /** What the API keys surface says. */
-export interface ShellApiKeysContent {
+interface ShellApiKeysContent {
   title: string;
   description: string;
   endpointTitle: string;

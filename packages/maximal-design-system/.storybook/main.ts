@@ -14,15 +14,14 @@ import { storybookManagerHead } from '@maximal/maximal-storybook';
  * capture stills: a tool for looking at things should not gate a pull request.
  * The cost is that a story broken by a refactor rots until someone opens it.
  *
- * Stories sit beside the components they cover, including renderer components
- * owned by adjacent workspace packages. Nothing imports them from a product
- * entry point, so they do not reach a production bundle.
+ * This package keeps its catalog under `stories`; adjacent renderer packages
+ * keep stories beside their components. Product entry points import neither.
  */
 const config: StorybookConfig = {
   stories: [
     '../../maximal-electron/src/renderer/**/*.stories.tsx',
     '../../maximal-harness/src/renderer/**/*.stories.tsx',
-    '../src/**/*.stories.tsx',
+    '../stories/**/*.stories.tsx',
     '../../maximal-client/src/renderer/!(color)/**/*.stories.tsx',
   ],
   addons: [
@@ -42,7 +41,7 @@ const config: StorybookConfig = {
     storybookManagerHead(head, process.env['STORYBOOK_IDENTITY_LABEL']),
   /*
    * The stylesheet mode a run starts in, as a variable rather than only as a
-   * toolbar switch. `scripts/storybook-check.mjs` drives the preview by URL
+   * toolbar switch. `pnpm storybook:check` drives the preview by URL
    * and knows nothing about a global, so this is how a whole check runs
    * against the shipped stylesheet: `STORYBOOK_SHELL_MODE=package npm run
    * storybook:check`. See `shell-mode.ts`.

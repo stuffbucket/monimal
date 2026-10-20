@@ -5,7 +5,7 @@ import { RetainedTabPanels } from './RetainedTabPanels.js';
 type Item = { id: string; body: string };
 
 const meta = {
-  title: 'Components/RetainedTabPanels',
+  title: 'Deprecated/RetainedTabPanels',
   component: RetainedTabPanels<Item>,
   args: {
     items: [{ id: 'one', body: 'First panel' }, { id: 'two', body: 'Second panel' }],

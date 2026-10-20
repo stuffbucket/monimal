@@ -203,6 +203,7 @@
         "LOCALAPPDATA",
         "MAXIMAL_HOME",
         "MAXIMAL_TEST_ROOT",
+        "PLAYWRIGHT_BROWSERS_PATH",
         "USERPROFILE",
         "XDG_CACHE_HOME",
         "XDG_CONFIG_HOME",
@@ -313,6 +314,7 @@
       "dependsOn": ["build"],
       "cache": false,
       "persistent": true,
+      "passThroughEnv": ["MAXIMAL_*", "XDG_CONFIG_HOME"],
       "description": "Build the sidecar, then launch the Maximal desktop app."
     }
   }

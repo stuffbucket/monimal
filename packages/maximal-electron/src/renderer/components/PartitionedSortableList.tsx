@@ -30,7 +30,7 @@ export interface PartitionedSortableItem {
   beforeEnable?: () => boolean | Promise<boolean>;
 }
 
-export interface PartitionedSortableListProps {
+interface PartitionedSortableListProps {
   enabledItems: readonly PartitionedSortableItem[];
   disabledItems: readonly PartitionedSortableItem[];
   disabled?: boolean;

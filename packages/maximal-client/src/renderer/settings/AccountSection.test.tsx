@@ -292,11 +292,12 @@ describe('AccountSection refresh ownership', () => {
     expect(surface.textContent).toContain('Nimble')
     expect(surface.textContent).toContain('Tev1 4B')
     expect(surface.textContent).toContain('Tev1 0.8B')
-    expect(
-      surface.querySelector<HTMLSelectElement>(
-        '[data-testid="system-one-local-provider"]',
-      )?.options,
-    ).toHaveLength(1)
+    const localProvider = surface.querySelector<HTMLElement>(
+      '[data-testid="system-one-local-provider"]',
+    )
+    if (localProvider === null) throw new Error('System One local provider was not rendered')
+    await act(async () => localProvider.click())
+    expect(document.querySelectorAll('[role="option"]')).toHaveLength(1)
     expect(
       surface.querySelector<HTMLElement>(
         '[data-testid="system-one-local-fallback"]',

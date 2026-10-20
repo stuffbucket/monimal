@@ -1,0 +1,143 @@
+:root[data-platform="macos"] .maximal-workspace-shell {
+  border-radius: var(--radius-platform-macos-outer);
+}
+
+.maximal-workspace-shell,
+.maximal-workspace-shell *,
+.maximal-workspace-shell *::before,
+.maximal-workspace-shell *::after {
+  box-sizing: border-box;
+}
+
+:where(.maximal-workspace-shell) :where(button) {
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  background: none;
+  border: 0;
+}
+
+.maximal-workspace-shell {
+  position: relative;
+  display: grid;
+  grid-template:
+    "chrome chrome chrome chrome" var(--height-row-heading)
+    "navigation-bar left-sidebar main right-sidebar" minmax(0, 1fr)
+    / var(--width-navigation-bar) auto minmax(0, 1fr) auto;
+  width: min(100%, var(--width-window-preferred));
+  min-width: var(--width-window-minimum);
+  height: min(
+    var(--height-window-preferred),
+    calc(100vh - (2 * var(--spacer-4)))
+  );
+  min-height: var(--height-window-minimum);
+  overflow: hidden;
+  border-radius: var(--radius-window-outer);
+}
+
+.maximal-workspace-shell-story-frame {
+  position: relative;
+  width: min(100vw, var(--width-window-preferred));
+  min-width: var(--width-window-minimum);
+  height: min(100vh, var(--height-window-preferred));
+  min-height: var(--height-window-minimum);
+  overflow: hidden;
+  resize: both;
+}
+
+.maximal-workspace-shell-story-frame::after {
+  position: absolute;
+  inset-inline-end: var(--spacer-1);
+  inset-block-end: var(--spacer-1);
+  z-index: var(--z-index-resize-affordance);
+  width: var(--spacer-2);
+  height: var(--spacer-2);
+  pointer-events: none;
+  content: "";
+  border-inline-end: var(--border-width-thin) solid
+    var(--maximal-color-border-strong);
+  border-block-end: var(--border-width-thin) solid
+    var(--maximal-color-border-strong);
+}
+
+.maximal-workspace-shell-story-frame > .maximal-workspace-shell {
+  width: 100%;
+  height: 100%;
+}
+
+.maximal-workspace-shell[data-workspace-mode="compact"] {
+  grid-template-columns: 0 0 minmax(0, 1fr) 0;
+}
+
+.maximal-workspace-shell[data-workspace-mode="compact"]
+  .maximal-workspace-shell__navigation-bar {
+  display: none;
+}
+
+.maximal-workspace-shell__navigation-bar {
+  display: flex;
+  grid-area: navigation-bar;
+  flex-direction: column;
+  align-items: center;
+  padding-block: var(--spacer-2);
+  padding-inline: var(--padding-navigation-bar-inline);
+  background: var(--maximal-color-bg-default);
+}
+
+.maximal-workspace-shell__navigation-header,
+.maximal-workspace-shell__navigation-default,
+.maximal-workspace-shell__navigation-footer {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacer-2);
+}
+
+.maximal-workspace-shell__navigation-header::after {
+  width: var(--spacer-3);
+  height: var(--border-width-thin);
+  background: var(--maximal-color-border-default);
+  content: "";
+}
+
+.maximal-workspace-shell__navigation-default {
+  padding-block-start: var(--spacer-2);
+}
+
+.maximal-workspace-shell__navigation-footer {
+  margin-block-start: auto;
+}
+
+.maximal-workspace-shell__navigation-default svg,
+.maximal-workspace-shell__navigation-footer svg {
+  width: var(--icon-size-standard);
+  height: var(--icon-size-standard);
+}
+
+.maximal-workspace-shell__main {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  grid-area: main;
+  background: var(--maximal-color-bg-secondary);
+}
+
+:root .maximal-workspace-shell[data-fill] {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.maximal-workspace-shell[data-fill] .maximal-tabs__chrome {
+  -webkit-app-region: drag;
+}
+
+.maximal-workspace-shell[data-fill] .maximal-tabs__chrome :is(button, [role="tab"], input) {
+  -webkit-app-region: no-drag;
+}

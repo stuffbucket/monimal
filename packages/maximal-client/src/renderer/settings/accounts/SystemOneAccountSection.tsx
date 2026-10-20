@@ -1,17 +1,13 @@
+import { Button, Select, Switch } from '@maximal/maximal-design-system'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type ReactElement } from 'react'
 
 import {
   Banner,
-  Button,
-  FormField,
   PartitionedSortableList,
-  Select,
   SettingsGroup,
   SettingsItem,
   SettingsSection,
-  Switch,
-  TextInput,
   type PartitionedSortableItem,
 } from '@maximal/maximal-electron/renderer'
 import {
@@ -24,6 +20,7 @@ import {
 
 import { describeError } from '../../shared/errors'
 import type { SettingsCapabilities } from '../capabilities'
+import { SettingsTextInput } from '../SettingsTextInput'
 
 const systemOneSettingsQueryKey = ['settings', 'system-one'] as const
 
@@ -97,47 +94,41 @@ function SystemOneSettingsForm({
           title="Calibrated Decisions"
           description="AI system that predicts the probability of an outcome occurring (60% of the time it works every time)"
         >
-          <FormField label="TypeSafe JEV Direct Cloud API key">
-            {(control) => (
-              <span className="settings-credential-field">
-                <span className="settings-credential-input">
-                  <TextInput
-                    {...control}
-                    value={apiKey}
-                    type="password"
-                    placeholder="Enter a TypeSafe API key."
-                    revealLabel="TypeSafe JEV API key"
-                    disabled={saving}
-                    testId="typesafe-jev-api-key"
-                    onChange={setApiKey}
-                  />
-                </span>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  disabled={
-                    saving
-                    || apiKey.trim() === (settings.api_key ?? '')
-                  }
-                  onClick={() => void update({ api_key: apiKey })}
-                >
-                  {saving ? 'Saving…' : 'Save API Key'}
-                </Button>
-                {settings.has_api_key ? (
-                  <Button
-                    size="sm"
-                    disabled={saving}
-                    onClick={() => {
-                      setApiKey('')
-                      void update({ api_key: '' })
-                    }}
-                  >
-                    Remove saved key
-                  </Button>
-                ) : null}
-              </span>
-            )}
-          </FormField>
+          <span className="settings-credential-field">
+            <span className="settings-credential-input">
+              <SettingsTextInput
+                data-testid="typesafe-jev-api-key"
+                disabled={saving}
+                label="TypeSafe JEV Direct Cloud API key"
+                onValueChange={setApiKey}
+                placeholder="Enter a TypeSafe API key."
+                revealLabel="TypeSafe JEV API key"
+                secret
+                value={apiKey}
+              />
+            </span>
+            <Button
+              variant="primary"
+              disabled={
+                saving
+                || apiKey.trim() === (settings.api_key ?? '')
+              }
+              onClick={() => void update({ api_key: apiKey })}
+            >
+              {saving ? 'Saving…' : 'Save API Key'}
+            </Button>
+            {settings.has_api_key ? (
+              <Button
+                disabled={saving}
+                onClick={() => {
+                  setApiKey('')
+                  void update({ api_key: '' })
+                }}
+              >
+                Remove saved key
+              </Button>
+            ) : null}
+          </span>
         </SettingsItem>
         <SettingsItem
           title="Local provider"
@@ -151,10 +142,12 @@ function SystemOneSettingsForm({
               value={settings.local_provider}
               options={providerOptions}
               disabled={saving}
-              aria-label="System One local provider"
-              testId="system-one-local-provider"
-              onChange={(localProvider) =>
+              onValueChange={(localProvider) =>
                 void update({ local_provider: localProvider })}
+              triggerProps={{
+                'aria-label': 'System One local provider',
+                'data-testid': 'system-one-local-provider',
+              }}
             />
           }
         />
@@ -163,12 +156,12 @@ function SystemOneSettingsForm({
           description="If TypeSafe JEV cannot serve a request, try the configured local models in the order below."
           control={
             <Switch
-              label="Fallback to local models"
-              displayLabel={null}
+              aria-label="Fallback to local models"
+              label={null}
               checked={settings.fallback_to_local}
               disabled={saving}
-              testId="system-one-local-fallback"
-              onChange={(fallbackToLocal) =>
+              data-testid="system-one-local-fallback"
+              onCheckedChange={(fallbackToLocal) =>
                 void update({ fallback_to_local: fallbackToLocal })}
             />
           }
@@ -205,43 +198,38 @@ function SystemOneSettingsForm({
               title={MODEL_DETAILS[model].label}
               description={MODEL_DETAILS[model].description}
             >
-              <FormField label={`${MODEL_DETAILS[model].label} download URL`}>
-                {(control) => (
-                  <span className="settings-credential-field">
-                    <span className="settings-credential-input">
-                      <TextInput
-                        {...control}
-                        value={modelDownloadUrls[model]}
-                        placeholder="https://…"
-                        disabled={saving}
-                        testId={`system-one-model-download-url-${model}`}
-                        onChange={(value) =>
-                          setModelDownloadUrls((current) => ({
-                            ...current,
-                            [model]: value,
-                          }))}
-                      />
-                    </span>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      disabled={
-                        saving
-                        || modelDownloadUrls[model]
-                          === settings.model_download_urls[model]
-                      }
-                      onClick={() =>
-                        void update({
-                          model_download_urls: {
-                            [model]: modelDownloadUrls[model],
-                          },
-                        })}
-                    >
-                      {saving ? 'Saving…' : 'Save URL'}
-                    </Button>
-                  </span>
-                )}
-              </FormField>
+              <span className="settings-credential-field">
+                <span className="settings-credential-input">
+                  <SettingsTextInput
+                    data-testid={`system-one-model-download-url-${model}`}
+                    disabled={saving}
+                    label={`${MODEL_DETAILS[model].label} download URL`}
+                    onValueChange={(value) =>
+                      setModelDownloadUrls((current) => ({
+                        ...current,
+                        [model]: value,
+                      }))}
+                    placeholder="https://…"
+                    value={modelDownloadUrls[model]}
+                  />
+                </span>
+                <Button
+                  variant="primary"
+                  disabled={
+                    saving
+                    || modelDownloadUrls[model]
+                      === settings.model_download_urls[model]
+                  }
+                  onClick={() =>
+                    void update({
+                      model_download_urls: {
+                        [model]: modelDownloadUrls[model],
+                      },
+                    })}
+                >
+                  {saving ? 'Saving…' : 'Save URL'}
+                </Button>
+              </span>
             </SettingsItem>
           ))}
         </SettingsGroup>

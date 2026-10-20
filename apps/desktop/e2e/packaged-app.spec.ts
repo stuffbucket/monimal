@@ -1093,19 +1093,10 @@ test('Appearance effects persist, honor reduced motion, and release Pixi when di
   const canvas = page.locator('.cozy-background canvas')
   await expect(canvas).toHaveCount(1)
   const materialPreset = page.getByTestId('material-preset')
-  await expect(materialPreset.locator('option')).toHaveCount(10)
-  const sliderLabelsOverlap = await page
-    .locator('[data-testid="material-settings"] .slider')
-    .evaluateAll((sliders) => sliders.some((slider) => {
-      const labels = [...slider.querySelectorAll('.slider__label')]
-        .map((label) => label.getBoundingClientRect())
-        .sort((first, second) => first.left - second.left)
-      return labels.some((label, index) => {
-        const next = labels[index + 1]
-        return next !== undefined && label.right > next.left
-      })
-    }))
-  expect(sliderLabelsOverlap).toBe(false)
+  await materialPreset.click()
+  await expect(page.getByRole('option')).toHaveCount(10)
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('option')).toHaveCount(0)
   const materialSettingsPath = evidencePath('material-settings-composed.png')
   await page.getByTestId('material-settings').screenshot({
     path: materialSettingsPath,

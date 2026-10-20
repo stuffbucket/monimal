@@ -9,3 +9,5 @@
 - Icon source sheets MUST remain valid SVG and MUST preserve their canonical IDs.
 - Icon source sheets MUST use the `.sheet.svg` suffix so per-glyph canvas checks
   remain scoped to individual icon assets.
+- Runtime glyph components MUST preserve their canonical source ID in
+  `data-icon` and render the source geometry with `currentColor`.

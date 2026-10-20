@@ -1,13 +1,14 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
   "entry": [
-    "src/**/*.stories.tsx",
-    "src/**/*.test.ts",
+    "stories/**/*.stories.tsx",
+    "src/**/*.test.{ts,tsx}",
     "scripts/*.mjs",
     "test/*.test.mjs"
   ],
   "project": [
     ".storybook/**/*.{ts,mdx}",
+    "stories/**/*.{ts,tsx}",
     "src/**/*.{ts,tsx}",
     "scripts/*.mjs",
     "test/*.test.mjs"

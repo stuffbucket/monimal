@@ -1,0 +1,120 @@
+/* One scrollbar for both axes: a transparent track, so no raceway shows over any surface, and a clamped thumb. */
+.maximal-scrollbar {
+  position: absolute;
+  z-index: var(--z-index-raised-content);
+  display: flex;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+/*
+ * Hiding uses the destination state's transition: the bar dwells, then eases
+ * in to hidden. Revealing eases out at once.
+ */
+.maximal-scrollbar,
+.maximal-edge-resizer__thumb {
+  opacity: var(--opacity-hidden);
+  transition: opacity var(--duration-fade) var(--easing-in) var(--duration-dwell);
+}
+
+.maximal-scrollbar[data-overflowing][data-visibility="always"],
+.maximal-scrollbar[data-overflowing][data-revealed],
+.maximal-edge-resizer:hover .maximal-edge-resizer__thumb,
+.maximal-edge-resizer[data-scroll-active] .maximal-edge-resizer__thumb {
+  opacity: var(--opacity-visible);
+  transition: opacity var(--duration-fade) var(--easing-out);
+}
+
+/* The thumb rides the track's outer edge, half a spacer in from the scroller's edge, and grows inward. */
+.maximal-scrollbar[data-orientation="vertical"] {
+  inset-block: var(--spacer-1);
+  inset-inline-end: calc(var(--spacer-1) / 2);
+  width: var(--spacer-2);
+  flex-direction: column;
+}
+
+.maximal-scrollbar[data-orientation="horizontal"] {
+  inset-inline: var(--spacer-1);
+  inset-block-end: calc(var(--spacer-1) / 2);
+  height: var(--spacer-2);
+}
+
+.maximal-scrollbar__thumb {
+  flex: none;
+  background: var(--maximal-color-bg-scrollbar);
+  border-radius: var(--radius-full);
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+  transition-duration: var(--duration-fade);
+  transition-property: width, background-color;
+  transition-timing-function: var(--easing-in);
+}
+
+/* Hovered or dragged, the thumb grows to the full track and darkens. */
+.maximal-scrollbar__thumb[data-hovered],
+.maximal-scrollbar__thumb[data-dragging] {
+  background: var(--maximal-color-bg-scrollbar-hover);
+  transition-timing-function: var(--easing-out);
+}
+
+.maximal-scrollbar[data-orientation="vertical"] .maximal-scrollbar__thumb[data-hovered],
+.maximal-scrollbar[data-orientation="vertical"] .maximal-scrollbar__thumb[data-dragging] {
+  width: var(--spacer-2);
+}
+
+.maximal-scrollbar[data-orientation="horizontal"] .maximal-scrollbar__thumb[data-hovered],
+.maximal-scrollbar[data-orientation="horizontal"] .maximal-scrollbar__thumb[data-dragging] {
+  height: var(--spacer-2);
+}
+
+/* A horizontal thumb's thickness is its height, so that is what eases. */
+.maximal-scrollbar[data-orientation="horizontal"] .maximal-scrollbar__thumb {
+  transition-property: height, background-color;
+}
+
+.maximal-scrollbar__thumb[data-dragging] {
+  cursor: grabbing;
+}
+
+.maximal-scrollbar__thumb:focus-visible {
+  outline-offset: var(--border-width-thin);
+}
+
+.maximal-scrollbar:not([data-overflowing]) .maximal-scrollbar__thumb {
+  visibility: hidden;
+}
+
+.maximal-scrollbar[data-orientation="vertical"] .maximal-scrollbar__thumb,
+.maximal-edge-resizer[data-edge="left"] .maximal-scrollbar__thumb,
+.maximal-edge-resizer[data-edge="right"] .maximal-scrollbar__thumb {
+  width: var(--spacer-1);
+  min-height: var(--height-control-compact);
+  max-height: var(--height-row-heading);
+}
+
+.maximal-scrollbar[data-orientation="horizontal"] .maximal-scrollbar__thumb,
+.maximal-edge-resizer[data-edge="top"] .maximal-scrollbar__thumb,
+.maximal-edge-resizer[data-edge="bottom"] .maximal-scrollbar__thumb {
+  height: var(--spacer-1);
+  min-width: var(--height-control-compact);
+  max-width: var(--height-row-heading);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .maximal-scrollbar,
+  .maximal-edge-resizer__thumb,
+  .maximal-scrollbar[data-overflowing][data-visibility="always"],
+  .maximal-scrollbar[data-overflowing][data-revealed],
+  .maximal-edge-resizer:hover .maximal-edge-resizer__thumb,
+  .maximal-edge-resizer[data-scroll-active] .maximal-edge-resizer__thumb,
+  .maximal-scrollbar[data-orientation] .maximal-scrollbar__thumb {
+    transition: none;
+  }
+}
+
+/* A menu's scrollbar runs between its overflow rows and keeps its inset inside the menu's border. */
+.maximal-popup-positioner > .maximal-scrollbar[data-orientation="vertical"] {
+  inset-block: var(--height-control-compact);
+  inset-inline-end: calc(var(--spacer-1) / 2 + var(--border-width-thin));
+}

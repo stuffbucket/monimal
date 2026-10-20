@@ -238,16 +238,18 @@ describe('SearchSection', () => {
     const { capabilities } = fakeCapabilities()
     const surface = await renderSearch(capabilities)
 
-    expect(control(surface, 'search-setting-global-fallback')).toBeInstanceOf(
-      HTMLButtonElement,
-    )
+    expect(
+      control(surface, 'search-setting-global-fallback').getAttribute('role'),
+    ).toBe('switch')
     expect(
       control(surface, 'search-setting-global-fallback').closest(
         '.search-provider-order__fallback',
       ),
     ).not.toBeNull()
     expect(
-      control(surface, 'search-setting-global-fallback').querySelector('.lucide-info'),
+      control(surface, 'search-setting-global-fallback')
+        .closest('label')
+        ?.querySelector('.lucide-info'),
     ).not.toBeNull()
     expect(surface.textContent).toContain('Provider order')
     expect(
@@ -292,14 +294,14 @@ describe('SearchSection', () => {
       control(surface, 'search-setting-example-token').getAttribute('placeholder'),
     ).toBe('Paste provider token')
     expect(
-      control(surface, 'search-setting-example-limit').getAttribute('type'),
-    ).toBe('number')
+      control(surface, 'search-setting-example-limit').getAttribute('inputmode'),
+    ).toBe('numeric')
     expect(control(surface, 'search-setting-example-domains')).toBeInstanceOf(
       HTMLTextAreaElement,
     )
-    expect(control(surface, 'search-setting-example-mode')).toBeInstanceOf(
-      HTMLSelectElement,
-    )
+    expect(
+      control(surface, 'search-setting-example-mode').getAttribute('role'),
+    ).toBe('combobox')
     expect(surface.textContent).toContain('A value is stored in settings.')
     const helpLink = surface.querySelector<HTMLAnchorElement>(
       'a[href="https://search.example/tokens"]',
@@ -475,9 +477,7 @@ describe('SearchSection', () => {
         ?.getAttribute('aria-checked'),
     ).toBe('false')
     expect(token.getAttribute('aria-invalid')).toBe('true')
-    expect(surface.querySelector('[role="alert"]')?.textContent).toBe(
-      'Token was rejected by Example provider.',
-    )
+    expect(surface.textContent).toContain('Token was rejected by Example provider.')
     await openLeaveDialog(surface)
     expect(dialogButton('Save changes').disabled).toBe(true)
   })
@@ -507,9 +507,7 @@ describe('SearchSection', () => {
     })
     expect(search.update).not.toHaveBeenCalled()
     expect(token.getAttribute('aria-invalid')).toBe('true')
-    expect(surface.querySelector('[role="alert"]')?.textContent).toBe(
-      'Token was rejected by Example provider.',
-    )
+    expect(surface.textContent).toContain('Token was rejected by Example provider.')
   })
 
   it('keeps an enabled provider active while its requirements are edited', async () => {

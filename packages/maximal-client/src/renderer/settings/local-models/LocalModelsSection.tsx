@@ -1,6 +1,7 @@
+import { Button } from "@maximal/maximal-design-system"
 import { useCallback, useState, type ReactElement } from "react";
 
-import { Banner, Button } from "@maximal/maximal-electron/renderer";
+import { Banner } from "@maximal/maximal-electron/renderer";
 
 import type { SettingsCapabilities } from "../capabilities";
 

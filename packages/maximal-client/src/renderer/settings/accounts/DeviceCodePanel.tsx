@@ -1,6 +1,7 @@
+import { Button } from '@maximal/maximal-design-system'
 import { useEffect, useState, type ReactElement } from 'react'
 
-import { Button, Note } from '@maximal/maximal-electron/renderer'
+import { Note } from '@maximal/maximal-electron/renderer'
 
 import { spellOutCode } from '../../shared/device-code'
 import { hasExpired, minutesRemaining } from '../../shared/expiry'

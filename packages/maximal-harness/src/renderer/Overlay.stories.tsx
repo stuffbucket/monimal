@@ -2,7 +2,6 @@ import { useEffect, type ReactNode } from 'react';
 
 import type {
   AgentApprovalRequest,
-  AgentEnd,
   AgentModelOption,
   AgentToolEvent,
   AssistantOverlayPreferences,
@@ -87,7 +86,13 @@ function storyTransport(
   status: ProviderStatus,
   events: InitialEvents = {},
 ): HarnessTransport {
+  const runId = 'storybook-initial-run';
+  const initialDownload = events.modelProgress && status.state === 'needs-model'
+    ? { downloadId: 'storybook-download', model: status.model }
+    : undefined;
   return {
+    initialRunId: runId,
+    ...(initialDownload ? { initialDownload } : {}),
     hide: () => Promise.resolve(),
     provider: () => Promise.resolve(status),
     selectModel: (modelKey) => {
@@ -106,11 +111,18 @@ function storyTransport(
     selectEffort: (effort) => Promise.resolve(
       status.state === 'ready' ? { ...status, effort } : status,
     ),
-    ask: () => Promise.resolve({ started: true, chatId: 'storybook-chat' }),
+    ask: (_prompt, requestedRunId) => Promise.resolve({
+      started: true,
+      chatId: 'storybook-chat',
+      runId: requestedRunId,
+    }),
     steer: () => Promise.resolve(true),
     abort: () => Promise.resolve(),
     approve: () => Promise.resolve(),
-    ensureModel: () => Promise.resolve({ state: 'ready' }),
+    ensureModel: (request) => Promise.resolve({
+      ...request,
+      progress: { state: 'ready' },
+    }),
     preferences: () => Promise.resolve(PREFERENCES),
     updatePreferences: (update) => Promise.resolve({ ...PREFERENCES, ...update }),
     chats: {
@@ -122,13 +134,19 @@ function storyTransport(
       messages: () => Promise.resolve([]),
       terminal: () => Promise.resolve({}),
     },
-    onDelta: subscription(events.delta ? [events.delta] : []),
-    onTool: subscription(events.tools ?? []),
-    onApproval: subscription(events.approval ? [events.approval] : []),
-    onEnd: subscription<AgentEnd>([]),
-    onModelProgress: subscription(
-      events.modelProgress ? [events.modelProgress] : [],
+    onDelta: subscription(events.delta ? [{ runId, text: events.delta }] : []),
+    onTool: subscription((events.tools ?? []).map((event) => ({ runId, ...event }))),
+    onApproval: subscription(
+      events.approval ? [{ runId, ...events.approval }] : [],
     ),
+    onEnd: subscription([]),
+    onModelProgress: subscription(events.modelProgress
+      ? [{
+          downloadId: initialDownload?.downloadId ?? 'storybook-download',
+          model: status.state === 'needs-model' ? status.model : 'storybook-model',
+          progress: events.modelProgress,
+        }]
+      : []),
     onShown: subscription<void>([]),
     onDismissRequested: subscription<void>([]),
     onPreferences: subscription<AssistantOverlayPreferences>([]),
@@ -176,7 +194,7 @@ function requireElement(document: Document, selector: string): HTMLElement {
 }
 
 const meta = {
-  title: 'Assistant/Overlay',
+  title: 'Assistant/Composite',
   component: Overlay,
   parameters: {
     layout: 'fullscreen',
@@ -216,7 +234,7 @@ export const ModelSelection: Story = {
     await eventually(() => {
       const document = page(context);
       const menu = requireElement(document, '[data-testid="overlay-model-menu"]');
-      if (menu.querySelectorAll('[role="option"]').length !== MODELS.length) {
+      if (menu.querySelectorAll('[role="menuitem"]').length !== MODELS.length) {
         throw new Error('Model picker does not show every available model');
       }
     });
@@ -266,8 +284,7 @@ export const Approval: Story = {
         throw new Error('Approval does not identify the requested tool');
       }
       if (!document.querySelector('[data-testid="overlay-deny"]') ||
-          !document.querySelector('[data-testid="overlay-allow"]') ||
-          !document.querySelector('[data-testid="overlay-allow-always"]')) {
+          !document.querySelector('[data-testid="overlay-allow"]')) {
         throw new Error('Approval actions are incomplete');
       }
     });

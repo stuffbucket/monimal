@@ -12,7 +12,7 @@ import {
   type ReactNode,
 } from 'react';
 
-export interface StatusProps {
+interface StatusProps {
   id: string;
   children: ReactNode;
   dismissible?: boolean;

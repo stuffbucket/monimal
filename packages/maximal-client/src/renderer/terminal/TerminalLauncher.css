@@ -1,0 +1,22 @@
+.terminal-launcher {
+  width: min(520px, calc(100vw - (2 * var(--spacer-4))));
+}
+
+.terminal-launcher__secondary {
+  color: var(--maximal-color-text-secondary);
+  font: var(--body-small);
+}
+
+.terminal-launcher__unavailable {
+  display: grid;
+  gap: var(--spacer-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.terminal-launcher__unavailable li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--spacer-3);
+}

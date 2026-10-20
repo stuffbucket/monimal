@@ -24,13 +24,13 @@ import {
 } from './SpatialCanvasChrome.js';
 
 const meta = {
-  title: 'Canvas/SpatialCanvas',
+  title: 'Deprecated/SpatialCanvas',
   component: SpatialCanvas,
   parameters: {
     docs: {
       description: {
         component:
-          'Low-level canvas composition and geometry examples. Cursor behavior and multiplayer cursor states are documented separately under Controls/Cursor.',
+          'Low-level canvas composition and geometry examples. Cursor behavior and multiplayer cursor states are documented separately under Deprecated/Cursor.',
       },
     },
   },

@@ -21,6 +21,10 @@ const SETTINGS_CSS = `
 
 /* The rail. Its own rules rather than the shell's .nav class, which belongs to
    NavRail and carries a selection model this rail does not have. */
+.settings-rail__scroll {
+  height: 100%;
+}
+
 .settings-rail {
   display: flex;
   flex-direction: column;
@@ -1759,7 +1763,8 @@ const SETTINGS_CSS = `
   flex-wrap: wrap;
 }
 
-.settings-credential-field .input-shell {
+.settings-credential-field .input-shell,
+.settings-credential-field .maximal-text-input {
   min-width: min(100%, 16rem);
   flex: 1;
 }
@@ -1770,11 +1775,13 @@ const SETTINGS_CSS = `
   flex: 1 1 24rem;
 }
 
-.settings-credential-field > .btn {
+.settings-credential-field > .btn,
+.settings-credential-field > .maximal-button {
   flex-shrink: 0;
 }
 
-.settings-credential-input .input-shell {
+.settings-credential-input .input-shell,
+.settings-credential-input .maximal-text-input {
   min-width: 0;
   width: 100%;
 }
@@ -1816,6 +1823,20 @@ const SETTINGS_CSS = `
 .settings-list__meta,
 .settings-list__detail {
   color: var(--maximal-color-text-tertiary, #8f97a2);
+  font-size: var(--shell-text-sm, 0.9em);
+}
+
+.control-notes {
+  display: grid;
+  gap: var(--shell-space-1, 4px);
+}
+
+.control-notes > p {
+  margin: 0;
+}
+
+.control-notes__error {
+  color: var(--maximal-color-text-danger);
   font-size: var(--shell-text-sm, 0.9em);
 }
 

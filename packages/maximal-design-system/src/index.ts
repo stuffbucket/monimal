@@ -1,3 +1,7 @@
 export * from './color/index'
+export * from './components/index'
+export * from './compositions/index'
 export * from './icons/index'
+export * from './primitives/index'
 export * from './theme'
+export * from './utilities/index'

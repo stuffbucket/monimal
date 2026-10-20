@@ -1,8 +1,4 @@
-import {
-  Select,
-  Slider,
-  Switch,
-} from '@maximal/maximal-electron/renderer'
+import { Select, Slider, Switch } from '@maximal/maximal-design-system'
 import {
   DEFAULT_TERMINAL_PALETTE_SETTINGS,
   resolveTerminalAppearance,
@@ -44,59 +40,46 @@ const ANSI_COLOURS: Array<[keyof TerminalPalette, string]> = [
   ['brightCyan', 'Bright cyan'], ['brightWhite', 'Bright white'],
 ]
 
-function options(
-  minimum: number,
-  maximum: number,
-  step: number,
-  label: (value: number) => string,
-): ReadonlyArray<{ value: number; label: string }> {
-  const count = Math.round((maximum - minimum) / step)
-  return Array.from({ length: count + 1 }, (_, index) => {
-    const value = Number((minimum + (index * step)).toFixed(4))
-    return { value, label: label(value) }
-  })
+/** A bounded numeric range and how the design-system slider displays its value. */
+interface SliderRange {
+  min: number
+  max: number
+  step: number
+  format?: Intl.NumberFormatOptions
 }
+
+const PERCENT: Intl.NumberFormatOptions = { style: 'percent' }
 
 function PaletteSlider({
   title,
-  label,
   value,
-  values,
+  range,
   disabled,
   testId,
   onPreview,
   onCommit,
 }: {
   title: string
-  label: string
   value: number
-  values: ReadonlyArray<{ value: number; label: string }>
+  range: SliderRange
   disabled?: boolean
   testId: string
   onPreview: (value: number) => void
   onCommit: (value: number) => void
 }): ReactElement {
-  const selected = values.reduce((closest, option) =>
-    Math.abs(option.value - value) < Math.abs(closest.value - value)
-      ? option
-      : closest)
   return (
     <div className="terminal-palette-field" data-disabled={disabled || undefined}>
-      <div className="terminal-palette-field__heading">
-        <span>{title}</span>
-        <output>{selected.label}</output>
-      </div>
       <Slider
-        label={label}
+        label={title}
         value={value}
-        options={values}
+        min={range.min}
+        max={range.max}
+        step={range.step}
+        format={range.format}
         disabled={disabled}
-        showLabels={false}
-        showDetents={false}
-        directionalSnap
-        onChange={onPreview}
-        onCommit={onCommit}
-        testId={testId}
+        data-testid={testId}
+        onValueChange={onPreview}
+        onValueCommitted={onCommit}
       />
     </div>
   )
@@ -223,28 +206,32 @@ export function TerminalPaletteControls({
         <label>
           <span>Terminal mode</span>
           <Select
-            aria-label="Terminal color mode"
             value={palette.mode}
             options={MODE_OPTIONS}
-            onChange={(mode) => {
+            onValueChange={(mode) => {
               if (validMode(mode)) onUpdate(patchPalette({ mode }))
             }}
-            testId="terminal-color-mode"
+            triggerProps={{
+              'aria-label': 'Terminal color mode',
+              'data-testid': 'terminal-color-mode',
+            }}
           />
         </label>
         <label>
           <span>Edit palette</span>
           <Select
-            aria-label="Palette to edit"
             value={editing}
             options={[
               { value: 'light', label: 'Light palette' },
               { value: 'dark', label: 'Dark palette' },
             ]}
-            onChange={(value) => {
+            onValueChange={(value) => {
               if (value === 'light' || value === 'dark') setEditing(value)
             }}
-            testId="terminal-palette-editing"
+            triggerProps={{
+              'aria-label': 'Palette to edit',
+              'data-testid': 'terminal-palette-editing',
+            }}
           />
         </label>
       </div>
@@ -307,18 +294,16 @@ export function TerminalPaletteControls({
         <div className="terminal-palette-effects__grid">
           <PaletteSlider
             title="Opacity"
-            label="Terminal background opacity"
             value={palette.effects.opacity}
-            values={options(0, 1, 0.01, (value) => `${String(Math.round(value * 100))}%`)}
+            range={{ min: 0, max: 1, step: 0.01, format: PERCENT }}
             testId="terminal-background-opacity"
             onPreview={(opacity) => onPreview(patchEffects({ opacity }))}
             onCommit={(opacity) => onUpdate(patchEffects({ opacity }))}
           />
           <PaletteSlider
             title="Blur"
-            label="Terminal backdrop blur"
             value={palette.effects.blur}
-            values={options(0, 64, 1, (value) => `${String(value)} px`)}
+            range={{ min: 0, max: 64, step: 1 }}
             testId="terminal-background-blur"
             onPreview={(blur) => onPreview(patchEffects({ blur }))}
             onCommit={(blur) => onUpdate(patchEffects({ blur }))}
@@ -333,40 +318,39 @@ export function TerminalPaletteControls({
               testId="terminal-window-tint"
             />
             <Select
-              aria-label="Terminal tint blend mode"
               value={palette.effects.blendMode}
               options={BLEND_OPTIONS}
-              onChange={(blendMode) => {
+              onValueChange={(blendMode) => {
                 if (validBlend(blendMode)) {
                   onUpdate(patchEffects({ blendMode }))
                 }
               }}
-              testId="terminal-tint-blend-mode"
+              triggerProps={{
+                'aria-label': 'Terminal tint blend mode',
+                'data-testid': 'terminal-tint-blend-mode',
+              }}
             />
           </div>
           <PaletteSlider
             title="Tint amount"
-            label="Terminal tint amount"
             value={palette.effects.tintAmount}
-            values={options(0, 1, 0.01, (value) => `${String(Math.round(value * 100))}%`)}
+            range={{ min: 0, max: 1, step: 0.01, format: PERCENT }}
             testId="terminal-tint-amount"
             onPreview={(tintAmount) => onPreview(patchEffects({ tintAmount }))}
             onCommit={(tintAmount) => onUpdate(patchEffects({ tintAmount }))}
           />
           <PaletteSlider
             title="Tone"
-            label="Terminal tone"
             value={palette.effects.tone}
-            values={options(-1, 1, 0.01, (value) => `${value > 0 ? '+' : ''}${String(Math.round(value * 100))}%`)}
+            range={{ min: -1, max: 1, step: 0.01, format: { ...PERCENT, signDisplay: 'exceptZero' } }}
             testId="terminal-tone"
             onPreview={(tone) => onPreview(patchEffects({ tone }))}
             onCommit={(tone) => onUpdate(patchEffects({ tone }))}
           />
           <PaletteSlider
             title="Minimum contrast"
-            label="Terminal minimum contrast"
             value={palette.minimumContrast}
-            values={options(1, 21, 0.25, (value) => value === 1 ? 'Off' : `${String(value)}:1`)}
+            range={{ min: 1, max: 21, step: 0.25 }}
             disabled={!palette.effects.compensate}
             testId="terminal-minimum-contrast"
             onPreview={(minimumContrast) => onPreview(patchPalette({ minimumContrast }))}
@@ -380,11 +364,11 @@ export function TerminalPaletteControls({
               <small>Lift text and ANSI colors against the composited window.</small>
             </span>
             <Switch
-              label="Compensate terminal palette contrast"
-              displayLabel={null}
+              aria-label="Compensate terminal palette contrast"
+              label={null}
               checked={palette.effects.compensate}
-              onChange={(compensate) => onUpdate(patchEffects({ compensate }))}
-              testId="terminal-palette-compensate"
+              onCheckedChange={(compensate) => onUpdate(patchEffects({ compensate }))}
+              data-testid="terminal-palette-compensate"
             />
           </label>
           <label>
@@ -393,11 +377,11 @@ export function TerminalPaletteControls({
               <small>Write adjustments into palette colors instead of a window layer.</small>
             </span>
             <Switch
-              label="Stamp tint and tone into terminal palette"
-              displayLabel={null}
+              aria-label="Stamp tint and tone into terminal palette"
+              label={null}
               checked={palette.effects.stamp}
-              onChange={(stamp) => onUpdate(patchEffects({ stamp }))}
-              testId="terminal-palette-stamp"
+              onCheckedChange={(stamp) => onUpdate(patchEffects({ stamp }))}
+              data-testid="terminal-palette-stamp"
             />
           </label>
         </div>

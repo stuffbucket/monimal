@@ -6,7 +6,14 @@
  * lastSeenAt instead of duplicating, and humanizeUserAgent fallback.
  */
 
-import { afterEach, beforeEach, describe, expect, test } from "bun:test"
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  setSystemTime,
+  test,
+} from "bun:test"
 
 import {
   __resetActiveClientsForTests,
@@ -25,6 +32,7 @@ beforeEach(() => {
 // the last-declared test happening to record nothing, which `bun test
 // --randomize` does not preserve.
 afterEach(() => {
+  setSystemTime()
   __resetActiveClientsForTests()
 })
 
@@ -42,14 +50,15 @@ describe("recordClient / listActiveClients", () => {
     expect(out[0].ageSeconds).toBeLessThanOrEqual(1)
   })
 
-  test("entries older than maxAgeSeconds are excluded", async () => {
+  test("entries older than maxAgeSeconds are excluded", () => {
+    const recordedAt = new Date("2026-01-01T00:00:00.000Z")
+    setSystemTime(recordedAt)
     recordClient({
       apiKeyId: null,
       apiKeyLabel: null,
       userAgent: "Cline/0.5",
     })
-    // Wait 1.1s so the entry is older than maxAgeSeconds=1 below.
-    await new Promise((r) => setTimeout(r, 1100))
+    setSystemTime(new Date(recordedAt.getTime() + 1100))
     expect(listActiveClients(1).length).toBe(0)
     expect(listActiveClients(60).length).toBe(1)
   })

@@ -16,7 +16,7 @@ import { Dialog, Menu } from './Overlays.js';
  * lived for one run.
  */
 const meta = {
-  title: 'Controls/Dialog',
+  title: 'Deprecated/Dialog',
   component: Dialog,
   args: {
     title: 'Delete this project',

@@ -67,6 +67,7 @@ const CHAT_LEASE_TTL_MS = 30_000
 const CHAT_LEASE_RENEW_MS = 10_000
 const askRequest = z.object({
   prompt: z.string().trim().min(1),
+  runId: z.string().trim().min(1).max(200),
   chatId: z.string().min(1).optional(),
   attachments: z.array(z.object({
     name: z.string().trim().min(1).max(255),
@@ -95,9 +96,14 @@ const overlayAnchorSchema = z.object({
 })
 type OverlayAnchor = z.infer<typeof overlayAnchorSchema>
 const approvalRequest = z.object({
+  runId: z.string().trim().min(1).max(200),
   id: z.string().min(1),
   allow: z.boolean(),
   remember: z.boolean(),
+})
+const modelDownloadRequest = z.object({
+  downloadId: z.string().trim().min(1).max(200),
+  model: z.string().trim().min(1).max(1_000),
 })
 const overlayPreferencesUpdate = z.object({
   candy: z.boolean().optional(),
@@ -139,6 +145,7 @@ let anchorMoved = false
 let preferenceLoadGeneration = 0
 let summonOnStart = false
 let chats: AssistantChatStore | undefined
+let activeRendererRunId: string | undefined
 
 function chatStore(): AssistantChatStore {
   if (!chats) throw new Error('Assistant chat storage is not available.')
@@ -298,7 +305,12 @@ function registerIpc(applicationWindow?: () => BrowserWindow | null): void {
   )
   ipcMain.handle(BRIDGE_CHANNELS.harnessAsk, (event, input: unknown): AskAccepted => {
     owner(event)
-    const { prompt, chatId: requestedChatId, attachments = [] } = askRequest.parse(input)
+    const {
+      prompt,
+      runId,
+      chatId: requestedChatId,
+      attachments = [],
+    } = askRequest.parse(input)
     if (isAgentBusy()) return { started: false, reason: 'Already working on the previous request.' }
     const conversation = requestedChatId
       ? chatStore().open(requestedChatId)
@@ -317,16 +329,19 @@ function registerIpc(applicationWindow?: () => BrowserWindow | null): void {
       chatStore().renew(conversation.id, MAIN_CHAT_OWNER, CHAT_LEASE_TTL_MS)
     }, CHAT_LEASE_RENEW_MS)
     leaseTimer.unref()
+    activeRendererRunId = runId
 
     void runAgent(prompt, {
       onDelta: (text) => {
         answer += text
-        send(BRIDGE_CHANNELS.harnessDelta, { text })
+        send(BRIDGE_CHANNELS.harnessDelta, { runId, text })
       },
       onTool: (id, name, phase, isError) =>
-        send(BRIDGE_CHANNELS.harnessTool, { id, name, phase, isError }),
-      onApproval: (request) => send(BRIDGE_CHANNELS.harnessApproval, request),
+        send(BRIDGE_CHANNELS.harnessTool, { runId, id, name, phase, isError }),
+      onApproval: (request) =>
+        send(BRIDGE_CHANNELS.harnessApproval, { runId, ...request }),
       onEnd: (result) => {
+        if (activeRendererRunId === runId) activeRendererRunId = undefined
         clearInterval(leaseTimer)
         chatStore().release(conversation.id, MAIN_CHAT_OWNER)
         if (answer) chatStore().append(conversation.id, 'assistant', answer)
@@ -336,7 +351,7 @@ function registerIpc(applicationWindow?: () => BrowserWindow | null): void {
           chatStore().update(conversation.id, { attention: 'unread' })
         }
         broadcastChatsChanged()
-        send(BRIDGE_CHANNELS.harnessEnd, result)
+        send(BRIDGE_CHANNELS.harnessEnd, { runId, result })
       },
     }, {
       initialMessages,
@@ -352,7 +367,7 @@ function registerIpc(applicationWindow?: () => BrowserWindow | null): void {
         chatStore().saveAgentState(conversation.id, { version: 1, messages })
       }
     })
-    return { started: true, chatId: conversation.id }
+    return { started: true, chatId: conversation.id, runId }
   })
   ipcMain.handle(BRIDGE_CHANNELS.harnessSteer, (event, input: unknown) => {
     owner(event)
@@ -370,12 +385,20 @@ function registerIpc(applicationWindow?: () => BrowserWindow | null): void {
   })
   ipcMain.handle(BRIDGE_CHANNELS.harnessApprove, (event, input: unknown) => {
     owner(event)
-    resolveApproval(approvalRequest.parse(input))
+    const { runId, ...request } = approvalRequest.parse(input)
+    if (runId !== activeRendererRunId) {
+      throw new Error('The approval does not belong to the active assistant run.')
+    }
+    resolveApproval(request)
   })
-  ipcMain.handle(BRIDGE_CHANNELS.harnessEnsureModel, async (event) => {
+  ipcMain.handle(BRIDGE_CHANNELS.harnessEnsureModel, async (event, input: unknown) => {
     owner(event)
+    const request = modelDownloadRequest.parse(input)
     const progress = await ensureModel((next) =>
-      send(BRIDGE_CHANNELS.harnessModelProgress, next),
+      send(BRIDGE_CHANNELS.harnessModelProgress, {
+        ...request,
+        progress: next,
+      }),
     )
     if (progress.state === 'ready') {
       const selected = await selectAgentModel(
@@ -386,7 +409,7 @@ function registerIpc(applicationWindow?: () => BrowserWindow | null): void {
       }
       await updateUserPreferences({ agentModel: selected.modelKey })
     }
-    return progress
+    return { ...request, progress }
   })
   ipcMain.handle(BRIDGE_CHANNELS.harnessPreferences, () =>
     overlayPreferences(),
@@ -594,6 +617,7 @@ export async function stopHarnessHost(): Promise<void> {
   quickAccessOwner = undefined
   panel?.destroy()
   panel = undefined
+  activeRendererRunId = undefined
   summonOnStart = false
   activationAllowed = () => true
   await shutdownAgent()

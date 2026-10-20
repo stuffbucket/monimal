@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export interface RetainedTabPanelsProps<Item extends { id: string }> {
+interface RetainedTabPanelsProps<Item extends { id: string }> {
   items: readonly Item[];
   activeId: string;
   renderPanel: (item: Item) => ReactNode;

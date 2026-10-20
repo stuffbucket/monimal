@@ -175,6 +175,40 @@ body {
   display: grid;
   gap: var(--shell-space-3, 12px);
 }
+
+.ui-mode-strip {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 2;
+  display: flex;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--shell-space-2, 8px);
+  color: var(--maximal-color-text-secondary);
+  font: var(--shell-font);
+  font-size: 12px;
+  background: var(--maximal-color-bg-secondary);
+  border-bottom: 1px solid var(--maximal-color-border-default);
+  -webkit-app-region: drag;
+}
+
+.ui-mode-strip button {
+  padding: 0 var(--shell-space-2, 8px);
+  color: var(--maximal-color-text-default);
+  font: inherit;
+  background: transparent;
+  border: 1px solid var(--maximal-color-border-default);
+  border-radius: 999px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+.ui-mode-strip__frame[data-active] {
+  --shell-position: absolute;
+  position: fixed;
+  inset: 28px 0 0;
+}
 `
 
 const BASE_STYLE_ID = 'maximal-base'

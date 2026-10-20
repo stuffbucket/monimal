@@ -6,7 +6,7 @@ import { Button } from './Button.js';
 import { UnsavedChangesDialog } from './UnsavedChangesDialog.js';
 
 const meta = {
-  title: 'Controls/UnsavedChangesDialog',
+  title: 'Deprecated/UnsavedChangesDialog',
   component: UnsavedChangesDialog,
   args: {
     open: false,

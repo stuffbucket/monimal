@@ -25,8 +25,13 @@ menu-bar/tray affordances, it is stale — do not follow it.**
 ## The Electron client's design system
 
 Compose primitives from `@maximal/maximal-electron/renderer` rather than
-hand-rolling equivalents: `ShellLayout`, `NavRail`, `Canvas`, `TabBar`,
-`TerminalView`, `TitleBar`, `IconButton`, and the tab-adornment vocabulary.
+hand-rolling equivalents: `AppFrame`, `Workbar`, `TerminalTabs`, the
+`SpatialCanvas*` family, and the settings surfaces.
+
+Form controls (`Switch`, `Checkbox`, `Select`, `Slider`, `NumberInput`,
+`TextInput`, `Field`, `PropertyList`/`Property`) MUST come from
+`@maximal/maximal-design-system`. Hint and error text for a control without a
+description slot MUST use `ControlNotes` in `src/renderer/settings`.
 
 Styling goes through that package's `--shell-*` custom properties, imported via
 `@maximal/maximal-electron/renderer/styles.css`. **The package ships no palette by

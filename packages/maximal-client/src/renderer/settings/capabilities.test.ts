@@ -6,6 +6,7 @@ import {
   type SearchSettingsResponse,
   type TokenUsagePeriod,
 } from '@maximal/maximal-core-contract/settings'
+import type { ModelDownloadRequest } from '@maximal/maximal-harness'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type {
@@ -192,6 +193,10 @@ function fakeBridge(): MaximalHost {
       get: vi.fn(async () => ({ dismissed: false })),
       setDismissed: vi.fn(async (dismissed: boolean) => ({ dismissed })),
     },
+    uiMode: {
+      get: vi.fn(async () => ({ mode: 'legacy' as const, switchable: false })),
+      set: vi.fn(async () => undefined),
+    },
     appearance: {
       get: vi.fn(async () => ({
         vibrancyEnabled: false,
@@ -289,11 +294,18 @@ function fakeBridge(): MaximalHost {
       provider: vi.fn(async () => ({ state: 'probing' as const })),
       selectModel: vi.fn(async () => ({ state: 'probing' as const })),
       selectEffort: vi.fn(async () => ({ state: 'probing' as const })),
-      ask: vi.fn(async () => ({ started: true as const, chatId: 'chat-1' })),
+      ask: vi.fn(async (_prompt: string, runId: string) => ({
+        started: true as const,
+        chatId: 'chat-1',
+        runId,
+      })),
       steer: vi.fn(async () => true),
       abort: vi.fn(async () => {}),
       approve: vi.fn(async () => {}),
-      ensureModel: vi.fn(async () => ({ state: 'absent' as const })),
+      ensureModel: vi.fn(async (request: ModelDownloadRequest) => ({
+        ...request,
+        progress: { state: 'absent' as const },
+      })),
       preferences: vi.fn(async () => ({
         candy: true,
         approval: 'writes' as const,

@@ -55,7 +55,7 @@ function KeysStory({
 }
 
 const meta = {
-  title: 'Settings/ApiKeysDialog',
+  title: 'Deprecated/ApiKeysDialog',
   component: KeysStory,
   args: { clients: SAMPLE_CLIENTS, withEndpoint: true },
   parameters: { layout: 'fullscreen' },

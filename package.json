@@ -15,6 +15,8 @@
     "storybook:stop": "pnpm --filter @maximal/maximal-design-system run storybook:stop",
     "storybook:build": "turbo run storybook:build --filter=@maximal/maximal-design-system",
     "storybook:check": "turbo run storybook:check --filter=@maximal/maximal-design-system",
+    "pulse": "node --experimental-strip-types packages/maximal-design-system-tools/bin/state-machine.mts",
+    "state-machine": "pnpm run pulse",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",

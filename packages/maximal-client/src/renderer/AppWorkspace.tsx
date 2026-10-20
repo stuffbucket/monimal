@@ -1,3 +1,4 @@
+import { Button, Dialog, TextInput } from '@maximal/maximal-design-system'
 import {
   useCallback,
   useEffect,
@@ -10,10 +11,7 @@ import { BrowserSurface } from '@maximal/maximal-browser/renderer'
 import { ContextWindowInspector } from '@maximal/maximal-observability'
 import { terminalPaneSessionIds } from '@maximal/maximal-terminal/renderer'
 import {
-  Button,
-  Dialog,
   TAB_COLORS,
-  TextInput,
   moveTabBefore,
   type Account,
   type SettingsSurface,
@@ -47,6 +45,7 @@ import { Traffic } from './traffic/Traffic'
 import type { TerminalTabsState } from './useTerminalTabs'
 import { ProjectBrowser } from './projects/ProjectBrowser'
 import { useProjectWindowTransfer } from './projects/window-transfer'
+import { shellOverlayContainer } from './shell-overlay-container'
 
 interface AppWorkspaceProps {
   detachedWindow?: DetachedTerminal
@@ -176,8 +175,8 @@ function TerminalDialogs({ terminalState }: { terminalState: TerminalTabsState }
           if (!open) terminalState.setRenameState(undefined)
         }}
         title="Rename terminal tab"
-        className="dialog"
-        testId="rename-terminal-tab"
+        popupProps={{ 'data-testid': 'rename-terminal-tab' }}
+        container={shellOverlayContainer}
       >
         <form
           onSubmit={(event) => {
@@ -192,9 +191,11 @@ function TerminalDialogs({ terminalState }: { terminalState: TerminalTabsState }
         >
           <TextInput
             aria-label="Terminal tab name"
+            label="Terminal tab name"
+            showLabel={false}
             value={terminalState.renameState?.title ?? ''}
-            onChange={(title) => terminalState.setRenameState((state) =>
-              state ? { ...state, title } : state)}
+            onChange={(event) => terminalState.setRenameState((state) =>
+              state ? { ...state, title: event.currentTarget.value } : state)}
           />
           <Button type="submit" variant="primary">Rename</Button>
         </form>
@@ -206,8 +207,8 @@ function TerminalDialogs({ terminalState }: { terminalState: TerminalTabsState }
         }}
         title="Terminal action failed"
         description={terminalState.terminalError}
-        className="dialog"
-        testId="terminal-action-error"
+        popupProps={{ 'data-testid': 'terminal-action-error' }}
+        container={shellOverlayContainer}
       >
         <Button variant="primary" onClick={() => terminalState.setTerminalError(undefined)}>
           Done
@@ -220,8 +221,8 @@ function TerminalDialogs({ terminalState }: { terminalState: TerminalTabsState }
         }}
         title="Close terminal?"
         description={`${terminalState.closeState?.title ?? 'This terminal'} can keep running after its tab closes.`}
-        className="dialog"
-        testId="close-terminal"
+        popupProps={{ 'data-testid': 'close-terminal' }}
+        container={shellOverlayContainer}
       >
         <Button
           variant="primary"
@@ -265,8 +266,8 @@ function BrowserDialogs({
         }}
         title="Open browser"
         description="Open a browser tab that can be shared with the assistant."
-        className="dialog"
-        testId="open-browser"
+        popupProps={{ 'data-testid': 'open-browser' }}
+        container={shellOverlayContainer}
       >
         <form
           onSubmit={(event) => {
@@ -278,8 +279,10 @@ function BrowserDialogs({
         >
           <TextInput
             aria-label="Browser address"
+            label="Browser address"
+            showLabel={false}
             value={address ?? ''}
-            onChange={setAddress}
+            onChange={(event) => setAddress(event.currentTarget.value)}
           />
           <Button type="submit" variant="primary">Open</Button>
         </form>
@@ -291,8 +294,8 @@ function BrowserDialogs({
         }}
         title="Browser action failed"
         description={terminalState.browserError}
-        className="dialog"
-        testId="browser-error"
+        popupProps={{ 'data-testid': 'browser-error' }}
+        container={shellOverlayContainer}
       >
         <Button variant="primary" onClick={() => terminalState.setBrowserError(undefined)}>
           Done
@@ -684,8 +687,8 @@ export function AppWorkspace({
         }}
         title="Account action failed"
         description={profileError}
-        className="dialog"
-        testId="profile-action-error"
+        popupProps={{ 'data-testid': 'profile-action-error' }}
+        container={shellOverlayContainer}
       >
         <Button variant="primary" onClick={() => setProfileError(undefined)}>
           Done
@@ -697,8 +700,8 @@ export function AppWorkspace({
         onOpenChange={(open) => { if (!open) setProjectError(undefined) }}
         title="Project browser action failed"
         description={projectError}
-        className="dialog"
-        testId="project-window-error"
+        popupProps={{ 'data-testid': 'project-window-error' }}
+        container={shellOverlayContainer}
       >
         <Button variant="primary" onClick={() => setProjectError(undefined)}>Done</Button>
       </Dialog>

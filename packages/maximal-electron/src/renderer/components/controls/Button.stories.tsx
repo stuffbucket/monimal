@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from '@maximal/maximal-storybook';
 import { Button, IconButton } from './Button.js';
 
 const meta = {
-  title: 'Controls/Button',
+  title: 'Deprecated/Button',
   component: Button,
   args: {
     children: 'Check for updates',

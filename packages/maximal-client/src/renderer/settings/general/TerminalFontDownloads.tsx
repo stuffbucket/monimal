@@ -1,5 +1,5 @@
+import { Button } from '@maximal/maximal-design-system'
 import {
-  Button,
   SettingsDisclosure,
   SettingsGroup,
   SettingsItem,
@@ -38,7 +38,6 @@ export function TerminalFontDownloads({
               description={`${font.family} · ${font.license} · ${(font.downloadSize / 1_000_000).toFixed(1)} MB`}
               actions={
                 <Button
-                  size="sm"
                   disabled={font.installed || installingFont !== undefined}
                   onClick={() => onInstall(font.id)}
                 >

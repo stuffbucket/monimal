@@ -787,8 +787,9 @@ body {
   background: var(--maximal-color-bg-tertiary);
   border: 1px solid var(--maximal-color-border-default);
   border-radius: var(--radius-input);
-  padding: 2px;
-  gap: 2px;
+  padding-block: 2px;
+  padding-inline: 2px;
+  column-gap: 2px;
 }
 
 .segmented button {

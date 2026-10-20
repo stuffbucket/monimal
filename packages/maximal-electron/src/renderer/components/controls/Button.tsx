@@ -13,8 +13,8 @@ import { useShellPortalContainer } from './Overlays.js';
  * stylesheets that cannot see each other.
  */
 
-export type ButtonVariant = 'default' | 'primary' | 'danger';
-export type ButtonSize = 'sm' | 'md' | 'lg';
+type ButtonVariant = 'default' | 'primary' | 'danger';
+type ButtonSize = 'sm' | 'md' | 'lg';
 
 /**
  * Anything not named here is forwarded to the `<button>`, including `ref`.

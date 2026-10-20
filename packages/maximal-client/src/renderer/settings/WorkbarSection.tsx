@@ -1,13 +1,12 @@
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { type ReactElement } from 'react'
+import { IconButton, Switch, Tooltip } from '@maximal/maximal-design-system'
 import {
   Banner,
-  IconButton,
   SettingsGroup,
   SettingsItem,
   SettingsSection,
   shellIcon,
-  Switch,
 } from '@maximal/maximal-electron/renderer'
 
 import {
@@ -49,26 +48,38 @@ export function WorkbarSection({
                 )}
                 actions={(
                   <>
-                    <IconButton
-                      label={`Move ${item.label} up`}
-                      disabled={busy || index === 0}
-                      onClick={() => move(item.id, -1)}
+                    <Tooltip
+                      trigger={(
+                        <IconButton
+                          label={`Move ${item.label} up`}
+                          disabled={busy || index === 0}
+                          onClick={() => move(item.id, -1)}
+                        >
+                          <ChevronUp size={16} />
+                        </IconButton>
+                      )}
                     >
-                      <ChevronUp size={16} />
-                    </IconButton>
-                    <IconButton
-                      label={`Move ${item.label} down`}
-                      disabled={busy || index === orderedItems.length - 1}
-                      onClick={() => move(item.id, 1)}
+                      {`Move ${item.label} up`}
+                    </Tooltip>
+                    <Tooltip
+                      trigger={(
+                        <IconButton
+                          label={`Move ${item.label} down`}
+                          disabled={busy || index === orderedItems.length - 1}
+                          onClick={() => move(item.id, 1)}
+                        >
+                          <ChevronDown size={16} />
+                        </IconButton>
+                      )}
                     >
-                      <ChevronDown size={16} />
-                    </IconButton>
+                      {`Move ${item.label} down`}
+                    </Tooltip>
                     <Switch
-                      label={`Show ${item.label} in workbar`}
-                      displayLabel={null}
+                      aria-label={`Show ${item.label} in workbar`}
+                      label={null}
                       checked={visible.has(item.id)}
                       disabled={busy}
-                      onChange={(enabled) => setVisible(item.id, enabled)}
+                      onCheckedChange={(enabled) => setVisible(item.id, enabled)}
                     />
                   </>
                 )}

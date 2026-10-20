@@ -10,7 +10,9 @@ import {
   type ReactNode,
 } from 'react'
 
-import { UnsavedChangesDialog } from '@maximal/maximal-electron/renderer'
+import { AlertDialog, Button } from '@maximal/maximal-design-system'
+
+import { shellOverlayContainer } from './shell-overlay-container'
 
 export interface UnsavedChangesController {
   hasChanges: () => boolean
@@ -96,14 +98,31 @@ export function UnsavedChangesProvider({
   return (
     <UnsavedChangesContext.Provider value={value}>
       {children}
-      <UnsavedChangesDialog
+      <AlertDialog
+        action={(
+          <Button
+            disabled={saving || (pending !== null && !pending.controller.canSave())}
+            onClick={() => void save()}
+            variant="primary"
+          >
+            {saving ? 'Saving…' : 'Save changes'}
+          </Button>
+        )}
+        container={shellOverlayContainer}
+        description="You have unsaved changes. Save them now, or discard them and continue."
+        error={saveError ?? undefined}
+        onOpenChange={(open) => {
+          if (!open) cancel()
+        }}
         open={pending !== null}
-        saving={saving}
-        saveDisabled={pending !== null && !pending.controller.canSave()}
-        error={saveError}
-        onSave={() => void save()}
-        onDiscard={discard}
-        onCancel={cancel}
+        pending={saving}
+        popupProps={{ 'data-testid': 'unsaved-changes-dialog' }}
+        tertiaryActions={(
+          <Button disabled={saving} onClick={discard} variant="secondary-danger">
+            Discard changes
+          </Button>
+        )}
+        title="Save changes before leaving?"
       />
     </UnsavedChangesContext.Provider>
   )

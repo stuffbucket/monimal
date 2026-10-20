@@ -1,0 +1,1667 @@
+{
+  "version": 1,
+  "exports": [
+    {
+      "name": "Accordion",
+      "declarations": [
+        "<Value extends string>({ items, className, ...props }: AccordionProps<Value>): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "AccordionItem",
+      "declarations": [
+        "export interface AccordionItem<Value extends string = string> { value: Value title: ReactNode content: ReactNode disabled?: boolean }"
+      ]
+    },
+    {
+      "name": "AccordionProps",
+      "declarations": [
+        "export interface AccordionProps<Value extends string = string> extends Omit<ComponentPropsWithRef<typeof BaseAccordion.Root>, 'children' | 'className'> { items: readonly AccordionItem<Value>[] className?: string }"
+      ]
+    },
+    {
+      "name": "AiIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "AlertDialog",
+      "declarations": [
+        "(props: AlertDialogProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "AlertDialogAcknowledgementProps",
+      "declarations": [
+        "export interface AlertDialogAcknowledgementProps extends AlertDialogBaseProps { action?: never tertiaryActions?: never cancelLabel?: never onCancel?: never acknowledgeLabel?: ReactNode /** Called when the dialog is acknowledged by its control or Escape. */ onAcknowledge?: () => void }"
+      ]
+    },
+    {
+      "name": "AlertDialogConfirmationProps",
+      "declarations": [
+        "export interface AlertDialogConfirmationProps extends AlertDialogBaseProps { /** * The primary response, placed last. Use a `primary` or `danger` `Button`, * and call `onOpenChange(false)` when its response completes. */ action: ReactNode /** * Lower-priority responses, placed between Cancel and the primary response. * Use a lower-emphasis `Button` variant such as `secondary-danger` or `ghost`. */ tertiaryActions?: ReactNode cancelLabel?: ReactNode /** Called when the dialog is cancelled by its cancel control or Escape. */ onCancel?: () => void acknowledgeLabel?: never onAcknowledge?: never }"
+      ]
+    },
+    {
+      "name": "AlertDialogProps",
+      "declarations": [
+        "export type AlertDialogProps = | AlertDialogConfirmationProps | AlertDialogAcknowledgementProps"
+      ]
+    },
+    {
+      "name": "alphaRamp",
+      "declarations": [
+        "(base: \"white\" | \"black\" | \"cream\"): Ramp"
+      ]
+    },
+    {
+      "name": "anchoredRamp",
+      "declarations": [
+        "(anchorHex: string, mode: ColorMode): Ramp"
+      ]
+    },
+    {
+      "name": "applyPalette",
+      "declarations": [
+        "(seeds: PaletteSeeds, target?: Document): void"
+      ]
+    },
+    {
+      "name": "applyTheme",
+      "declarations": [
+        "(theme: DesignSystemTheme, target?: Document, matchMedia?: ThemeMatchMedia | undefined): void"
+      ]
+    },
+    {
+      "name": "Autocomplete",
+      "declarations": [
+        "({ label, items, value, defaultValue, onValueChange, placeholder, disabled, className, containerProps, inputProps, popupProps, }: AutocompleteProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "AutocompleteProps",
+      "declarations": [
+        "export interface AutocompleteProps { label: ReactNode items: readonly string[] value?: string defaultValue?: string onValueChange?: (value: string) => void placeholder?: string disabled?: boolean className?: string containerProps?: Omit<ComponentPropsWithRef<'div'>, 'children'> & DataAttributes inputProps?: ComponentPropsWithRef<typeof BaseAutocomplete.Input> & DataAttributes popupProps?: Omit< ComponentPropsWithRef<typeof BaseAutocomplete.Popup>, 'children' > & DataAttributes }"
+      ]
+    },
+    {
+      "name": "Avatar",
+      "declarations": [
+        "({ src, alt, fallback, className, ...props }: AvatarProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "AvatarProps",
+      "declarations": [
+        "export interface AvatarProps extends Omit<ComponentPropsWithRef<typeof BaseAvatar.Root>, 'children' | 'className'> { src?: string alt: string fallback?: ReactNode className?: string }"
+      ]
+    },
+    {
+      "name": "BellIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "BRAND_COLOR",
+      "declarations": [
+        "Oklch"
+      ]
+    },
+    {
+      "name": "BRAND_CREAM_COLOR",
+      "declarations": [
+        "Oklch"
+      ]
+    },
+    {
+      "name": "BRAND_CREAM_HEX",
+      "declarations": [
+        "string"
+      ]
+    },
+    {
+      "name": "BRAND_CREAM_SOURCE_HEX",
+      "declarations": [
+        "\"#f2ead6\""
+      ]
+    },
+    {
+      "name": "BRAND_HEX",
+      "declarations": [
+        "string"
+      ]
+    },
+    {
+      "name": "BRAND_RAMP",
+      "declarations": [
+        "\"crimson\""
+      ]
+    },
+    {
+      "name": "BRAND_SOURCE_HEX",
+      "declarations": [
+        "\"#b8404d\""
+      ]
+    },
+    {
+      "name": "brandHueRamp",
+      "declarations": [
+        "(mode: ColorMode): Ramp"
+      ]
+    },
+    {
+      "name": "Button",
+      "declarations": [
+        "({ variant, className, children, ...props }: ButtonProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "ButtonProps",
+      "declarations": [
+        "export interface ButtonProps extends Omit<ComponentPropsWithRef<typeof BaseButton>, 'className'> { variant?: ButtonVariant className?: string children: ReactNode }"
+      ]
+    },
+    {
+      "name": "ButtonVariant",
+      "declarations": [
+        "export type ButtonVariant = | 'primary' | 'secondary' | 'danger' | 'secondary-danger' | 'inverse' | 'link' | 'ghost'"
+      ]
+    },
+    {
+      "name": "Callout",
+      "declarations": [
+        "({ title, selected, onSelect, className, children, ...props }: CalloutProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "CalloutProps",
+      "declarations": [
+        "export interface CalloutProps extends SelectableOptionProps { title: ReactNode }"
+      ]
+    },
+    {
+      "name": "CANVAS_ZOOM",
+      "declarations": [
+        "{ readonly default: 100; readonly maximum: 200; readonly minimum: 25; readonly presets: readonly [50, 100, 200]; readonly step: 10; }"
+      ]
+    },
+    {
+      "name": "CanvasInspectorSections",
+      "declarations": [
+        "(): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "CanvasToolbar",
+      "declarations": [
+        "({ showSecondary, }: CanvasToolbarProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "CanvasToolbarProps",
+      "declarations": [
+        "export interface CanvasToolbarProps { showSecondary?: boolean }"
+      ]
+    },
+    {
+      "name": "Card",
+      "declarations": [
+        "({ selected, onSelect, className, children, ...props }: CardProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "CardProps",
+      "declarations": [
+        "export interface CardProps extends SelectableOptionProps {}"
+      ]
+    },
+    {
+      "name": "Checkbox",
+      "declarations": [
+        "({ label, className, ...props }: CheckboxProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "CheckboxProps",
+      "declarations": [
+        "export interface CheckboxProps extends Omit<ComponentPropsWithRef<typeof BaseCheckbox.Root>, 'children' | 'className'> { label: ReactNode className?: string }"
+      ]
+    },
+    {
+      "name": "ChevronDownIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "CloseIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "CodeIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "CollaboratorPopover",
+      "declarations": [
+        "(): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "Collapsible",
+      "declarations": [
+        "({ title, children, className, ...props }: CollapsibleProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "CollapsibleProps",
+      "declarations": [
+        "export interface CollapsibleProps extends Omit< ComponentPropsWithRef<typeof BaseCollapsible.Root>, 'children' | 'title' > { title: ReactNode children: ReactNode className?: string }"
+      ]
+    },
+    {
+      "name": "COLOR_HUES",
+      "declarations": [
+        "readonly [\"blue\", \"purple\", \"pink\", \"red\", \"orange\", \"yellow\", \"green\", \"violet\", \"teal\", \"persimmon\"]"
+      ]
+    },
+    {
+      "name": "COLOR_STEPS",
+      "declarations": [
+        "readonly [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]"
+      ]
+    },
+    {
+      "name": "ColorHue",
+      "declarations": [
+        "export type ColorHue = ReferenceHue"
+      ]
+    },
+    {
+      "name": "ColorMode",
+      "declarations": [
+        "export type ColorMode = 'light' | 'dark'"
+      ]
+    },
+    {
+      "name": "ColorStep",
+      "declarations": [
+        "export type ColorStep = (typeof COLOR_STEPS)[number]"
+      ]
+    },
+    {
+      "name": "Combobox",
+      "declarations": [
+        "<Value extends string>({ label, options, groups, value, defaultValue, onValueChange, inputValue, defaultInputValue, onInputValueChange, placeholder, description, error, loading, loadingMessage, emptyMessage, disabled, inline, open, defaultOpen, onOpenChange, leading, showLabel, className, container, inputProps, popupProps, }: ComboboxProps<Value>): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "ComboboxGroup",
+      "declarations": [
+        "export interface ComboboxGroup<Value extends string = string> { label: ReactNode options: readonly ComboboxOption<Value>[] }"
+      ]
+    },
+    {
+      "name": "ComboboxOption",
+      "declarations": [
+        "export interface ComboboxOption<Value extends string = string> { value: Value label: ReactNode textValue: string description?: ReactNode metadata?: ReactNode icon?: ReactNode keywords?: readonly string[] disabled?: boolean }"
+      ]
+    },
+    {
+      "name": "ComboboxProps",
+      "declarations": [
+        "export type ComboboxProps<Value extends string = string> = ComboboxSharedProps<Value> & ( | FlatComboboxProps<Value> | GroupedComboboxProps<Value> )"
+      ]
+    },
+    {
+      "name": "CommandIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "CommentIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "CompactControlCluster",
+      "declarations": [
+        "({ label, className, children, }: CompactControlClusterProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "CompactControlClusterProps",
+      "declarations": [
+        "export interface CompactControlClusterProps { label: string className?: string children: ReactNode }"
+      ]
+    },
+    {
+      "name": "CompactControlGroup",
+      "declarations": [
+        "({ label, children, }: CompactControlGroupProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "CompactControlGroupProps",
+      "declarations": [
+        "export interface CompactControlGroupProps { label: string children: ReactNode }"
+      ]
+    },
+    {
+      "name": "CompactProjectCluster",
+      "declarations": [
+        "({ onOpen }: { onOpen: () => void; }): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "ContextMenu",
+      "declarations": [
+        "({ children, items, popupProps, ...props }: ContextMenuProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "ContextMenuProps",
+      "declarations": [
+        "export interface ContextMenuProps extends Omit<ComponentPropsWithRef<typeof BaseContextMenu.Root>, 'children'> { children: ReactElement items: readonly MenuEntry[] popupProps?: Omit< ComponentPropsWithRef<typeof BaseContextMenu.Popup>, 'children' > & DataAttributes }"
+      ]
+    },
+    {
+      "name": "ControlButton",
+      "declarations": [
+        "({ className, ...props }: ControlButtonProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "ControlButtonProps",
+      "declarations": [
+        "export interface ControlButtonProps extends Omit<ComponentPropsWithRef<typeof BaseButton>, 'className'> { className?: string }"
+      ]
+    },
+    {
+      "name": "CopyButton",
+      "declarations": [
+        "({ text, about, label, copiedLabel, disabled, className, onCopied, }: CopyButtonProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "CopyButtonProps",
+      "declarations": [
+        "export interface CopyButtonProps { /** The text written to the clipboard. */ text: string /** What is being copied, appended to the label for the tooltip and accessible name. */ about?: string | undefined label?: string | undefined copiedLabel?: string | undefined disabled?: boolean | undefined className?: string | undefined onCopied?: (() => void) | undefined }"
+      ]
+    },
+    {
+      "name": "createThemeManager",
+      "declarations": [
+        "(environment?: ThemeEnvironment): ThemeManager"
+      ]
+    },
+    {
+      "name": "createToastManager",
+      "declarations": [
+        "<Data extends object = any>() => import(\"@base-ui/react\").ToastManager<Data>"
+      ]
+    },
+    {
+      "name": "deltaEOk",
+      "declarations": [
+        "(left: Oklch, right: Oklch): number"
+      ]
+    },
+    {
+      "name": "DesignIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "DesignSystemTheme",
+      "declarations": [
+        "export interface DesignSystemTheme { appearance: ThemeMode colors: PaletteSeeds }"
+      ]
+    },
+    {
+      "name": "Dialog",
+      "declarations": [
+        "({ open, onOpenChange, title, description, children, className, overlayClassName, viewportClassName, modal, disablePointerDismissal, onEscapeKeyDown, onKeyDown, onPointerDownOutside, initialFocus, finalFocus, showTitle, showDescription, popupProps, container, }: DialogProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "DialogFramePopupProps",
+      "declarations": [
+        "export type DialogFramePopupProps = Omit< DialogPopupProps, 'children' | 'finalFocus' | 'initialFocus' | 'onKeyDown' > & DataAttributes"
+      ]
+    },
+    {
+      "name": "DialogPortalContainer",
+      "declarations": [
+        "export type DialogPortalContainer = | HTMLElement | ShadowRoot | RefObject<HTMLElement | ShadowRoot | null> | null"
+      ]
+    },
+    {
+      "name": "DialogProps",
+      "declarations": [
+        "export interface DialogProps { open: boolean onOpenChange?: (open: boolean) => void title: ReactNode description?: ReactNode children: ReactNode className?: string overlayClassName?: string viewportClassName?: string modal?: DialogRootProps['modal'] disablePointerDismissal?: boolean onEscapeKeyDown?: (event: KeyboardEvent) => void onKeyDown?: DialogPopupProps['onKeyDown'] onPointerDownOutside?: (event: Event) => void initialFocus?: DialogPopupProps['initialFocus'] finalFocus?: DialogPopupProps['finalFocus'] showTitle?: boolean showDescription?: boolean popupProps?: DialogFramePopupProps container?: DialogPortalContainer }"
+      ]
+    },
+    {
+      "name": "EdgeResizer",
+      "declarations": [
+        "({ edge, resizeTargetRef, onResize, scrollTargetRef, overlap, label, keyboardStep, }: EdgeResizerProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "EdgeResizerProps",
+      "declarations": [
+        "export interface EdgeResizerProps { edge: ResizerEdge resizeTargetRef: RefObject<HTMLElement | null> onResize: (size: number) => void scrollTargetRef?: RefObject<HTMLElement | null> overlap?: boolean label?: string keyboardStep?: number }"
+      ]
+    },
+    {
+      "name": "EyeIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "Field",
+      "declarations": [
+        "({ label, description, error, className, textareaProps, ...props }: FieldProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "FieldProps",
+      "declarations": [
+        "export interface FieldProps extends Omit<ComponentPropsWithRef<typeof BaseField.Root>, 'children' | 'className'> { label: ReactNode description?: ReactNode error?: ReactNode className?: string textareaProps?: Omit< ComponentPropsWithRef<'textarea'>, 'aria-describedby' | 'aria-invalid' | 'className' > & DataAttributes }"
+      ]
+    },
+    {
+      "name": "Fieldset",
+      "declarations": [
+        "({ legend, children, className, ...props }: FieldsetProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "FieldsetProps",
+      "declarations": [
+        "export interface FieldsetProps extends Omit<ComponentPropsWithRef<typeof BaseFieldset.Root>, 'children' | 'className'> { legend: ReactNode children: ReactNode className?: string }"
+      ]
+    },
+    {
+      "name": "FolderIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "gamutMap",
+      "declarations": [
+        "(color: Oklch): Oklch"
+      ]
+    },
+    {
+      "name": "GridIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "HandIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "HelpIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "hexFromOklch",
+      "declarations": [
+        "(color: Oklch): string"
+      ]
+    },
+    {
+      "name": "HomeIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "hueRamp",
+      "declarations": [
+        "(hue: ColorHue, mode: ColorMode): Ramp"
+      ]
+    },
+    {
+      "name": "Icon",
+      "declarations": [
+        "({ children, label, size, className, ...props }: IconComponentProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "ICON_SETS",
+      "declarations": [
+        "{ readonly compact: { readonly canvas: 16; readonly count: 133; readonly height: 3296; readonly namespaces: readonly [\"icon.16\"]; readonly source: \"compact/icons.sheet.svg\"; readonly width: 5312; }; readonly prominent: { readonly canvas: 24; readonly count: 634; readonly height: 6944; readonly namespaces: readonly [\"icon.24\", \"icon.16\"]; readonly source: \"prominent/icons.sheet.svg\"; readonly width: 8000; }; readonly 'stroke-endpoints': { readonly canvas: 16; readonly count: 34; readonly height: 1632; readonly namespaces: readonly [\"icon.16.stroke\"]; readonly source: \"stroke-endpoints/icons.sheet.svg\"; readonly width: 3968; }; }"
+      ]
+    },
+    {
+      "name": "IconButton",
+      "declarations": [
+        "({ label, variant, selected, className, children, ...props }: IconButtonProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "IconButtonProps",
+      "declarations": [
+        "export interface IconButtonProps extends Omit<ComponentPropsWithRef<typeof BaseButton>, 'aria-label' | 'className'> { label: string variant?: IconButtonVariant selected?: boolean className?: string children: ReactNode }"
+      ]
+    },
+    {
+      "name": "IconButtonVariant",
+      "declarations": [
+        "export type IconButtonVariant = 'default' | 'toggle' | 'grounded'"
+      ]
+    },
+    {
+      "name": "IconComponentProps",
+      "declarations": [
+        "export interface IconComponentProps extends Omit<ComponentPropsWithoutRef<'span'>, 'children'> { children: ReactElement<ComponentPropsWithoutRef<'svg'>> label?: string size?: IconSize }"
+      ]
+    },
+    {
+      "name": "IconProps",
+      "declarations": [
+        "export interface IconProps extends Omit<ComponentPropsWithoutRef<'svg'>, 'children' | 'viewBox'> { size?: number | string }"
+      ]
+    },
+    {
+      "name": "IconSetName",
+      "declarations": [
+        "export type IconSetName = keyof typeof ICON_SETS"
+      ]
+    },
+    {
+      "name": "IconSize",
+      "declarations": [
+        "export type IconSize = 'compact' | 'standard' | 'prominent'"
+      ]
+    },
+    {
+      "name": "InspectorPanel",
+      "declarations": [
+        "({ title, children, className, bodyClassName, ...props }: InspectorPanelProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "InspectorPanelProps",
+      "declarations": [
+        "export interface InspectorPanelProps extends Omit<ComponentPropsWithRef<'section'>, 'children' | 'title'> { title: ReactNode children: ReactNode bodyClassName?: string }"
+      ]
+    },
+    {
+      "name": "maxChroma",
+      "declarations": [
+        "(l: number, h: number): number"
+      ]
+    },
+    {
+      "name": "MaximalMarkIcon",
+      "declarations": [
+        "({ size, ...props }: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "MaximizeIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "MeasurementUnit",
+      "declarations": [
+        "export interface MeasurementUnit<Unit extends string = string> { value: Unit label: string aliases?: readonly string[] step: number fromCanonical: (value: number) => number toCanonical: (value: number) => number }"
+      ]
+    },
+    {
+      "name": "Menu",
+      "declarations": [
+        "({ variant, className, ...props }: MenuProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "Menubar",
+      "declarations": [
+        "({ menus, className, ...props }: MenubarProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "MenubarMenu",
+      "declarations": [
+        "export interface MenubarMenu { label: ReactNode items: readonly MenuEntry[] }"
+      ]
+    },
+    {
+      "name": "MenubarProps",
+      "declarations": [
+        "export interface MenubarProps extends Omit<ComponentPropsWithRef<typeof BaseMenubar>, 'children' | 'className'> { menus: readonly MenubarMenu[] className?: string }"
+      ]
+    },
+    {
+      "name": "MenuCheckboxItem",
+      "declarations": [
+        "({ children, leading, description, trailing, indicatorPosition, className, ...props }: MenuCheckboxItemProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "MenuCheckboxItemProps",
+      "declarations": [
+        "export interface MenuCheckboxItemProps extends Omit< ComponentPropsWithRef<typeof BaseMenu.CheckboxItem>, 'children' | 'className' >, Omit<MenuItemContentProps, 'leading' | 'trailing'> { leading?: ReactNode trailing?: ReactNode indicatorPosition?: 'leading' | 'trailing' className?: string }"
+      ]
+    },
+    {
+      "name": "MenuEntry",
+      "declarations": [
+        "export interface MenuEntry { label: ReactNode onSelect?: () => void disabled?: boolean }"
+      ]
+    },
+    {
+      "name": "MenuFooter",
+      "declarations": [
+        "({ className, ...props }: MenuFooterProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "MenuFooterProps",
+      "declarations": [
+        "export interface MenuFooterProps extends Omit<ComponentPropsWithRef<typeof BaseMenu.Group>, 'className'> { className?: string }"
+      ]
+    },
+    {
+      "name": "MenuGroup",
+      "declarations": [
+        "({ label, className, children, ...props }: MenuGroupProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "MenuGroupProps",
+      "declarations": [
+        "export interface MenuGroupProps extends Omit<ComponentPropsWithRef<typeof BaseMenu.Group>, 'className'> { label?: ReactNode className?: string }"
+      ]
+    },
+    {
+      "name": "MenuItem",
+      "declarations": [
+        "({ children, leading, description, trailing, className, ...props }: MenuItemProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "MenuItemContent",
+      "declarations": [
+        "({ children, leading, description, trailing, }: MenuItemContentProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "MenuItemContentProps",
+      "declarations": [
+        "export interface MenuItemContentProps { children: ReactNode leading?: ReactNode description?: ReactNode trailing?: ReactNode }"
+      ]
+    },
+    {
+      "name": "MenuItemProps",
+      "declarations": [
+        "export interface MenuItemProps extends Omit< ComponentPropsWithRef<typeof BaseMenu.Item>, 'children' | 'className' >, MenuItemContentProps { className?: string }"
+      ]
+    },
+    {
+      "name": "MenuProps",
+      "declarations": [
+        "export interface MenuProps extends HTMLAttributes<HTMLDivElement>, DataAttributes { variant?: MenuVariant }"
+      ]
+    },
+    {
+      "name": "MenuRadioGroup",
+      "declarations": [
+        "(props: MenuRadioGroupProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "MenuRadioGroupProps",
+      "declarations": [
+        "export interface MenuRadioGroupProps extends ComponentPropsWithRef<typeof BaseMenu.RadioGroup> {}"
+      ]
+    },
+    {
+      "name": "MenuRadioItem",
+      "declarations": [
+        "({ children, description, trailing, className, ...props }: MenuRadioItemProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "MenuRadioItemProps",
+      "declarations": [
+        "export interface MenuRadioItemProps extends Omit< ComponentPropsWithRef<typeof BaseMenu.RadioItem>, 'children' | 'className' >, Omit<MenuItemContentProps, 'leading'> { className?: string }"
+      ]
+    },
+    {
+      "name": "MenuRoot",
+      "declarations": [
+        "({ trigger, children, align, side, sideOffset, container, popupProps, ...props }: MenuRootProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "MenuRootProps",
+      "declarations": [
+        "export interface MenuRootProps extends Omit<ComponentPropsWithRef<typeof BaseMenu.Root>, 'children'> { trigger: ReactElement children: ReactNode align?: ComponentPropsWithRef<typeof BaseMenu.Positioner>['align'] side?: ComponentPropsWithRef<typeof BaseMenu.Positioner>['side'] sideOffset?: number container?: | HTMLElement | ShadowRoot | RefObject<HTMLElement | ShadowRoot | null> | null popupProps?: MenuPopupProps }"
+      ]
+    },
+    {
+      "name": "MenuSeparator",
+      "declarations": [
+        "({ className, ...props }: MenuSeparatorProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "MenuSeparatorProps",
+      "declarations": [
+        "export interface MenuSeparatorProps extends HTMLAttributes<HTMLHRElement> {}"
+      ]
+    },
+    {
+      "name": "MenuSubmenu",
+      "declarations": [
+        "({ label, children, leading, disabled, popupProps, }: MenuSubmenuProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "MenuSubmenuProps",
+      "declarations": [
+        "export interface MenuSubmenuProps { label: ReactNode children: ReactNode leading?: ReactNode disabled?: boolean popupProps?: MenuPopupProps }"
+      ]
+    },
+    {
+      "name": "MenuVariant",
+      "declarations": [
+        "export type MenuVariant = 'default' | 'search'"
+      ]
+    },
+    {
+      "name": "MinimizeIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "mixOklab",
+      "declarations": [
+        "(from: Oklch, to: Oklch, amount: number): Oklch"
+      ]
+    },
+    {
+      "name": "MoveIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "neutralRamp",
+      "declarations": [
+        "(backgroundHex: string, textHex: string, mode: ColorMode): Ramp"
+      ]
+    },
+    {
+      "name": "normalizeCanvasZoom",
+      "declarations": [
+        "(value: number): number"
+      ]
+    },
+    {
+      "name": "NumberInput",
+      "declarations": [
+        "({ label, onCommit, className, inputProps, ...props }: NumberInputProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "NumberInputProps",
+      "declarations": [
+        "export interface NumberInputProps extends Omit< ComponentPropsWithRef<typeof NumberField.Root>, 'children' | 'className' | 'onValueCommitted' > { label: ReactNode onCommit?: (value: number | null) => void className?: string inputProps?: ComponentPropsWithRef<typeof NumberField.Input> & DataAttributes }"
+      ]
+    },
+    {
+      "name": "Oklch",
+      "declarations": [
+        "export interface Oklch { l: number c: number h: number }"
+      ]
+    },
+    {
+      "name": "oklchFromHex",
+      "declarations": [
+        "(hex: string): Oklch"
+      ]
+    },
+    {
+      "name": "PageControls",
+      "declarations": [
+        "({ color, onColorChange, visible, onVisibleChange, }: PageControlsProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "PageControlsProps",
+      "declarations": [
+        "export interface PageControlsProps { color: string onColorChange: (color: string) => void visible: boolean onVisibleChange: (visible: boolean) => void }"
+      ]
+    },
+    {
+      "name": "paleRamp",
+      "declarations": [
+        "(hue: ColorHue): Ramp"
+      ]
+    },
+    {
+      "name": "PALETTE_STYLE_ID",
+      "declarations": [
+        "\"maximal-palette\""
+      ]
+    },
+    {
+      "name": "paletteCss",
+      "declarations": [
+        "(seeds: PaletteSeeds): string"
+      ]
+    },
+    {
+      "name": "PaletteSeed",
+      "declarations": [
+        "export interface PaletteSeed { background: string surface: string text: string accent: string /* Pins icon-onbrand, such as to a brand mark's colour, regardless of contrast. */ accentIcon?: string }"
+      ]
+    },
+    {
+      "name": "PaletteSeeds",
+      "declarations": [
+        "export interface PaletteSeeds { light: PaletteSeed dark: PaletteSeed }"
+      ]
+    },
+    {
+      "name": "paletteTokens",
+      "declarations": [
+        "(seeds: PaletteSeeds): Record<ColorMode, PaletteTokens>"
+      ]
+    },
+    {
+      "name": "PaletteTokens",
+      "declarations": [
+        "export type PaletteTokens = Record<`--${string}`, string>"
+      ]
+    },
+    {
+      "name": "PenIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "PersonIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "PlayIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "PlusIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "Popover",
+      "declarations": [
+        "({ trigger, title, description, children, popupProps, ...props }: PopoverProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "PopoverProps",
+      "declarations": [
+        "export interface PopoverProps extends Omit<ComponentPropsWithRef<typeof BasePopover.Root>, 'children'> { trigger: ReactElement title?: ReactNode description?: ReactNode children: ReactNode popupProps?: Omit< ComponentPropsWithRef<typeof BasePopover.Popup>, 'children' > & DataAttributes }"
+      ]
+    },
+    {
+      "name": "ProjectDetails",
+      "declarations": [
+        "(): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "ProjectNavigation",
+      "declarations": [
+        "({ pagesHeight, onPagesHeightChange, }: ProjectNavigationProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "ProjectNavigationProps",
+      "declarations": [
+        "export interface ProjectNavigationProps { pagesHeight?: number onPagesHeightChange?: (height: number) => void }"
+      ]
+    },
+    {
+      "name": "Property",
+      "declarations": [
+        "({ label, value, className, ...props }: PropertyProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "PropertyList",
+      "declarations": [
+        "({ children, className, ...props }: PropertyListProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "PropertyListProps",
+      "declarations": [
+        "export interface PropertyListProps extends Omit<ComponentPropsWithRef<'dl'>, 'children'> { children: ReactNode }"
+      ]
+    },
+    {
+      "name": "PropertyProps",
+      "declarations": [
+        "export interface PropertyProps extends Omit<ComponentPropsWithRef<'div'>, 'children'> { label: ReactNode value: ReactNode }"
+      ]
+    },
+    {
+      "name": "Radio",
+      "declarations": [
+        "({ label, className, ...props }: RadioProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "RadioGroup",
+      "declarations": [
+        "<Value extends string>({ options, className, ...props }: RadioGroupProps<Value>): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "RadioGroupProps",
+      "declarations": [
+        "export interface RadioGroupProps<Value extends string = string> extends Omit<ComponentPropsWithRef<typeof BaseRadioGroup<Value>>, 'children' | 'className'> { options: readonly RadioOption<Value>[] className?: string }"
+      ]
+    },
+    {
+      "name": "RadioOption",
+      "declarations": [
+        "export interface RadioOption<Value extends string = string> { value: Value label: ReactNode disabled?: boolean }"
+      ]
+    },
+    {
+      "name": "RadioProps",
+      "declarations": [
+        "export interface RadioProps extends Omit<ComponentPropsWithRef<typeof BaseRadio.Root>, 'children' | 'className'> { label: ReactNode className?: string }"
+      ]
+    },
+    {
+      "name": "Ramp",
+      "declarations": [
+        "export type Ramp = Record<ColorStep, string>"
+      ]
+    },
+    {
+      "name": "REFERENCE_BLACK_ALPHA",
+      "declarations": [
+        "readonly [0.05, 0.1, 0.2, 0.3, 0.5, 0.8, 0.85, 0.9, 0.95, 1]"
+      ]
+    },
+    {
+      "name": "REFERENCE_HUES",
+      "declarations": [
+        "readonly [\"blue\", \"purple\", \"pink\", \"red\", \"orange\", \"yellow\", \"green\", \"violet\", \"teal\", \"persimmon\"]"
+      ]
+    },
+    {
+      "name": "REFERENCE_PALE_HUES",
+      "declarations": [
+        "readonly [\"blue\", \"purple\", \"pink\", \"red\", \"yellow\", \"green\", \"violet\", \"teal\", \"persimmon\"]"
+      ]
+    },
+    {
+      "name": "REFERENCE_PALE_RAMPS",
+      "declarations": [
+        "Record<\"blue\" | \"purple\" | \"pink\" | \"red\" | \"yellow\" | \"green\" | \"violet\" | \"teal\" | \"persimmon\", ReferenceRamp>"
+      ]
+    },
+    {
+      "name": "REFERENCE_PALETTE_SEEDS",
+      "declarations": [
+        "PaletteSeeds"
+      ]
+    },
+    {
+      "name": "REFERENCE_RAMPS",
+      "declarations": [
+        "{ readonly light: Record<\"blue\" | \"purple\" | \"pink\" | \"red\" | \"orange\" | \"yellow\" | \"green\" | \"violet\" | \"teal\" | \"persimmon\" | \"grey\", ReferenceRamp>; readonly dark: Record<\"blue\" | \"purple\" | \"pink\" | \"red\" | \"orange\" | \"yellow\" | \"green\" | \"violet\" | \"teal\" | \"persimmon\" | \"grey\", ReferenceRamp>; }"
+      ]
+    },
+    {
+      "name": "REFERENCE_WHITE_ALPHA",
+      "declarations": [
+        "readonly [0.05, 0.1, 0.2, 0.4, 0.7, 0.8, 0.85, 0.9, 0.95, 1]"
+      ]
+    },
+    {
+      "name": "referenceGreyRamp",
+      "declarations": [
+        "(mode: ColorMode): Ramp"
+      ]
+    },
+    {
+      "name": "ReferenceHue",
+      "declarations": [
+        "export type ReferenceHue = (typeof REFERENCE_HUES)[number]"
+      ]
+    },
+    {
+      "name": "ReferencePaleHue",
+      "declarations": [
+        "export type ReferencePaleHue = (typeof REFERENCE_PALE_HUES)[number]"
+      ]
+    },
+    {
+      "name": "ReferenceRamp",
+      "declarations": [
+        "export type ReferenceRamp = readonly [string, string, string, string, string, string, string, string, string, string]"
+      ]
+    },
+    {
+      "name": "ResizerEdge",
+      "declarations": [
+        "export type ResizerEdge = 'top' | 'right' | 'bottom' | 'left'"
+      ]
+    },
+    {
+      "name": "resolvePaletteToken",
+      "declarations": [
+        "(tokens: PaletteTokens, name: `--${string}`): string"
+      ]
+    },
+    {
+      "name": "resolveThemeMode",
+      "declarations": [
+        "(mode: ThemeMode, matchMedia?: ThemeMatchMedia | undefined): ColorMode"
+      ]
+    },
+    {
+      "name": "ScrollArea",
+      "declarations": [
+        "({ children, className, viewportClassName, contentClassName, scrollbars, ...props }: ScrollAreaProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "ScrollAreaProps",
+      "declarations": [
+        "export interface ScrollAreaProps extends Omit<ComponentPropsWithRef<typeof BaseScrollArea.Root>, 'children' | 'className'> { children: ReactNode className?: string viewportClassName?: string contentClassName?: string /** `hidden` keeps the content scrollable without drawing scrollbars. */ scrollbars?: ScrollbarVisibility | 'hidden' }"
+      ]
+    },
+    {
+      "name": "Scrollbar",
+      "declarations": [
+        "({ scroller, orientation, visibility, label, className, }: ScrollbarProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "ScrollbarOrientation",
+      "declarations": [
+        "export type ScrollbarOrientation = 'vertical' | 'horizontal'"
+      ]
+    },
+    {
+      "name": "ScrollbarProps",
+      "declarations": [
+        "export interface ScrollbarProps { /** The native scroll container the scrollbar reports and controls. */ scroller: RefObject<HTMLElement | null> orientation?: ScrollbarOrientation visibility?: ScrollbarVisibility /** * Names a keyboard-operable scrollbar. Omit it where the scroller is * already keyboard-scrollable, such as a menu, to keep the thumb out of the * tab order and the accessibility tree. */ label?: string | undefined className?: string | undefined }"
+      ]
+    },
+    {
+      "name": "ScrollbarVisibility",
+      "declarations": [
+        "export type ScrollbarVisibility = 'auto' | 'always'"
+      ]
+    },
+    {
+      "name": "SearchIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "SectionIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "Select",
+      "declarations": [
+        "<Value extends string>({ value, defaultValue, onValueChange, options, placeholder, label, disabled, required, name, className, triggerProps, popupProps, }: SelectProps<Value>): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "SelectOption",
+      "declarations": [
+        "export interface SelectOption<Value extends string = string> { value: Value label: ReactNode disabled?: boolean }"
+      ]
+    },
+    {
+      "name": "SelectProps",
+      "declarations": [
+        "export interface SelectProps<Value extends string = string> { value?: Value defaultValue?: Value onValueChange?: (value: Value) => void options: readonly SelectOption<Value>[] placeholder?: ReactNode label?: ReactNode disabled?: boolean required?: boolean name?: string className?: string triggerProps?: SelectTriggerProps popupProps?: SelectPopupProps }"
+      ]
+    },
+    {
+      "name": "Separator",
+      "declarations": [
+        "({ className, ...props }: SeparatorProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "SeparatorProps",
+      "declarations": [
+        "export interface SeparatorProps extends Omit<ComponentPropsWithRef<typeof BaseSeparator>, 'className'> { className?: string }"
+      ]
+    },
+    {
+      "name": "SettingsIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "ShapesIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "ShellStatusControls",
+      "declarations": [
+        "({ zoom, onZoomChange, showNotification, }: ShellStatusControlsProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "ShellStatusControlsProps",
+      "declarations": [
+        "export interface ShellStatusControlsProps { zoom: number onZoomChange: (zoom: number) => void showNotification?: boolean }"
+      ]
+    },
+    {
+      "name": "Sidebar",
+      "declarations": [
+        "({ id, side, title, label, headerContent, open, onOpenChange, children, resizable, overlapResizer, showToggle, toggleLabel, collapsedContent, size, onSizeChange, scrollTop, onScrollTopChange, bodyScrollable, }: SidebarProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "SidebarIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "SidebarProps",
+      "declarations": [
+        "export interface SidebarProps { id: string side: SidebarSide title?: string label?: string headerContent?: ReactNode open: boolean onOpenChange: (open: boolean) => void children: ReactNode resizable?: boolean overlapResizer?: boolean showToggle?: boolean toggleLabel?: string collapsedContent?: ReactNode size?: number onSizeChange?: (size: number) => void scrollTop?: number onScrollTopChange?: (scrollTop: number) => void bodyScrollable?: boolean }"
+      ]
+    },
+    {
+      "name": "SidebarSection",
+      "declarations": [
+        "({ title, leading, actions, children, className, scroll, label, }: SidebarSectionProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "SidebarSectionProps",
+      "declarations": [
+        "export interface SidebarSectionProps { title?: string leading?: ReactNode actions?: ReactNode children: ReactNode className?: string scroll?: 'none' | 'horizontal' label?: string }"
+      ]
+    },
+    {
+      "name": "SidebarSectionSplit",
+      "declarations": [
+        "({ primary, secondary, primarySize, onPrimarySizeChange, label, }: SidebarSectionSplitProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "SidebarSectionSplitProps",
+      "declarations": [
+        "export interface SidebarSectionSplitProps { primary: ReactNode secondary: ReactNode primarySize?: number onPrimarySizeChange?: (size: number) => void label?: string }"
+      ]
+    },
+    {
+      "name": "SidebarSide",
+      "declarations": [
+        "export type SidebarSide = 'left' | 'right'"
+      ]
+    },
+    {
+      "name": "Slide",
+      "declarations": [
+        "({ label, className, ...props }: SliderProps) => import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "Slider",
+      "declarations": [
+        "({ label, className, ...props }: SliderProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "SliderProps",
+      "declarations": [
+        "export interface SliderProps extends Omit<ComponentPropsWithRef<typeof BaseSlider.Root<number>>, 'children' | 'className'> { label: ReactNode className?: string }"
+      ]
+    },
+    {
+      "name": "StampIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "StatusChip",
+      "declarations": [
+        "({ status, label, className, ...props }: StatusChipProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "StatusChipProps",
+      "declarations": [
+        "export interface StatusChipProps extends Omit<ComponentPropsWithRef<'span'>, 'children'> { status: string label: ReactNode }"
+      ]
+    },
+    {
+      "name": "stepCanvasZoom",
+      "declarations": [
+        "(value: number, direction: -1 | 1): number"
+      ]
+    },
+    {
+      "name": "StickyIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "SubmenuIndicator",
+      "declarations": [
+        "({ children }: SubmenuIndicatorProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "SubmenuIndicatorProps",
+      "declarations": [
+        "export interface SubmenuIndicatorProps { children: ReactNode }"
+      ]
+    },
+    {
+      "name": "SurfaceCanvasCluster",
+      "declarations": [
+        "({ compact, value, onValueChange, }: SurfaceCanvasClusterProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "SurfaceCanvasClusterProps",
+      "declarations": [
+        "export interface SurfaceCanvasClusterProps extends ZoomMenuProps { compact?: boolean }"
+      ]
+    },
+    {
+      "name": "Switch",
+      "declarations": [
+        "({ label, className, ...props }: SwitchProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "SwitchProps",
+      "declarations": [
+        "export interface SwitchProps extends Omit<ComponentPropsWithRef<typeof BaseSwitch.Root>, 'children' | 'className'> { label: ReactNode className?: string }"
+      ]
+    },
+    {
+      "name": "Tab",
+      "declarations": [
+        "({ label, icon, active, closable, onClose, className, onAuxClick, onKeyDown, ...props }: TabProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "TabBar",
+      "declarations": [
+        "({ items, value, onValueChange, onClose, renderPanel, label, leading, trailing, }: TabBarProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "TabBarItem",
+      "declarations": [
+        "export interface TabBarItem { id: string label: string icon?: ReactNode disabled?: boolean /** `false` hides the active tab's close glyph and ignores close gestures. */ closable?: boolean /** Keeps the panel's content mounted while another tab is active. */ keepMounted?: boolean }"
+      ]
+    },
+    {
+      "name": "TabBarProps",
+      "declarations": [
+        "export interface TabBarProps { items: readonly TabBarItem[] value: string onValueChange: (value: string) => void /** Delete, Backspace, middle-click, or the active tab's close glyph. */ onClose?: (value: string) => void renderPanel: (item: TabBarItem) => ReactNode label?: string leading?: ReactNode trailing?: ReactNode }"
+      ]
+    },
+    {
+      "name": "TableIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "TabProps",
+      "declarations": [
+        "export interface TabProps extends Omit<BaseTabProps, 'children' | 'className'> { label: ReactNode icon?: ReactNode active?: boolean closable?: boolean onClose?: () => void className?: string }"
+      ]
+    },
+    {
+      "name": "Tabs",
+      "declarations": [
+        "<Value extends string>({ items, value, defaultValue, className, ...props }: TabsProps<Value>): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "TabSearch",
+      "declarations": [
+        "({ tabs, activeTab, onActiveTabChange, }: TabSearchProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "TabSearchProps",
+      "declarations": [
+        "export interface TabSearchProps { tabs: readonly TabBarItem[] activeTab: string onActiveTabChange: (tab: string) => void }"
+      ]
+    },
+    {
+      "name": "TabsItem",
+      "declarations": [
+        "export interface TabsItem<Value extends string = string> { value: Value label: ReactNode icon?: ReactNode content: ReactNode disabled?: boolean }"
+      ]
+    },
+    {
+      "name": "TabsProps",
+      "declarations": [
+        "export interface TabsProps<Value extends string = string> extends Omit<ComponentPropsWithRef<typeof BaseTabs.Root>, 'children' | 'className'> { items: readonly TabsItem<Value>[] className?: string }"
+      ]
+    },
+    {
+      "name": "Terminal",
+      "declarations": [
+        "({ label, lines }: TerminalProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "TerminalLine",
+      "declarations": [
+        "export interface TerminalLine { id: string content: string tone?: TerminalLineTone }"
+      ]
+    },
+    {
+      "name": "TerminalLineTone",
+      "declarations": [
+        "export type TerminalLineTone = 'command' | 'output' | 'success' | 'muted'"
+      ]
+    },
+    {
+      "name": "TerminalProps",
+      "declarations": [
+        "export interface TerminalProps { label: string lines: readonly TerminalLine[] }"
+      ]
+    },
+    {
+      "name": "TextIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "TextInput",
+      "declarations": [
+        "({ label, description, error, leading, trailing, showLabel, className, inputClassName, ...props }: TextInputProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "TextInputProps",
+      "declarations": [
+        "export interface TextInputProps extends Omit<ComponentPropsWithRef<typeof BaseInput>, 'className'> { label: ReactNode description?: ReactNode error?: ReactNode leading?: ReactNode trailing?: ReactNode showLabel?: boolean className?: string inputClassName?: string }"
+      ]
+    },
+    {
+      "name": "ThemeManager",
+      "declarations": [
+        "export interface ThemeManager { setTheme(theme: DesignSystemTheme): void dispose(): void }"
+      ]
+    },
+    {
+      "name": "ThemeMatchMedia",
+      "declarations": [
+        "export type ThemeMatchMedia = (query: string) => ThemeMediaQuery"
+      ]
+    },
+    {
+      "name": "ThemeMediaQuery",
+      "declarations": [
+        "export interface ThemeMediaQuery { readonly matches: boolean addEventListener(type: 'change', listener: () => void): void removeEventListener(type: 'change', listener: () => void): void }"
+      ]
+    },
+    {
+      "name": "ThemeMode",
+      "declarations": [
+        "export type ThemeMode = ColorMode | 'system'"
+      ]
+    },
+    {
+      "name": "ToastProvider",
+      "declarations": [
+        "({ children, ...props }: ToastProviderProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "ToastProviderProps",
+      "declarations": [
+        "export interface ToastProviderProps extends ComponentPropsWithRef<typeof BaseToast.Provider> { children: ReactNode }"
+      ]
+    },
+    {
+      "name": "ToastViewport",
+      "declarations": [
+        "(): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "ToggleButton",
+      "declarations": [
+        "({ selected, ...props }: ToggleButtonProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "ToggleButtonProps",
+      "declarations": [
+        "export interface ToggleButtonProps extends Omit<ControlButtonProps, 'aria-pressed'> { selected: boolean }"
+      ]
+    },
+    {
+      "name": "ToggleGroup",
+      "declarations": [
+        "<Value extends string>({ options, className, ...props }: ToggleGroupProps<Value>): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "ToggleGroupOption",
+      "declarations": [
+        "export interface ToggleGroupOption<Value extends string = string> { value: Value label: ReactNode disabled?: boolean }"
+      ]
+    },
+    {
+      "name": "ToggleGroupProps",
+      "declarations": [
+        "export interface ToggleGroupProps<Value extends string = string> extends Omit<ComponentPropsWithRef<typeof BaseToggleGroup<Value>>, 'children' | 'className'> { options: readonly ToggleGroupOption<Value>[] className?: string }"
+      ]
+    },
+    {
+      "name": "ToggleSidebar",
+      "declarations": [
+        "({ side, open, onPressedChange, label, controls, }: ToggleSidebarProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "ToggleSidebarProps",
+      "declarations": [
+        "export interface ToggleSidebarProps { side: SidebarSide open: boolean onPressedChange: (open: boolean) => void label?: string controls?: string }"
+      ]
+    },
+    {
+      "name": "Toolbar",
+      "declarations": [
+        "({ children, className, ...props }: ToolbarProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "ToolbarButton",
+      "declarations": [
+        "({ className, ...props }: ToolbarButtonProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "ToolbarButtonProps",
+      "declarations": [
+        "export interface ToolbarButtonProps extends Omit<ComponentPropsWithRef<typeof BaseToolbar.Button>, 'className'> { className?: string }"
+      ]
+    },
+    {
+      "name": "ToolbarGroup",
+      "declarations": [
+        "({ children, className, ...props }: ToolbarGroupProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "ToolbarGroupProps",
+      "declarations": [
+        "export interface ToolbarGroupProps extends Omit<ComponentPropsWithRef<typeof BaseToolbar.Group>, 'children' | 'className'> { children: ReactNode className?: string }"
+      ]
+    },
+    {
+      "name": "ToolbarProps",
+      "declarations": [
+        "export interface ToolbarProps extends Omit<ComponentPropsWithRef<typeof BaseToolbar.Root>, 'children' | 'className'> { children: ReactNode className?: string }"
+      ]
+    },
+    {
+      "name": "Tooltip",
+      "declarations": [
+        "({ trigger, children, side, popupProps, ...props }: TooltipProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "TooltipProps",
+      "declarations": [
+        "export interface TooltipProps extends Omit<ComponentPropsWithRef<typeof BaseTooltip.Root>, 'children'> { trigger: ReactElement children: ReactNode /** Which side of the trigger the tooltip opens on; defaults to above it. */ side?: ComponentPropsWithRef<typeof BaseTooltip.Positioner>['side'] popupProps?: Omit< ComponentPropsWithRef<typeof BaseTooltip.Popup>, 'children' > & DataAttributes }"
+      ]
+    },
+    {
+      "name": "UnitValueInput",
+      "declarations": [
+        "<Unit extends string>({ label, value, units, defaultUnit, minimum, maximum, canonicalStep, disabled, onCommit, className, numberInputProps, unitSelectTriggerProps, unitSelectPopupProps, ...containerProps }: UnitValueInputProps<Unit>): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "UnitValueInputProps",
+      "declarations": [
+        "export interface UnitValueInputProps<Unit extends string = string> extends Omit<ComponentPropsWithRef<'div'>, 'children' | 'className'> { label: ReactNode value: number units: readonly MeasurementUnit<Unit>[] defaultUnit: Unit minimum?: number maximum?: number canonicalStep?: number disabled?: boolean onCommit: (value: number) => void className?: string numberInputProps?: NumberInputProps['inputProps'] unitSelectTriggerProps?: SelectProps<Unit>['triggerProps'] unitSelectPopupProps?: SelectProps<Unit>['popupProps'] }"
+      ]
+    },
+    {
+      "name": "useToastManager",
+      "declarations": [
+        "<Data extends object = any>() => import(\"@base-ui/react\").UseToastManagerReturnValue<Data>"
+      ]
+    },
+    {
+      "name": "wcagContrast",
+      "declarations": [
+        "(left: string, right: string): number"
+      ]
+    },
+    {
+      "name": "WidgetIcon",
+      "declarations": [
+        "(props: IconProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "WindowControls",
+      "declarations": [
+        "({ native, onClose, onMinimize, onMaximize, }: WindowControlsProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "WindowControlsProps",
+      "declarations": [
+        "export interface WindowControlsProps { /** Reserves the controls' footprint for platform-drawn window buttons. */ native?: boolean onClose?: () => void onMinimize?: () => void onMaximize?: () => void }"
+      ]
+    },
+    {
+      "name": "WorkspaceNavigationSlot",
+      "declarations": [
+        "export interface WorkspaceNavigationSlot { label?: string header?: ReactNode items?: ReactNode footer?: ReactNode }"
+      ]
+    },
+    {
+      "name": "WorkspaceShell",
+      "declarations": [
+        "({ tabs, activeTab, onActiveTabChange, renderPanel, onCloseTab, tabLeading, tabTrailing, navigation, leftSidebar, rightSidebar, sidebarsOpen, onSidebarsOpenChange, compactContent, mainOverlay, mainRef, backgroundVisible, fill, children, }: WorkspaceShellProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "WorkspaceShellProps",
+      "declarations": [
+        "export interface WorkspaceShellProps { tabs: readonly TabBarItem[] activeTab: string onActiveTabChange: (tab: string) => void renderPanel: (item: TabBarItem) => ReactNode onCloseTab?: (tab: string) => void tabLeading?: ReactNode tabTrailing?: ReactNode navigation?: WorkspaceNavigationSlot leftSidebar?: WorkspaceSidebarSlot rightSidebar?: WorkspaceSidebarSlot sidebarsOpen: boolean onSidebarsOpenChange: (open: boolean) => void /** Main-area content shown only while the sidebars are collapsed. */ compactContent?: ReactNode /** Main-area content drawn above the tab panels. */ mainOverlay?: ReactNode mainRef?: Ref<HTMLElement> backgroundVisible?: boolean /** Fills the host viewport instead of drawing a floating window frame. */ fill?: boolean children?: ReactNode }"
+      ]
+    },
+    {
+      "name": "WorkspaceShellSpike",
+      "declarations": [
+        "({ defaultMode, showNotification, showSecondaryToolbar, fill, nativeWindowControls, }: WorkspaceShellSpikeProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "WorkspaceShellSpikeProps",
+      "declarations": [
+        "export interface WorkspaceShellSpikeProps { defaultMode?: 'expanded' | 'compact' showNotification?: boolean showSecondaryToolbar?: boolean /** Fills the host window instead of drawing a floating frame. */ fill?: boolean /** Reserves space for platform-drawn window controls instead of drawing them. */ nativeWindowControls?: boolean }"
+      ]
+    },
+    {
+      "name": "WorkspaceSidebarSlot",
+      "declarations": [
+        "export interface WorkspaceSidebarSlot { label: string header?: ReactNode content: ReactNode toggleLabel?: string bodyScrollable?: boolean }"
+      ]
+    },
+    {
+      "name": "ZoomMenu",
+      "declarations": [
+        "({ value, onValueChange }: ZoomMenuProps): import(\"react\").JSX.Element"
+      ]
+    },
+    {
+      "name": "ZoomMenuProps",
+      "declarations": [
+        "export interface ZoomMenuProps { value: number onValueChange: (value: number) => void }"
+      ]
+    }
+  ]
+}

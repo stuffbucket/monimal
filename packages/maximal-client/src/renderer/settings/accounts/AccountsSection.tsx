@@ -1,8 +1,8 @@
+import { Button } from '@maximal/maximal-design-system'
 import { useState, type ReactElement } from 'react'
 
 import {
   Banner,
-  Button,
   PartitionedSortableList,
   SettingsGroup,
   SettingsItem,
@@ -91,7 +91,7 @@ export function AccountsSection({
       {bannerVisible ? (
         <Banner
           status="failed"
-          action={<Button size="sm" onClick={reload}>Try again</Button>}
+          action={<Button onClick={reload}>Try again</Button>}
           onDismiss={() => setDismissedError(error)}
         >
           {error}
@@ -108,7 +108,6 @@ export function AccountsSection({
             actions={
               <Button
                 variant="primary"
-                size="sm"
                 onClick={onAddAccount}
                 disabled={addingAccount}
               >
@@ -142,7 +141,6 @@ export function AccountsSection({
                   {account.needs_reauth ? (
                     <Button
                       variant="primary"
-                      size="sm"
                       onClick={onAddAccount}
                       disabled={busy || addingAccount}
                     >
@@ -152,7 +150,6 @@ export function AccountsSection({
                     <StatusChip status="active" label="Active" />
                   ) : account.enabled ? (
                     <Button
-                      size="sm"
                       onClick={() => void switchAccount(account.key)}
                       disabled={busy}
                     >
@@ -171,7 +168,6 @@ export function AccountsSection({
             actions={
               <Button
                 variant="primary"
-                size="sm"
                 onClick={onAddAccount}
                 disabled={busy || addingAccount}
               >

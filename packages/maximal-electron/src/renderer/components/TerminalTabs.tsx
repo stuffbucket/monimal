@@ -39,7 +39,7 @@ type TerminalTabsAttachments =
   | { ids: string[]; attachments?: never }
   | { ids?: never; attachments: TerminalAttachment[] };
 
-export type TerminalTabsProps = TerminalTabsCommonProps & TerminalTabsAttachments &
+type TerminalTabsProps = TerminalTabsCommonProps & TerminalTabsAttachments &
   (
     | { disposition?: 'terminate'; transport: TerminalTransport }
     | { disposition: 'detach'; transport: DetachableTerminalTransport }

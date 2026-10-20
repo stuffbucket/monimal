@@ -67,6 +67,61 @@ describe('palette tokens', () => {
     expect(light['--maximal-color-bg-brand']).toBe(atomicAlias('brand', 500))
   })
 
+  it('owns named toolbar swatches instead of deriving component colors', () => {
+    const { light } = paletteTokens(DEFAULT_PALETTE_FIXTURE.colors)
+
+    for (const colorName of [
+      'grey',
+      'persimmon',
+      'orange',
+      'yellow',
+      'green',
+      'teal',
+      'blue',
+      'purple',
+      'pink',
+    ]) {
+      expect(light[`--maximal-color-swatch-${colorName}`]).toBe(
+        atomicAlias(colorName, 500),
+      )
+    }
+    expect(light['--maximal-color-swatch-white']).toBe(atomicAlias('white', 1000))
+  })
+
+  it('owns quiet selected-control states for each mode', () => {
+    const { light, dark } = paletteTokens(DEFAULT_PALETTE_FIXTURE.colors)
+
+    expect(light['--maximal-color-bg-selected-quiet']).toBe(
+      atomicAlias('black', 100),
+    )
+    expect(light['--maximal-color-bg-selected-quiet-hover']).toBe(
+      atomicAlias('black', 200),
+    )
+    expect(light['--maximal-color-bg-selected-quiet-pressed']).toBe(
+      atomicAlias('black', 300),
+    )
+    expect(dark['--maximal-color-bg-selected-quiet']).toBe(
+      atomicAlias('white', 200),
+    )
+    expect(dark['--maximal-color-bg-selected-quiet-hover']).toBe(
+      atomicAlias('white', 300),
+    )
+    expect(dark['--maximal-color-bg-selected-quiet-pressed']).toBe(
+      atomicAlias('white', 400),
+    )
+  })
+
+  it('aliases the modal backdrop to the existing black alpha ramp', () => {
+    const { light, dark } = paletteTokens(DEFAULT_PALETTE_FIXTURE.colors)
+
+    expect(light['--maximal-color-bg-modal-backdrop']).toBe(
+      atomicAlias('black', 400),
+    )
+    expect(dark['--maximal-color-bg-modal-backdrop']).toBe(
+      atomicAlias('black', 400),
+    )
+  })
+
   it('keeps each theme seed exact', () => {
     for (const theme of PALETTE_FIXTURES) {
       const tokens = paletteTokens(theme.colors)
@@ -138,6 +193,26 @@ describe('palette tokens', () => {
     expect(oklchFromHex(color(tokens.dark, 'bg-brand')).h).toBeCloseTo(oklchFromHex(BRAND_HEX).h, 0)
   })
 
+  it('keeps light content on strong action fills and deepens them on hover', () => {
+    for (const theme of PALETTE_FIXTURES) {
+      const tokens = paletteTokens(theme.colors)
+      for (const mode of MODES) {
+        const t = tokens[mode]
+        const label = `${theme.id} ${mode}`
+        expect(color(t, 'text-onbrand-strong'), `${label} onbrand`).toBe(BRAND_CREAM_HEX)
+        expect(color(t, 'text-ondanger-strong'), `${label} ondanger`).toBe('#ffffff')
+        for (const role of ['brand', 'danger']) {
+          const on = color(t, `text-on${role}-strong`)
+          const fills = ['', '-hover', '-pressed'].map((state) => color(t, `bg-${role}-strong${state}`))
+          const contrasts = fills.map((fill) => wcagContrast(on, fill))
+          expect(contrasts[0], `${label} ${role}`).toBeGreaterThanOrEqual(4.5)
+          expect(contrasts[1], `${label} ${role} hover`).toBeGreaterThan(contrasts[0] ?? 0)
+          expect(contrasts[2], `${label} ${role} pressed`).toBeGreaterThan(contrasts[1] ?? 0)
+        }
+      }
+    }
+  })
+
   it('refines the brand cream with the crimson\'s chroma factor and keeps its lightness and hue', () => {
     const source = oklchFromHex(BRAND_CREAM_SOURCE_HEX)
     const refined = oklchFromHex(BRAND_CREAM_HEX)
@@ -160,6 +235,19 @@ describe('palette tokens', () => {
         if (wcagContrast(BRAND_CREAM_HEX, fill) >= 4.5) expect(on, label).toBe(BRAND_CREAM_HEX)
         else expect(['#ffffff', '#000000'], label).toContain(on)
       }
+    }
+  })
+
+  it('keeps scrollbar thumbs translucent in both modes, firmer on hover', () => {
+    const tokens = paletteTokens(DEFAULT_PALETTE_FIXTURE.colors)
+    const alpha = (value: string) => Number(/\/ ([\d.]+)\)$/.exec(value)?.[1] ?? Number.NaN)
+    for (const mode of MODES) {
+      const rest = alpha(color(tokens[mode], 'bg-scrollbar'))
+      const hover = alpha(color(tokens[mode], 'bg-scrollbar-hover'))
+      expect(rest, `${mode} rest`).toBeGreaterThan(0)
+      expect(rest, `${mode} rest`).toBeLessThan(1)
+      expect(hover, `${mode} hover`).toBeGreaterThan(rest)
+      expect(hover, `${mode} hover`).toBeLessThan(1)
     }
   })
 

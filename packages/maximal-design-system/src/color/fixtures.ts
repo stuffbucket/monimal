@@ -1,5 +1,5 @@
 import { BRAND_CREAM_HEX, BRAND_HEX } from './ramps'
-import type { PaletteSeeds } from './palette'
+import { REFERENCE_PALETTE_SEEDS, type PaletteSeeds } from './palette'
 
 export interface PaletteFixture {
   id: string
@@ -10,22 +10,7 @@ export interface PaletteFixture {
 export const DEFAULT_PALETTE_FIXTURE: PaletteFixture = {
   id: 'maximal-reference',
   name: 'Maximal reference',
-  colors: {
-    light: {
-      background: '#ffffff',
-      surface: '#eef0f4',
-      text: '#12141a',
-      accent: BRAND_HEX,
-      accentIcon: BRAND_CREAM_HEX,
-    },
-    dark: {
-      background: '#16181d',
-      surface: '#1c1f26',
-      text: '#f5f5f5',
-      accent: '#f65467',
-      accentIcon: BRAND_CREAM_HEX,
-    },
-  },
+  colors: REFERENCE_PALETTE_SEEDS,
 }
 
 export const PALETTE_FIXTURES: readonly PaletteFixture[] = [

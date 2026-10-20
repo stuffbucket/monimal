@@ -3,6 +3,9 @@ const mutate = [
   'src/host/agent.ts:70-81',
   'src/host/agent.ts:211-216',
   'src/host/provider-endpoint.ts',
+  'src/renderer/overlay-operation.ts',
+  'src/renderer/async-ownership.ts',
+  'src/renderer/state-machine.ts',
   'src/renderer/overlay-keys.ts',
 ]
 
@@ -15,7 +18,7 @@ export default {
   testRunner: 'command',
   commandRunner: {
     command:
-      'pnpm exec vitest run tests/agent.test.ts tests/approval.test.ts tests/overlay-keys.test.ts tests/provider-endpoint.test.ts',
+      'pnpm exec vitest run tests/agent.test.ts tests/approval.test.ts tests/async-ownership.test.ts tests/overlay-keys.test.ts tests/overlay-operation.test.ts tests/provider-endpoint.test.ts tests/state-machine.test.ts',
   },
   mutate,
   reporters: ['progress', 'clear-text', 'json'],

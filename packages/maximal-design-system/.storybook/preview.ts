@@ -2,6 +2,9 @@ import { createElement } from 'react';
 import type { Decorator, Preview } from '@storybook/react-vite';
 
 import { TooltipProvider } from '../../maximal-electron/src/renderer/components/controls/Overlays.js';
+import { DEFAULT_PALETTE_FIXTURE } from '../src/color/fixtures.js';
+import { PALETTE_STYLE_ID } from '../src/color/palette.js';
+import { applyTheme } from '../src/theme.js';
 
 // Generated from the typed DTCG sources before every Storybook start/build.
 import '../dist/tokens/tokens.css';
@@ -31,9 +34,20 @@ import './preview.css';
  */
 const withTheme: Decorator = (Story, context) => {
   const theme = context.globals['theme'] as string;
+  const shell = context.globals['shell'] as ShellMode;
   const root = document.documentElement;
-  if (theme === 'system') root.removeAttribute('data-theme');
-  else root.setAttribute('data-theme', theme);
+  if (shell === 'design-system') {
+    root.setAttribute('data-platform', 'macos');
+    applyTheme({
+      appearance: theme === 'light' || theme === 'dark' ? theme : 'system',
+      colors: DEFAULT_PALETTE_FIXTURE.colors,
+    });
+  } else {
+    root.removeAttribute('data-platform');
+    document.getElementById(PALETTE_STYLE_ID)?.remove();
+    if (theme === 'system') root.removeAttribute('data-theme');
+    else root.setAttribute('data-theme', theme);
+  }
   return Story();
 };
 
@@ -66,8 +80,11 @@ const withShellMode: Decorator = (Story, context) => {
 const withTooltips: Decorator = (Story) =>
   createElement(TooltipProvider, { delayDuration: 200, children: Story() });
 
+const withOptionalShellTooltips: Decorator = (Story, context) =>
+  context.globals['shell'] === 'design-system' ? Story() : withTooltips(Story, context);
+
 const preview: Preview = {
-  decorators: [withTooltips, withTheme, withShellMode],
+  decorators: [withOptionalShellTooltips, withTheme, withShellMode],
   // A docs page for every component, from its args and its docstring.
   tags: ['autodocs'],
   initialGlobals: { theme: 'dark', shell: initialShellMode() },
@@ -91,6 +108,7 @@ const preview: Preview = {
         items: [
           { value: SHELL_MODES[0], title: 'Application (shell.css)' },
           { value: SHELL_MODES[1], title: 'Package (shell-package-rules.css)' },
+          { value: SHELL_MODES[2], title: 'Design system (isolated)' },
         ],
         dynamicTitle: true,
       },
@@ -107,11 +125,16 @@ const preview: Preview = {
        */
       config: {
         rules: [
+          { id: 'bypass', enabled: false },
           { id: 'landmark-one-main', enabled: false },
           { id: 'page-has-heading-one', enabled: false },
           { id: 'region', enabled: false },
         ],
       },
+    },
+    options: {
+      /* Folders and components sort alphabetically; stories keep their authored order within a component. */
+      storySort: { method: 'alphabetical' },
     },
     layout: 'padded',
     controls: { expanded: true },

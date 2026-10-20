@@ -1,13 +1,11 @@
+import { Button, Select, Switch } from '@maximal/maximal-design-system'
 import { type ReactElement } from 'react'
 
 import {
-  Button,
   Note,
   SettingsGroup,
   SettingsItem,
   SettingsSection,
-  Select,
-  Switch,
 } from '@maximal/maximal-electron/renderer'
 import type {
   AgentEffort,
@@ -43,15 +41,17 @@ function AssistantModelControl({
   }
   return (
     <Select<string>
-      aria-label="Default assistant model"
       value={modelKey}
       disabled={assistant.busy}
-      onChange={(next) => void assistant.setModel(next)}
+      onValueChange={(next) => void assistant.setModel(next)}
       options={assistant.provider.models.map((model) => ({
         value: model.key,
         label: model.label,
       }))}
-      testId="assistant-default-model"
+      triggerProps={{
+        'aria-label': 'Default assistant model',
+        'data-testid': 'assistant-default-model',
+      }}
     />
   )
 }
@@ -70,17 +70,19 @@ function AssistantEffortControl({
   }
   return (
     <Select<AgentEffort>
-      aria-label="Default assistant reasoning effort"
       value={provider.effort ?? model.efforts[0]}
       disabled={assistant.busy}
-      onChange={(next) => void assistant.setEffort(next)}
+      onValueChange={(next) => void assistant.setEffort(next)}
       options={model.efforts.map((effort) => ({
         value: effort,
         label: effort === 'xhigh'
           ? 'Extra high'
           : effort[0].toLocaleUpperCase() + effort.slice(1),
       }))}
-      testId="assistant-default-effort"
+      triggerProps={{
+        'aria-label': 'Default assistant reasoning effort',
+        'data-testid': 'assistant-default-effort',
+      }}
     />
   )
 }
@@ -119,12 +121,12 @@ function AssistantOverlaySettings({
             description="Use Maximal's sparkling red finish around the assistant controls."
             control={(
               <Switch
-                label="Candy-coated assistant background"
-                displayLabel={null}
+                aria-label="Candy-coated assistant background"
+                label={null}
                 checked={assistant.preferences.candy}
                 disabled={assistant.busy}
-                onChange={(next) => void assistant.setCandy(next)}
-                testId="assistant-candy-switch"
+                onCheckedChange={(next) => void assistant.setCandy(next)}
+                data-testid="assistant-candy-switch"
               />
             )}
           />
@@ -133,10 +135,9 @@ function AssistantOverlaySettings({
             description="Choose the typeface used for assistant responses."
             control={(
               <Select<AssistantOutputFont>
-                aria-label="Conversation font"
                 value={assistant.preferences.outputFont}
                 disabled={assistant.busy}
-                onChange={(next) => void assistant.setOutputFont(next)}
+                onValueChange={(next) => void assistant.setOutputFont(next)}
                 options={[
                   { value: 'auto', label: 'Auto' },
                   { value: 'default', label: 'Default' },
@@ -144,7 +145,10 @@ function AssistantOverlaySettings({
                   { value: 'open-dyslexic', label: 'OpenDyslexic' },
                   { value: 'serif', label: 'Baskerville' },
                 ]}
-                testId="assistant-output-font"
+                triggerProps={{
+                  'aria-label': 'Conversation font',
+                  'data-testid': 'assistant-output-font',
+                }}
               />
             )}
           />
@@ -190,12 +194,12 @@ export function GeneralSection({
               description="Automatically start Maximal when you log in to your computer."
               control={
                 <Switch
-                  label="Run Maximal on startup"
-                  displayLabel={null}
+                  aria-label="Run Maximal on startup"
+                  label={null}
                   checked={general.desktop.startOnLogin}
                   disabled={general.savingStartup}
-                  onChange={(enabled) => void general.changeStartup(enabled)}
-                  testId="start-on-login-switch"
+                  onCheckedChange={(enabled) => void general.changeStartup(enabled)}
+                  data-testid="start-on-login-switch"
                 />
               }
             />
@@ -211,12 +215,12 @@ export function GeneralSection({
               description="Show Maximal in the menu bar without keeping it in the Dock or taskbar."
               control={
                 <Switch
-                  label="Show Maximal in the menu bar only"
-                  displayLabel={null}
+                  aria-label="Show Maximal in the menu bar only"
+                  label={null}
                   checked={presence.state.enabled}
                   disabled={presence.busy || presence.state.pending}
-                  onChange={(next) => void presence.changeMode(next)}
-                  testId="menu-bar-only-switch"
+                  onCheckedChange={(next) => void presence.changeMode(next)}
+                  data-testid="menu-bar-only-switch"
                 />
               }
             />
@@ -241,7 +245,6 @@ export function GeneralSection({
             control={
               general.notifications?.canOpenSettings ? (
                 <Button
-                  size="sm"
                   disabled={general.openingNotificationSettings}
                   onClick={() => void general.openNotificationSettings()}
                 >

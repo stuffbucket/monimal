@@ -1,6 +1,5 @@
 import {
   act,
-  type ButtonHTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
 } from 'react'
@@ -77,11 +76,6 @@ vi.mock('@maximal/maximal-electron/renderer', () => ({
     second?: { sessionId: string }
   }) => pane.sessionId ? [pane.sessionId] : [pane.first!.sessionId, pane.second!.sessionId]),
   terminalProcessTitle: (value: string) => value.trim(),
-  Button: ({ children, ...props }: ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button {...props}>{children}</button>
-  ),
-  Dialog: ({ children, open, title }: { children: ReactNode; open: boolean; title: string }) =>
-    open ? <div role="dialog" aria-label={title}>{children}</div> : null,
   Note: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SpatialCanvasSurface: ({
     children,
@@ -92,7 +86,15 @@ vi.mock('@maximal/maximal-electron/renderer', () => ({
     open: boolean
     testId?: string
   }) => open ? <div data-testid={testId}>{children}</div> : null,
-  UnsavedChangesDialog: () => null,
+  TextInput: ({
+    onChange,
+    ...props
+  }: Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange'> & {
+    onChange: (value: string) => void
+  }) => <input {...props} onChange={(event) => onChange(event.currentTarget.value)} />,
+}))
+
+vi.mock('@maximal/maximal-client/renderer/terminal/TerminalLauncher', () => ({
   TerminalLauncher: ({ open, onLaunched }: {
     open: boolean
     onLaunched: (result: {
@@ -109,12 +111,6 @@ vi.mock('@maximal/maximal-electron/renderer', () => ({
       Launch zsh
     </button>
   ) : null,
-  TextInput: ({
-    onChange,
-    ...props
-  }: Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange'> & {
-    onChange: (value: string) => void
-  }) => <input {...props} onChange={(event) => onChange(event.currentTarget.value)} />,
 }))
 
 vi.mock('@maximal/maximal-observability', () => ({
@@ -386,6 +382,8 @@ beforeEach(() => {
   accountStatus.mockResolvedValue({ state: 'unauthenticated' })
   terminalList.mockResolvedValue([])
   browserList.mockResolvedValue([])
+  uiModeGet.mockResolvedValue({ mode: 'legacy', switchable: false })
+  uiModeSet.mockResolvedValue(undefined)
   Object.assign(window, {
     maximal: {
       shutdown: {
@@ -428,6 +426,10 @@ beforeEach(() => {
         close: vi.fn(() => Promise.resolve()),
         show: vi.fn(() => Promise.resolve()),
         onEvent: vi.fn(() => () => {}),
+      },
+      uiMode: {
+        get: uiModeGet,
+        set: uiModeSet,
       },
       projects: {
         undockWindow: vi.fn(async () => true),
@@ -472,6 +474,16 @@ afterEach(() => {
   container = null
   vi.clearAllMocks()
 })
+
+const uiModeGet = vi.fn<() => Promise<{ mode: 'legacy' | 'design-system' | 'spike'; switchable: boolean }>>()
+const uiModeSet = vi.fn<(mode: 'legacy' | 'design-system' | 'spike') => Promise<void>>()
+
+/* Design-system dialogs portal out of the render container and are named by their visible title. */
+function dialogTitle(): string | undefined {
+  const dialog = document.querySelector('[role="dialog"]')
+  const titleId = dialog?.getAttribute('aria-labelledby')
+  return titleId ? document.getElementById(titleId)?.textContent ?? undefined : undefined
+}
 
 async function renderApp(): Promise<HTMLElement> {
   if (root === null || container === null) throw new Error('test root not ready')
@@ -562,6 +574,39 @@ describe('App routing', () => {
     expect(background?.getAttribute('data-enabled')).toBe('true')
     expect(background?.getAttribute('data-material')).toBe('clouds')
     expect(background?.getAttribute('data-reduced-motion')).toBe('true')
+  })
+
+  it('hides the renderer switch when the build cannot switch', async () => {
+    const shell = await renderApp()
+
+    expect(uiModeGet).toHaveBeenCalled()
+    expect(shell.querySelector('[aria-label="Renderer switch"]')).toBeNull()
+    expect(shell.querySelector('.ui-mode-strip__frame')?.hasAttribute('data-active')).toBe(false)
+  })
+
+  it('offers a development switch into the design-system renderer', async () => {
+    uiModeGet.mockResolvedValue({ mode: 'legacy', switchable: true })
+
+    const shell = await renderApp()
+    const strip = shell.querySelector('[aria-label="Renderer switch"]')
+    const actions = [...(strip?.querySelectorAll('button') ?? [])]
+    expect(actions.map((action) => action.textContent)).toEqual([
+      'Switch to Design system UI',
+      'Switch to Design system spike',
+    ])
+    await act(async () => actions[0]?.click())
+
+    expect(shell.querySelector('.ui-mode-strip__frame')?.hasAttribute('data-active')).toBe(true)
+    expect(uiModeSet).toHaveBeenCalledWith('design-system')
+  })
+
+  it('does not offer the renderer switch in a detached Projects window', async () => {
+    uiModeGet.mockResolvedValue({ mode: 'legacy', switchable: true })
+    window.history.replaceState({}, '', '/?projectsWindow=true')
+
+    const shell = await renderApp()
+
+    expect(shell.querySelector('[aria-label="Renderer switch"]')).toBeNull()
   })
 
   it('opens the workspace without requiring an authenticated account', async () => {
@@ -842,19 +887,19 @@ describe('App routing', () => {
     expect(background).toBeDefined()
 
     act(() => rename?.click())
-    expect(shell.querySelector('[role="dialog"]')?.getAttribute('aria-label')).toBe(
+    expect(dialogTitle()).toBe(
       'Rename terminal tab',
     )
-    const confirmRename = [...shell.querySelectorAll('button')].find(
+    const confirmRename = [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(
       (button) => button.textContent === 'Rename',
     )
     act(() => confirmRename?.click())
 
     act(() => close?.click())
-    expect(shell.querySelector('[role="dialog"]')?.getAttribute('aria-label')).toBe(
+    expect(dialogTitle()).toBe(
       'Close terminal?',
     )
-    const confirmClose = [...shell.querySelectorAll('button')].find(
+    const confirmClose = [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(
       (button) => button.textContent === 'Close Terminal',
     )
     await act(async () => confirmClose?.click())
@@ -1005,7 +1050,7 @@ describe('App routing', () => {
     act(() => [...shell.querySelectorAll('button')].find(
       (button) => button.textContent === 'Close Terminal zsh',
     )?.click())
-    await act(async () => [...shell.querySelectorAll('button')].find(
+    await act(async () => [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(
       (button) => button.textContent === 'Close Terminal',
     )?.click())
 

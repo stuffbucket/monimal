@@ -1,14 +1,13 @@
+import { Button } from '@maximal/maximal-design-system'
 import type { ReactElement } from 'react'
 
 import {
-  Button,
-  FormField,
   SettingsActions,
   SettingsItem,
-  TextInput,
 } from '@maximal/maximal-electron/renderer'
 
 import type { OllamaSettingsResponse } from '../capabilities'
+import { SettingsTextInput } from '../SettingsTextInput'
 
 interface OllamaApiKeySettingsProps {
   settings: OllamaSettingsResponse
@@ -85,19 +84,18 @@ export function OllamaApiKeySettings({
         description="Use an API key to send requests directly to Ollama.com."
         actions={
           <>
-            <Button size="sm" onClick={onManageKeys}>
+            <Button onClick={onManageKeys}>
               API keys
             </Button>
             {settings.has_api_key ? (
               <>
                 <Button
-                  size="sm"
                   onClick={onRefreshStatus}
                   disabled={saving || statusChecking}
                 >
                   {statusChecking ? 'Checking…' : 'Check key'}
                 </Button>
-                <Button size="sm" onClick={onRemove} disabled={saving}>
+                <Button onClick={onRemove} disabled={saving}>
                   Remove saved key
                 </Button>
               </>
@@ -105,58 +103,48 @@ export function OllamaApiKeySettings({
           </>
         }
       >
-        <FormField
-          label="Ollama API key"
-          hint={
-            statusMessage
-              ? <span aria-live="polite">{statusMessage}</span>
-              : undefined
-          }
-          error={keyError ?? undefined}
-        >
-          {(control) => (
-            <span className="settings-credential-field">
-              <span className="settings-credential-input">
-                <TextInput
-                  {...control}
-                  value={apiKey}
-                  type="password"
-                  placeholder="Enter an API key for direct Ollama Cloud access."
-                  revealLabel="Ollama API key"
-                  disabled={saving}
-                  active={available}
-                  title={keyError ?? undefined}
-                  testId="ollama-api-key"
-                  onChange={onApiKeyChange}
-                />
-              </span>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={onSave}
-                disabled={
-                  saving
-                  || apiKey.trim().length === 0
-                  || !keyChanged
-                  || keyError !== null
-                }
-              >
-                {saving ? 'Saving…' : 'Save API Key'}
-              </Button>
-            </span>
-          )}
-        </FormField>
+        <span className="settings-credential-field">
+          <span className="settings-credential-input">
+            <SettingsTextInput
+              available={available}
+              data-testid="ollama-api-key"
+              description={statusMessage
+                ? <span aria-live="polite">{statusMessage}</span>
+                : undefined}
+              disabled={saving}
+              error={keyError ?? undefined}
+              label="Ollama API key"
+              onValueChange={onApiKeyChange}
+              placeholder="Enter an API key for direct Ollama Cloud access."
+              revealLabel="Ollama API key"
+              secret
+              value={apiKey}
+            />
+          </span>
+          <Button
+            variant="primary"
+            onClick={onSave}
+            disabled={
+              saving
+              || apiKey.trim().length === 0
+              || !keyChanged
+              || keyError !== null
+            }
+          >
+            {saving ? 'Saving…' : 'Save API Key'}
+          </Button>
+        </span>
         <SettingsActions>
-          <Button size="sm" onClick={onOpenCloudModels}>
+          <Button onClick={onOpenCloudModels}>
             Cloud models
           </Button>
-          <Button size="sm" onClick={onOpenSearch}>
+          <Button onClick={onOpenSearch}>
             Ollama search providers
           </Button>
-          <Button size="sm" onClick={onOpenPrivacy}>
+          <Button onClick={onOpenPrivacy}>
             Privacy policy
           </Button>
-          <Button size="sm" onClick={onOpenCloudSettings}>
+          <Button onClick={onOpenCloudSettings}>
             Cloud settings
           </Button>
         </SettingsActions>

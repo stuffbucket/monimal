@@ -6,12 +6,16 @@ exported subpaths described below.
 
 ## What you may depend on
 
-Three things, and class names are not among them.
+Two things, and class names are not among them.
 
 **The components** exported from `./renderer`, and their props. **The tokens**
 in `docs/shell-variables.md`, which is derived from the stylesheet rather than
-written by hand. **The content catalogue**, `SHELL_CONTENT`, which is data you
-spread and replace.
+written by hand.
+
+`./renderer` MUST export only names a workspace package imports.
+`RENDERER_SURFACE` in `scripts/export-checks.mjs` is the allowlist
+`verify:exports` enforces. Primitives without a workspace consumer, including
+`SHELL_CONTENT`, MUST remain internal to this package.
 
 The class names in `./renderer/styles.css` are an implementation detail. They
 are how the package's own rules find its own elements, and they change when the

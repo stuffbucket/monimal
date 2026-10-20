@@ -37,9 +37,9 @@ import { defaultShell } from '@maximal/maximal-terminal';
 import { TerminalWindowGroups } from '@maximal/maximal-terminal';
 import type { TmuxStatusMode } from '@maximal/maximal-terminal';
 
-export type TerminalPaneLayout = TerminalPane;
+type TerminalPaneLayout = TerminalPane;
 
-export interface TerminalRestoreEntry extends TerminalSession {
+interface TerminalRestoreEntry extends TerminalSession {
   title: string;
   canRunInBackground: boolean;
   pane?: TerminalPaneLayout;
@@ -59,7 +59,7 @@ const events: PtyEvents = {
   onPane: () => undefined,
 };
 
-export interface PtyOptions {
+interface PtyOptions {
   /** Prefix of the tmux sessions this app creates and later offers to resume. */
   tmuxSessionPrefix: string;
   /** App-owned commands offered alongside the built-in terminal destinations. */

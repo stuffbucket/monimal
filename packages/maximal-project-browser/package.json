@@ -17,13 +17,14 @@
   ],
   "scripts": {
     "analyze": "bun ../maximal-core/scripts/analyze.ts",
-    "build": "tsup src/index.ts --format esm --dts --clean --target es2022 --external react --external @maximal/maximal-electron --out-dir dist",
+    "build": "tsup src/index.ts --format esm --dts --clean --target es2022 --external react --external @maximal/maximal-design-system --external @maximal/maximal-electron --out-dir dist",
     "lint": "eslint",
     "mutate": "stryker run",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@maximal/maximal-design-system": "workspace:*",
     "@maximal/maximal-electron": "workspace:*",
     "y-protocols": "1.0.7",
     "yjs": "13.6.27"

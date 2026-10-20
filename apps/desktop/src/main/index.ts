@@ -93,6 +93,14 @@ import {
   updateSplashStatus,
 } from './windows/splash-window.js'
 import { centerOnPrimaryDisplay } from './windows/window-placement.js'
+import {
+  RENDERER_ENTRY_FILES,
+  UI_MODE_ENV,
+  UI_MODE_SWITCH,
+  UiModeController,
+  rendererEntry,
+  type RendererEntry,
+} from './ui-mode.js'
 import { ProjectsWindowHost } from './windows/projects-window-host.js'
 import {
   isHarnessBusy,
@@ -156,6 +164,7 @@ let pendingSettingsRequest: PendingSettingsRequest | null = null
 let menuBarMode: MenuBarModeController | null = null
 let recording: DesktopRecording | null = null
 let projectCatalog: DesktopProjectCatalog | null = null
+let uiMode: UiModeController | null = null
 let quitting = false
 let stopBrowserHost: (() => void) | undefined
 const MAIN_WINDOW_REVEAL_DELAY_MS = 120
@@ -335,6 +344,12 @@ function registerIpc(
   ipcMain.handle(BRIDGE_CHANNELS.providerOnboardingSet, (_event, dismissed: unknown) =>
     setProviderOnboardingPreference(z.boolean().parse(dismissed)),
   )
+  ipcMain.handle(BRIDGE_CHANNELS.uiModeGet, () => requireUiMode().state())
+  ipcMain.handle(BRIDGE_CHANNELS.uiModeSet, async (event, mode: unknown) => {
+    await requireUiMode().set(mode)
+    const window = BrowserWindow.fromWebContents(event.sender)
+    if (window !== null && window === mainWindow) loadRenderer(window)
+  })
   ipcMain.handle(BRIDGE_CHANNELS.appearanceGet, appearancePreference)
   ipcMain.handle(
     BRIDGE_CHANNELS.appearanceSetVibrancy,
@@ -641,7 +656,12 @@ function loadRenderer(win: BrowserWindow, terminal?: TerminalWindowRequest): voi
     query.set('terminalCanRunInBackground', String(terminal.canRunInBackground))
     if (terminal.pane) query.set('terminalPane', JSON.stringify(terminal.pane))
   }
-  void loadRendererQuery(win, query)
+  void loadRendererQuery(win, query, rendererEntry(uiMode?.mode ?? 'legacy'))
+}
+
+function requireUiMode(): UiModeController {
+  if (uiMode === null) throw new Error('The UI mode is read before the workspace window opens')
+  return uiMode
 }
 
 function isRendererUrl(url: string): boolean {
@@ -650,24 +670,31 @@ function isRendererUrl(url: string): boolean {
     if (typeof MAIN_WINDOW_VITE_DEV_SERVER_URL !== 'undefined' && MAIN_WINDOW_VITE_DEV_SERVER_URL) {
       return candidate.origin === new URL(MAIN_WINDOW_VITE_DEV_SERVER_URL).origin
     }
-    const renderer = pathToFileURL(join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`))
-    return candidate.protocol === renderer.protocol && candidate.host === renderer.host &&
-      candidate.pathname === renderer.pathname
+    return RENDERER_ENTRY_FILES.some((entry) => {
+      const renderer = pathToFileURL(join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/${entry}`))
+      return candidate.protocol === renderer.protocol && candidate.host === renderer.host &&
+        candidate.pathname === renderer.pathname
+    })
   } catch {
     return false
   }
 }
 
-function loadRendererQuery(win: BrowserWindow, query: URLSearchParams): Promise<void> {
+function loadRendererQuery(
+  win: BrowserWindow,
+  query: URLSearchParams,
+  entry: RendererEntry = 'index.html',
+): Promise<void> {
   const search = query.toString()
   if (
     typeof MAIN_WINDOW_VITE_DEV_SERVER_URL !== 'undefined' &&
     MAIN_WINDOW_VITE_DEV_SERVER_URL
   ) {
-    return win.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}${search === '' ? '' : `?${search}`}`)
+    const page = entry === 'index.html' ? '' : `/${entry}`
+    return win.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}${page}${search === '' ? '' : `?${search}`}`)
   } else {
     return win.loadFile(
-      join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
+      join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/${entry}`),
       search === '' ? undefined : { search },
     )
   }
@@ -1051,6 +1078,12 @@ void app.whenReady().then(async () => {
   setSplashStatus('Loading project catalog…')
   projectCatalog = await DesktopProjectCatalog.open(app.getPath('userData'))
   configureTerminalProjectTrust((path) => projectCatalog?.isTrustedPath(path) === true)
+  uiMode = await UiModeController.load({
+    switchValue: app.commandLine.getSwitchValue(UI_MODE_SWITCH) || undefined,
+    env: process.env[UI_MODE_ENV],
+    isPackaged: app.isPackaged,
+  })
+  mainLogger.info({ mode: uiMode.mode }, 'Workspace UI mode resolved')
   registerIpc(coreControlConnection, nativeMode, projectCatalog)
   stopBrowserHost = startBrowserHost(() => mainWindow)
   void projectCatalog.refresh().then(

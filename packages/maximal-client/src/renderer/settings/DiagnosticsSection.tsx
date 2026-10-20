@@ -1,7 +1,8 @@
+import { Button, CopyButton } from '@maximal/maximal-design-system'
 import { useQuery } from '@tanstack/react-query'
 import { type ReactElement } from 'react'
 
-import { Button, CopyButton, Note } from '@maximal/maximal-electron/renderer'
+import { Note } from '@maximal/maximal-electron/renderer'
 
 import type {
   AppsListResponse,
@@ -182,7 +183,7 @@ export function DiagnosticsSection({
             about="the diagnostics report"
           />
         ) : null}
-        <Button size="sm" onClick={() => void query.refetch()} disabled={loading}>
+        <Button onClick={() => void query.refetch()} disabled={loading}>
           {loading ? 'Refreshing…' : 'Refresh'}
         </Button>
       </div>

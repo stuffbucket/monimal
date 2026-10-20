@@ -5,7 +5,7 @@ import { SplitTree } from './SplitTree.js';
 type Leaf = { label: string };
 
 const meta = {
-  title: 'Components/SplitTree',
+  title: 'Deprecated/SplitTree',
   component: SplitTree<Leaf>,
   args: {
     id: 'story',

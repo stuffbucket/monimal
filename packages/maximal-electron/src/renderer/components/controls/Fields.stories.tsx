@@ -19,7 +19,7 @@ import {
  * interesting states are the field's, not the input's.
  */
 const meta = {
-  title: 'Controls/FormField',
+  title: 'Deprecated/FormField',
   component: FormField,
   args: {
     label: 'Working directory',

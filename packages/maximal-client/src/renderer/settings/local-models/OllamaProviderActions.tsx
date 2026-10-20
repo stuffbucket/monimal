@@ -1,4 +1,5 @@
-import { Button, SettingsActions } from "@maximal/maximal-electron/renderer";
+import { Button } from "@maximal/maximal-design-system"
+import { SettingsActions } from "@maximal/maximal-electron/renderer";
 
 import type { SettingsCapabilities } from "../capabilities";
 import { useSettingsNavigation } from "../navigation";
@@ -20,7 +21,6 @@ export function OllamaProviderActions({
   return (
     <SettingsActions testId="ollama-provider-actions">
       <Button
-        size="sm"
         onClick={() => navigate("settings-account-heading")}
       >
         Edit account…
@@ -28,7 +28,6 @@ export function OllamaProviderActions({
       {runtime?.can_launch ? (
         <Button
           variant="primary"
-          size="sm"
           disabled={provider.launching}
           onClick={() => void provider.launch()}
         >
@@ -40,7 +39,6 @@ export function OllamaProviderActions({
         </Button>
       ) : runtime?.installed === false ? (
         <Button
-          size="sm"
           onClick={() =>
             void capabilities.openExternal("https://ollama.com/download")
           }

@@ -18,7 +18,6 @@ let root: Root
 
 beforeEach(() => {
   container = document.createElement("div")
-  container.className = "sb-shell"
   document.body.append(container)
   root = createRoot(container)
 })

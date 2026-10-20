@@ -73,7 +73,7 @@ function TitleBarStory({
 }
 
 const meta = {
-  title: 'Layout/TitleBar',
+  title: 'Deprecated/TitleBar',
   component: TitleBarStory,
   args: { editable: true, injectedActions: true },
   argTypes: {

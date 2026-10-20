@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "accessibility": {
+    "standard": "WCAG 2.2 AA",
+    "disabledRules": [
+      "bypass",
+      "landmark-one-main",
+      "page-has-heading-one",
+      "region"
+    ],
+    "profileDisabledAxeRules": {
+      "forced-colors": ["color-contrast"]
+    },
+    "maximumIncomplete": 0,
+    "maximumViolations": 0,
+    "maximumUncheckedStories": 0
+  },
+  "browser": {
+    "acceptanceProfiles": [
+      "reflow-320",
+      "zoom-200-equivalent",
+      "forced-colors",
+      "reduced-motion",
+      "text-spacing"
+    ],
+    "engine": "chromium",
+    "globals": {
+      "shell": "design-system"
+    },
+    "ownedStoryImportPrefix": "./stories/",
+    "requiredCssCustomProperties": [
+      "--spacer-1",
+      "--maximal-color-text-default"
+    ],
+    "themes": ["dark", "light"],
+    "viewport": {
+      "width": 1280,
+      "height": 900
+    }
+  },
+  "runtime": {
+    "maximumConsoleErrors": 0,
+    "maximumPageErrors": 0,
+    "requireUnobscuredKeyboardFocus": true,
+    "requireVisibleFocusIndicator": true
+  },
+  "source": {
+    "forbiddenDomLikeProps": [
+      "ariaLabel",
+      "dataTestId",
+      "dataTestID",
+      "testId",
+      "testID"
+    ],
+    "forbidImportantDeclarations": true,
+    "forbidLiteralColors": true,
+    "forbidLiteralSpatialDimensions": true,
+    "forbidLiteralStackingLevels": true,
+    "forbidLiteralMotionDurations": true
+  }
+}

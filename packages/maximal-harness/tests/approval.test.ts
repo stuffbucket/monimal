@@ -49,6 +49,12 @@ describe('needsApproval', () => {
     }
   });
 
+  it('never asks under "read-only" because unsafe tools are denied', () => {
+    for (const risk of ['safe', 'mutating', 'dangerous'] as const) {
+      expect(needsApproval('read-only', risk)).toBe(false);
+    }
+  });
+
   describe('permitsTool', () => {
     it('allows only safe tools in read-only mode', () => {
       expect(permitsTool('read-only', 'safe')).toBe(true);

@@ -12,9 +12,9 @@ import type {
   ConnectionEntry,
   ConnectionsListResponse,
   CopilotAccountUsage,
-  ConnectorSettingField,
-  ConnectorSettingValue,
   DiagnosticsResponse,
+} from '@maximal/maximal-core-contract/settings'
+import type {
   ModelsListResponse,
   OllamaApiKeyTestRequest,
   OllamaApiKeyTestResponse,
@@ -59,7 +59,6 @@ import type {
   OllamaRuntimePreferencesUpdate,
   ProviderOnboardingPreference,
   SystemNotificationStatus,
-  TerminalFontAxis,
   TerminalFontCatalog,
   TerminalTypographySettings,
   WorkbarLayout,
@@ -79,7 +78,6 @@ export type {
   ApiKeyUpdateRequest,
   AppEntry,
   AppsListResponse,
-  AppearancePreference,
   AuthStatus,
   ConnectionAction,
   ConnectionCredentialReveal,
@@ -88,39 +86,46 @@ export type {
   CopilotAccountUsage,
   ConnectorSettingField,
   ConnectorSettingValue,
-  ClientInstallation,
   DiagnosticsResponse,
-  GeneralDesktopSettings,
-  AssistantOverlayPreferences,
-  MenuBarModeAttempt,
-  MenuBarModeState,
+} from '@maximal/maximal-core-contract/settings'
+export type {
   ModelsListResponse,
   OllamaApiKeyTestRequest,
   OllamaApiKeyTestResponse,
   OllamaAccountsListResponse,
-  OllamaRuntimePreferences,
-  OllamaRuntimePreferencesUpdate,
   OllamaSettingsResponse,
   OllamaSettingsUpdateRequest,
-  LocalModelCancelResult,
-  LocalModelCatalogSnapshot,
-  LocalModelEnsureResult,
-  LocalModelOperationEvent,
-  OllamaRuntimeStatus,
-  TerminalFontAxis,
-  TerminalFontCatalog,
-  TerminalTypographySettings,
-  WorkbarLayout,
   SearchProviderValidationRequest,
   SearchProviderValidationResponse,
+} from '@maximal/maximal-core-contract/settings'
+export type {
   SearchSettingsResponse,
   SearchSettingsUpdateRequest,
   SystemOneSettingsResponse,
   SystemOneSettingsUpdateRequest,
-  SystemNotificationStatus,
   TokenUsagePeriod,
   TokenUsageSummary,
-}
+} from '@maximal/maximal-core-contract/settings'
+export type { AssistantOverlayPreferences } from '@maximal/maximal-harness'
+export type {
+  AppearancePreference,
+  ClientInstallation,
+  GeneralDesktopSettings,
+  LocalModelCancelResult,
+  LocalModelCatalogSnapshot,
+  LocalModelEnsureResult,
+  LocalModelOperationEvent,
+  MenuBarModeAttempt,
+  MenuBarModeState,
+  OllamaRuntimePreferences,
+  OllamaRuntimePreferencesUpdate,
+  OllamaRuntimeStatus,
+  SystemNotificationStatus,
+  TerminalFontAxis,
+  TerminalFontCatalog,
+  TerminalTypographySettings,
+  WorkbarLayout,
+} from '../../shared/host'
 
 /** Narrow UI contract; Electron transport stays inside this adapter. */
 export interface SettingsCapabilities {

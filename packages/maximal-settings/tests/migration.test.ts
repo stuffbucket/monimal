@@ -107,3 +107,29 @@ void test("settings adapters exempt only their environment handoff", () => {
     rmSync(root, { recursive: true, force: true })
   }
 })
+
+void test("portable design tooling config is not application settings", () => {
+  const root = mkdtempSync(join(tmpdir(), "design-tool-settings-ratchet-"))
+  try {
+    const directory = join(
+      root,
+      "packages",
+      "maximal-design-system-tools",
+      "src",
+    )
+    mkdirSync(directory, { recursive: true })
+    writeFileSync(
+      join(directory, "storybook-check.mjs"),
+      `
+      const exists = await access("quality.config.json");
+      const config = await readFile("quality.config.json");
+      spawn("storybook", [], { env: process.env });
+      export { config, exists };
+    `,
+    )
+
+    assert.deepEqual(scanSettingsReaders({ root }), {})
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})

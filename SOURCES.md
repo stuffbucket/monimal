@@ -14,7 +14,8 @@ their source repositories.
 
 | Package | Purpose |
 | --- | --- |
-| `packages/maximal-design-system` (`@maximal/maximal-design-system`) | Shared color and theme system, generated Style Dictionary artifacts, workspace token inventory, design tools, and the workspace Storybook catalog. |
+| `packages/maximal-design-system` (`@maximal/maximal-design-system`) | Shared color and theme system, generated Style Dictionary artifacts, workspace token inventory, Base UI-backed design primitives and spikes, and the workspace Storybook catalog. |
+| `packages/maximal-design-system-tools` (`@maximal/maximal-design-system-tools`) | Portable React state analysis, design-system source and API policy checks, and Storybook browser-quality tooling. |
 | `packages/maximal-browser` | Agent-shareable browser sessions, native Electron views, and browser-tab renderer UI. |
 | `packages/maximal-terminal` | Electron-free terminal hosts, tmux control and projection, launch connectors, and the terminal renderer. |
 | `packages/maximal-settings` | Typed layered settings, process-owned JSON stores, plugin-schema validation, and the settings migration ratchet. |
@@ -142,6 +143,10 @@ packaged sidecar.
 | `maximal-electron` / `maximal-project-browser` / `maximal-client` / `apps/desktop` | `maximal-electron` owns token-driven spatial canvas presentation and control primitives; the reusable project map owns interaction and collaborative state, the client owns project discovery and opening, and desktop owns composition and shared shell stylesheet loading. |
 | `maximal-electron` / `maximal-client` / `apps/desktop` | Projects tab transfers MUST use the shared document drag payload, a client-owned board and view snapshot, and a desktop-owned ready-checked window lifecycle. |
 | `maximal-design-system` / `maximal-storybook` | The design system owns the workspace Storybook catalog and generated token artifacts; `maximal-storybook` owns shared authoring and test APIs while stories and deterministic fixtures remain beside the packages they exercise. |
+| `maximal-design-system` | Base UI MAY own headless interaction behavior; visible component styling and theme values MUST come from `maximal-design-system` CSS and tokens rather than `maximal-electron` shell contracts. |
+| `maximal-design-system` / `maximal-client` / `apps/desktop` | The workspace window has three renderer entries: `index.html` draws the `maximal-electron` UI, `design-system.html` draws `maximal-client`'s product composition, and `spike.html` draws `WorkspaceShellSpike` so spike-only UI stays reachable until it is ported into the product composition. The design-system and spike entries MUST load only `@maximal/maximal-design-system` stylesheets, and `designSystemRendererBoundary` rejects runtime `maximal-electron` imports under each `renderer/design-system` tree. Surfaces it has not ported MUST render placeholders rather than legacy components. |
+| `apps/desktop` | Main resolves the workspace UI mode from the `--ui` switch, then `MAXIMAL_UI`, then the saved `uiMode` preference, then the build default: `design-system` in development and `legacy` when packaged. Only development builds MAY switch modes, and only the in-window switch above the tab bar persists a choice. |
+| `maximal-electron` | A renderer export MAY be retired once no consumer imports it. Its removal MUST delete its mutate-list entries and re-record the mutant-count baseline in the same change; the mutation threshold MUST NOT be lowered. |
 | `maximal-electron` | `NumberInput` owns bounded numeric draft-and-commit behavior; `UnitValueInput` owns automatic/manual presentation and persisted display units while consumers own canonical conversion; `TypefaceControls` composes reusable compact typeface fields; and `TerminalTabs` forwards consumer-owned live typography to terminal views without owning its persistence or font discovery. |
 | `@wterm/dom` 0.4.1 | Kitty graphics canvas backing stores scale with the bounded device pixel ratio so terminal images remain sharp on HiDPI displays. |
 | `maximal-electron` | Electron hosts MAY launch trusted application-owned terminal commands through the main-only `launchTrustedTerminal` API; renderer PTY requests remain restricted to opaque session geometry. |
@@ -187,6 +192,7 @@ packaged sidecar.
 | `maximal-electron` | Private workspace package, not published; the registry publish, tag, and git-install checks are removed. |
 | `maximal-electron` | Workspace installation MUST NOT build the package; Turbo MUST own dependency-ordered builds. |
 | `maximal-design-system` | Its package build and Turbo token inventory hash tracked application and package sources because the Style Dictionary inventory is workspace-wide. |
+| `maximal-design-system` | Required CI installs the lockfile-pinned Playwright Chromium revision and gates every design-system-owned Storybook story in light and dark themes on rendering, play functions, generated tokens, browser errors, WCAG 2.2 AA Axe results, keyboard focus visibility, deterministic acceptance profiles, non-regressing runtime coverage floors, and critical-logic mutation score. |
 | `maximal-electron` | The package MUST NOT contain demo-shell or terminal-lab application composition. |
 | `maximal-recording` / `apps/desktop` | Recording owns capture and encoding; desktop owns explicit initiation, destination, and window selection. |
 | `apps/desktop` | The desktop application MUST own terminal integration behavior and end-to-end coverage. |

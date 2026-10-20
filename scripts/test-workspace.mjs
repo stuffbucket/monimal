@@ -23,6 +23,39 @@ const scrubbedEnvironment = [
 const usage = "Usage: pnpm test -- [--all|--core|--settings] [--trace=off|tests|all]";
 const performanceMarkerEnvironment = "MONIMAL_PERF_MARKERS";
 
+export function playwrightBrowsersPath(
+  environment = process.env,
+  platform = process.platform,
+) {
+  if (environment.PLAYWRIGHT_BROWSERS_PATH) {
+    return environment.PLAYWRIGHT_BROWSERS_PATH;
+  }
+  if (platform === "darwin") {
+    return path.join(
+      environment.HOME ?? os.homedir(),
+      "Library",
+      "Caches",
+      "ms-playwright",
+    );
+  }
+  if (platform === "win32") {
+    return path.join(
+      environment.LOCALAPPDATA
+        ?? path.join(
+          environment.USERPROFILE ?? os.homedir(),
+          "AppData",
+          "Local",
+        ),
+      "ms-playwright",
+    );
+  }
+  return path.join(
+    environment.XDG_CACHE_HOME
+      ?? path.join(environment.HOME ?? os.homedir(), ".cache"),
+    "ms-playwright",
+  );
+}
+
 export function formatPerformanceMarker({
   phase,
   startedAt,
@@ -135,6 +168,7 @@ export function createIsolatedTestEnvironment(parent = os.tmpdir()) {
     LOCALAPPDATA: directories.localAppData,
     MAXIMAL_HOME: directories.maximal,
     CLAUDE_CONFIG_DIR: directories.claude,
+    PLAYWRIGHT_BROWSERS_PATH: playwrightBrowsersPath(),
   });
   delete environment.MAXIMAL_TEST_CONTAINER;
   delete environment[performanceMarkerEnvironment];

@@ -282,8 +282,8 @@ only way a literal gets into one of these files.
 
 Not a variable, and named here because it is the other half of the same
 question. Colour, spacing and radius come from the token contract above; copy
-for reusable package-owned surfaces comes from `SHELL_CONTENT`, supplied
-through `ShellContentProvider`. `LOREM_CONTENT` is the stub half, and
+for reusable package-owned surfaces comes from the internal `SHELL_CONTENT`
+catalogue, supplied through `ShellContentProvider`. `LOREM_CONTENT` is the stub half, and
 `tests/content-seam.test.ts` verifies that the live model-card surface reads
 copy through that seam instead of fixing a product voice in the package.
 

@@ -136,7 +136,6 @@ export function EditableHeading({
     />,
   );
 }
-
 function EditableOwnerLabel({
   value,
   active,
@@ -216,5 +215,3 @@ export function EditableMenubarItem(props: EditableMoleculeProps): ReactElement 
     />
   );
 }
-
-export type { EditableMoleculeProps };

@@ -1,13 +1,9 @@
 import { useState, type ReactElement } from 'react'
+import { Select, Slider, TextInput } from '@maximal/maximal-design-system'
 
-import {
-  FormField,
-  Note,
-  Select,
-  Slider,
-  TextInput,
-} from '@maximal/maximal-electron/renderer'
+import { Note } from '@maximal/maximal-electron/renderer'
 
+import { ControlNotes } from '../ControlNotes'
 import {
   MATERIAL_PRESETS,
   type MaterialLighting,
@@ -27,28 +23,7 @@ const TIMEZONE_OPTIONS = [
   label: timezone.replaceAll('_', ' '),
 }))
 
-const STRENGTH_OPTIONS = [
-  { value: 0.25, label: 'Subtle' },
-  { value: 0.5, label: 'Soft' },
-  { value: 0.75, label: 'Balanced' },
-  { value: 1, label: 'Strong' },
-] as const
-
-const MOTION_OPTIONS = [
-  { value: 0, label: 'Still' },
-  { value: 0.25, label: 'Slow' },
-  { value: 0.5, label: 'Gentle' },
-  { value: 0.75, label: 'Active' },
-  { value: 1, label: 'Fluid' },
-] as const
-
-const SOLAR_STRENGTH_OPTIONS = [
-  { value: 0, label: 'Off' },
-  { value: 0.25, label: 'Subtle' },
-  { value: 0.5, label: 'Balanced' },
-  { value: 0.75, label: 'Present' },
-  { value: 1, label: 'Strong' },
-] as const
+const PERCENT: Intl.NumberFormatOptions = { style: 'percent' }
 
 function SolarFollowSettings({
   material,
@@ -71,43 +46,43 @@ function SolarFollowSettings({
         />
       </div>
       <div className="material-settings__solar-strength">
-        <FormField
-          label="Follow strength"
-          hint="Controls how strongly the calculated sun direction shapes the material."
-        >
-          {(field) => (
+        <ControlNotes hint="Controls how strongly the calculated sun direction shapes the material.">
+          {(describedBy) => (
             <Slider
-              {...field}
-              label="Follow the sun strength"
+              label="Follow strength"
+              aria-describedby={describedBy}
               value={material.solarFollowStrength}
-              options={SOLAR_STRENGTH_OPTIONS}
+              min={0}
+              max={1}
+              step={0.25}
+              format={PERCENT}
               disabled={disabled}
-              onChange={(solarFollowStrength) =>
+              onValueChange={(solarFollowStrength) =>
                 update({ ...material, solarFollowStrength })}
-              testId="material-solar-strength"
+              data-testid="material-solar-strength"
             />
           )}
-        </FormField>
+        </ControlNotes>
       </div>
-      <FormField
-        label="Sunlight"
-        hint="Atmosphere is a broad glow. Broken-cloud rays add soft, visible shafts."
-      >
-        {(field) => (
+      <ControlNotes hint="Atmosphere is a broad glow. Broken-cloud rays add soft, visible shafts.">
+        {(describedBy) => (
           <Select<MaterialSolarEffect>
-            {...field}
+            label="Sunlight"
             value={material.solarEffect}
             options={[
               { value: 'atmospheric', label: 'Atmospheric glow' },
               { value: 'rays', label: 'Rays through broken clouds' },
             ]}
             disabled={disabled}
-            onChange={(solarEffect) => update({ ...material, solarEffect })}
-            aria-label="Follow the sun effect"
-            testId="material-solar-effect"
+            onValueChange={(solarEffect) => update({ ...material, solarEffect })}
+            triggerProps={{
+              'aria-describedby': describedBy,
+              'aria-label': 'Follow the sun effect',
+              'data-testid': 'material-solar-effect',
+            }}
           />
         )}
-      </FormField>
+      </ControlNotes>
     </>
   )
 }
@@ -144,51 +119,37 @@ function SolarLocationSettings({
 
   return (
     <div className="material-settings__location">
-      <FormField label="Timezone">
-        {(field) => (
-          <Select<string>
-            {...field}
-            value={material.timezone}
-            options={TIMEZONE_OPTIONS}
-            disabled={disabled}
-            onChange={(timezone) => update({ ...material, timezone })}
-            aria-label="Material lighting timezone"
-            testId="material-timezone"
-          />
-        )}
-      </FormField>
-      <FormField
+      <Select<string>
+        label="Timezone"
+        value={material.timezone}
+        options={TIMEZONE_OPTIONS}
+        disabled={disabled}
+        onValueChange={(timezone) => update({ ...material, timezone })}
+        triggerProps={{
+          'aria-label': 'Material lighting timezone',
+          'data-testid': 'material-timezone',
+        }}
+      />
+      <TextInput
+        aria-label="Material lighting latitude"
+        data-testid="material-latitude"
+        description="Kept for this app session and used only to calculate the sun angle."
         label="Latitude"
-        hint="Kept for this app session and used only to calculate the sun angle."
-      >
-        {(field) => (
-          <TextInput
-            {...field}
-            value={latitude}
-            disabled={disabled}
-            onChange={setLatitude}
-            onBlur={() => commit('latitude', latitude)}
-            aria-label="Material lighting latitude"
-            testId="material-latitude"
-          />
-        )}
-      </FormField>
-      <FormField
+        value={latitude}
+        disabled={disabled}
+        onChange={(event) => setLatitude(event.currentTarget.value)}
+        onBlur={() => commit('latitude', latitude)}
+      />
+      <TextInput
+        aria-label="Material lighting longitude"
+        data-testid="material-longitude"
+        description="Kept for this app session; Maximal does not request device location."
         label="Longitude"
-        hint="Kept for this app session; Maximal does not request device location."
-      >
-        {(field) => (
-          <TextInput
-            {...field}
-            value={longitude}
-            disabled={disabled}
-            onChange={setLongitude}
-            onBlur={() => commit('longitude', longitude)}
-            aria-label="Material lighting longitude"
-            testId="material-longitude"
-          />
-        )}
-      </FormField>
+        value={longitude}
+        disabled={disabled}
+        onChange={(event) => setLongitude(event.currentTarget.value)}
+        onBlur={() => commit('longitude', longitude)}
+      />
       <SolarFollowSettings
         material={material}
         disabled={disabled}
@@ -220,32 +181,29 @@ export function MaterialSettings({
   return (
     <div className="material-settings" data-testid="material-settings">
       <div className="material-settings__grid">
-        <FormField
-          label="Material"
-          hint={`${cost ?? 'Low'} GPU cost. One fullscreen draw.`}
-        >
-          {(field) => (
+        <ControlNotes hint={`${cost ?? 'Low'} GPU cost. One fullscreen draw.`}>
+          {(describedBy) => (
             <Select<MaterialPreset>
-              {...field}
+              label="Material"
               value={material.preset}
               options={MATERIAL_PRESETS.map(({ value, label }) => ({
                 value,
                 label,
               }))}
               disabled={disabled || preference.busy}
-              onChange={(preset) => update({ ...material, preset })}
-              aria-label="Background material"
-              testId="material-preset"
+              onValueChange={(preset) => update({ ...material, preset })}
+              triggerProps={{
+                'aria-describedby': describedBy,
+                'aria-label': 'Background material',
+                'data-testid': 'material-preset',
+              }}
             />
           )}
-        </FormField>
-        <FormField
-          label="Quality"
-          hint="Caps resolution and frame rate to control battery and GPU use."
-        >
-          {(field) => (
+        </ControlNotes>
+        <ControlNotes hint="Caps resolution and frame rate to control battery and GPU use.">
+          {(describedBy) => (
             <Select<MaterialQuality>
-              {...field}
+              label="Quality"
               value={material.quality}
               options={[
                 { value: 'battery', label: 'Battery saver' },
@@ -253,64 +211,65 @@ export function MaterialSettings({
                 { value: 'high', label: 'High fidelity' },
               ]}
               disabled={disabled || preference.busy}
-              onChange={(quality) => update({ ...material, quality })}
-              aria-label="Material quality"
-              testId="material-quality"
+              onValueChange={(quality) => update({ ...material, quality })}
+              triggerProps={{
+                'aria-describedby': describedBy,
+                'aria-label': 'Material quality',
+                'data-testid': 'material-quality',
+              }}
             />
           )}
-        </FormField>
+        </ControlNotes>
         <div className="material-settings__field material-settings__field--wide">
-          <FormField label="Strength">
-            {(field) => (
-              <Slider
-                {...field}
-                label="Material strength"
-                value={material.strength}
-                options={STRENGTH_OPTIONS}
-                disabled={disabled || preference.busy}
-                onChange={(strength) => update({ ...material, strength })}
-                testId="material-strength"
-              />
-            )}
-          </FormField>
+          <Slider
+            label="Strength"
+            value={material.strength}
+            min={0.25}
+            max={1}
+            step={0.25}
+            format={PERCENT}
+            disabled={disabled || preference.busy}
+            onValueChange={(strength) => update({ ...material, strength })}
+            data-testid="material-strength"
+          />
         </div>
         <div className="material-settings__field material-settings__field--wide">
-          <FormField
-            label="Motion"
-            hint="Reduce motion overrides this setting and freezes the material."
-          >
-            {(field) => (
+          <ControlNotes hint="Reduce motion overrides this setting and freezes the material.">
+            {(describedBy) => (
               <Slider
-                {...field}
-                label="Material motion"
+                label="Motion"
+                aria-describedby={describedBy}
                 value={material.motion}
-                options={MOTION_OPTIONS}
+                min={0}
+                max={1}
+                step={0.25}
+                format={PERCENT}
                 disabled={disabled || preference.busy}
-                onChange={(motion) => update({ ...material, motion })}
-                testId="material-motion"
+                onValueChange={(motion) => update({ ...material, motion })}
+                data-testid="material-motion"
               />
             )}
-          </FormField>
+          </ControlNotes>
         </div>
-        <FormField
-          label="Lighting"
-          hint="Timezone lighting follows a locally calculated solar arc."
-        >
-          {(field) => (
+        <ControlNotes hint="Timezone lighting follows a locally calculated solar arc.">
+          {(describedBy) => (
             <Select<MaterialLighting>
-              {...field}
+              label="Lighting"
               value={material.lighting}
               options={[
                 { value: 'fixed', label: 'Fixed studio light' },
                 { value: 'timezone', label: 'Date, time, and location' },
               ]}
               disabled={disabled || preference.busy}
-              onChange={(lighting) => update({ ...material, lighting })}
-              aria-label="Material lighting"
-              testId="material-lighting"
+              onValueChange={(lighting) => update({ ...material, lighting })}
+              triggerProps={{
+                'aria-describedby': describedBy,
+                'aria-label': 'Material lighting',
+                'data-testid': 'material-lighting',
+              }}
             />
           )}
-        </FormField>
+        </ControlNotes>
         {material.lighting === 'timezone' ? (
           <SolarLocationSettings
             key={`${String(material.latitude)}:${String(material.longitude)}`}

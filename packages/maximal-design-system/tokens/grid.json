@@ -1,9 +1,14 @@
 {
   "spacer": {
-    "$description": "Canonical 4px-based spacing scale for layout, padding, and margins.",
+    "$description": "Canonical spacing scale for layout, padding, margins, and nested surfaces.",
     "$type": "dimension",
     "0": { "$value": { "value": 0, "unit": "px" }, "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--spacer-0"] } } },
     "1": { "$value": { "value": 4, "unit": "px" }, "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--spacer-1"] } } },
+    "large-nested": {
+      "$description": "Inset for controls nested within large-radius surfaces.",
+      "$value": { "value": 6, "unit": "px" },
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--spacer-large-nested"] } }
+    },
     "2": { "$value": { "value": 8, "unit": "px" }, "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--spacer-2"] } } },
     "3": { "$value": { "value": 16, "unit": "px" }, "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--spacer-3"] } } },
     "4": { "$value": { "value": 24, "unit": "px" }, "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--spacer-4"] } } },
@@ -13,6 +18,25 @@
   "height": {
     "$description": "Canonical heights for dense controls and list structures.",
     "$type": "dimension",
+    "window": {
+      "preferred": {
+        "$description": "Preferred height for the workspace shell preview.",
+        "$value": { "value": 720, "unit": "px" },
+        "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--height-window-preferred"] } }
+      },
+      "minimum": {
+        "$description": "Minimum usable height for a workspace window.",
+        "$value": { "value": 600, "unit": "px" },
+        "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--height-window-minimum"] } }
+      }
+    },
+    "menu": {
+      "maximum": {
+        "$description": "Maximum height for a viewport-bound menu.",
+        "$value": { "value": 560, "unit": "px" },
+        "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--height-menu-maximum"] } }
+      }
+    },
     "control": {
       "compact": {
         "$description": "Small buttons, dropdowns, and other dense controls.",
@@ -33,13 +57,146 @@
       }
     }
   },
+  "width": {
+    "$description": "Canonical widths for persistent navigation and panel structures.",
+    "$type": "dimension",
+    "window": {
+      "preferred": {
+        "$description": "Preferred width for the workspace shell preview.",
+        "$value": { "value": 1080, "unit": "px" },
+        "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--width-window-preferred"] } }
+      },
+      "minimum": {
+        "$description": "Minimum usable width for a workspace window.",
+        "$value": { "value": 900, "unit": "px" },
+        "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--width-window-minimum"] } }
+      }
+    },
+    "content": {
+      "standard": {
+        "$description": "Standard readable width for focused shell content.",
+        "$value": { "value": 520, "unit": "px" },
+        "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--width-content-standard"] } }
+      }
+    },
+    "navigation": {
+      "bar": {
+        "$description": "Persistent application navigation bar.",
+        "$value": { "value": 56, "unit": "px" },
+        "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--width-navigation-bar"] } }
+      }
+    },
+    "sidebar": {
+      "minimum": {
+        "$description": "Minimum usable width for a resizable sidebar.",
+        "$value": { "value": 160, "unit": "px" },
+        "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--width-sidebar-minimum"] } }
+      },
+      "standard": {
+        "$description": "Default width for a persistent sidebar.",
+        "$value": { "value": 240, "unit": "px" },
+        "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--width-sidebar-standard"] } }
+      },
+      "left": {
+        "minimum": {
+          "$description": "Minimum usable width for the left workspace sidebar.",
+          "$value": { "value": 300, "unit": "px" },
+          "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--width-sidebar-left-minimum"] } }
+        },
+        "default": {
+          "$description": "Default width for the left workspace sidebar.",
+          "$value": { "value": 346, "unit": "px" },
+          "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--width-sidebar-left-default"] } }
+        },
+        "maximum": {
+          "$description": "Maximum width for the left workspace sidebar.",
+          "$value": { "value": 366, "unit": "px" },
+          "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--width-sidebar-left-maximum"] } }
+        }
+      },
+      "right": {
+        "minimum": {
+          "$description": "Minimum usable width for the right workspace sidebar.",
+          "$value": { "value": 240, "unit": "px" },
+          "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--width-sidebar-right-minimum"] } }
+        },
+        "default": {
+          "$description": "Default width for the right workspace sidebar.",
+          "$value": { "value": 246, "unit": "px" },
+          "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--width-sidebar-right-default"] } }
+        },
+        "maximum": {
+          "$description": "Maximum width for the right workspace sidebar.",
+          "$value": { "value": 360, "unit": "px" },
+          "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--width-sidebar-right-maximum"] } }
+        }
+      }
+    }
+  },
+  "padding": {
+    "$description": "Canonical insets for persistent navigation structures.",
+    "$type": "dimension",
+    "navigation": {
+      "bar": {
+        "inline": {
+          "$description": "Horizontal inset that centers standard controls in the navigation bar.",
+          "$value": { "value": 12, "unit": "px" },
+          "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--padding-navigation-bar-inline"] } }
+        }
+      }
+    }
+  },
   "radius": {
     "$description": "Canonical radii designed to nest with the spacing scale.",
     "$type": "dimension",
     "none": { "$value": { "value": 0, "unit": "px" }, "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--radius-none"] } } },
     "small": { "$value": { "value": 2, "unit": "px" }, "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--radius-small"] } } },
     "medium": { "$value": { "value": 5, "unit": "px" }, "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--radius-medium"] } } },
+    "large-nested": {
+      "$description": "Inside corner radius for controls nested within large-radius surfaces.",
+      "$value": { "value": 9, "unit": "px" },
+      "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--radius-large-nested"] } }
+    },
     "large": { "$value": { "value": 13, "unit": "px" }, "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--radius-large"] } } },
+    "window": {
+      "outer": {
+        "$description": "Outside window corner radius before platform overrides.",
+        "$value": { "value": 13, "unit": "px" },
+        "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--radius-window-outer"] } }
+      },
+      "inner": {
+        "$description": "Inside window corner radius before platform overrides.",
+        "$value": { "value": 13, "unit": "px" },
+        "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--radius-window-inner"] } }
+      }
+    },
+    "dialog": {
+      "outer": {
+        "$description": "Outside dialog corner radius before platform overrides.",
+        "$value": { "value": 13, "unit": "px" },
+        "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--radius-dialog-outer"] } }
+      },
+      "inner": {
+        "$description": "Inside dialog corner radius before platform overrides.",
+        "$value": { "value": 13, "unit": "px" },
+        "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--radius-dialog-inner"] } }
+      }
+    },
+    "platform": {
+      "macos": {
+        "$description": "macOS surface radii preserve a 4px nesting delta.",
+        "outer": {
+          "$description": "Outside corner radius for macOS windows and dialogs.",
+          "$value": { "value": 16, "unit": "px" },
+          "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--radius-platform-macos-outer"] } }
+        },
+        "inner": {
+          "$description": "Inside corner radius for nested macOS window and dialog surfaces.",
+          "$value": { "value": 12, "unit": "px" },
+          "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--radius-platform-macos-inner"] } }
+        }
+      }
+    },
     "full": { "$value": { "value": 9999, "unit": "px" }, "$extensions": { "dev.maximal.design-token": { "cssCustomProperties": ["--radius-full"] } } }
   }
 }

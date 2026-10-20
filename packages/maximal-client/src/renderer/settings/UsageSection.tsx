@@ -1,8 +1,8 @@
+import { Button } from '@maximal/maximal-design-system'
 import { useQuery } from '@tanstack/react-query'
 import { useState, type ReactElement } from 'react'
 
 import {
-  Button,
   Note,
   SettingsGroup,
   SettingsItem,
@@ -50,7 +50,6 @@ export function UsageSection({ capabilities }: UsageSectionProps): ReactElement 
                 {PERIODS.map((value) => (
                   <Button
                     key={value}
-                    size="sm"
                     aria-pressed={period === value}
                     onClick={() => setPeriod(value)}
                   >
@@ -65,7 +64,7 @@ export function UsageSection({ capabilities }: UsageSectionProps): ReactElement 
                 <Note status="failed" live="assertive">
                   {error}
                 </Note>
-                <Button size="sm" onClick={() => void query.refetch()}>
+                <Button onClick={() => void query.refetch()}>
                   Try again
                 </Button>
               </>

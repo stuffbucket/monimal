@@ -1,3 +1,4 @@
+import { Button, Select, TextInput } from '@maximal/maximal-design-system'
 import {
   type ChangeEvent,
   type ReactElement,
@@ -5,13 +6,10 @@ import {
 } from 'react'
 
 import {
-  Button,
   Note,
-  Select,
   SettingsGroup,
   SettingsItem,
   SettingsSection,
-  TextInput,
 } from '@maximal/maximal-electron/renderer'
 
 import {
@@ -89,8 +87,8 @@ export function ThemeNotices({
               Motion respects Reduce Motion.
             </span>
             <span className="appearance-actions">
-              <Button size="sm" onClick={onApplyPending}>Preview shader theme</Button>
-              <Button size="sm" onClick={onCancelPending}>Cancel</Button>
+              <Button onClick={onApplyPending}>Preview shader theme</Button>
+              <Button onClick={onCancelPending}>Cancel</Button>
             </span>
           </span>
         </Note>
@@ -102,7 +100,7 @@ export function ThemeNotices({
               Previewing <strong>{theme.name}</strong>. Keep it, or restore any
               of your five most recent theme snapshots below.
             </span>
-            <Button size="sm" onClick={onKeep}>Keep theme</Button>
+            <Button onClick={onKeep}>Keep theme</Button>
           </span>
         </Note>
       ) : null}
@@ -146,25 +144,28 @@ export function ThemeLibrary({
         <Select
           value={category}
           options={CATEGORY_OPTIONS}
-          onChange={onCategoryChange}
-          aria-label="Filter theme style"
-          testId="theme-category"
+          onValueChange={onCategoryChange}
+          triggerProps={{
+            'aria-label': 'Filter theme style',
+            'data-testid': 'theme-category',
+          }}
         />
         <TextInput
-          value={query}
-          onChange={onQueryChange}
           aria-label="Search themes"
+          label="Search themes"
+          showLabel={false}
+          value={query}
+          onChange={(event) => onQueryChange(event.currentTarget.value)}
           placeholder="Search themes"
         />
         <div className="theme-library-toolbar__actions">
           <Button
-            size="sm"
             disabled={busy}
             onClick={() => importInput.current?.click()}
           >
             Import
           </Button>
-          <Button size="sm" disabled={busy} onClick={onExport}>Export</Button>
+          <Button disabled={busy} onClick={onExport}>Export</Button>
           <input
             ref={importInput}
             className="appearance-file-input"
@@ -302,9 +303,11 @@ export function ThemeOverview({
                 { value: 'dark', label: 'Dark' },
               ]}
               disabled={busy}
-              onChange={(appearance) => onThemeChange({ ...theme, appearance })}
-              aria-label="Appearance mode"
-              testId="appearance-mode"
+              onValueChange={(appearance) => onThemeChange({ ...theme, appearance })}
+              triggerProps={{
+                'aria-label': 'Appearance mode',
+                'data-testid': 'appearance-mode',
+              }}
             />
           }
         />

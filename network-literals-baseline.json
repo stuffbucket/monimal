@@ -565,8 +565,8 @@
     "count": 1
   },
   {
-    "path": "packages/maximal-design-system/scripts/storybook-check.mjs",
-    "literal": "http://localhost",
+    "path": "packages/maximal-design-system-tools/src/storybook-check.mjs",
+    "literal": "http://127.0.0.1",
     "count": 1
   },
   {

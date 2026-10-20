@@ -16,10 +16,15 @@ const ICON_SOURCE_PATTERN = /\.(?:js|jsx|mjs|mts|png|svg|ts|tsx)$/;
 const DECLARATION = /(--[a-zA-Z0-9_-]+)\s*:\s*([^;}\n]+)/g;
 const REFERENCE = /var\(\s*(--[a-zA-Z0-9_-]+)/g;
 const RUNTIME_DECLARATION = /\bstyle\.setProperty\(\s*['"](--[a-zA-Z0-9_-]+)['"]\s*,/g;
+const RUNTIME_TOKEN_DECLARATION = /['"](--[a-zA-Z0-9_-]+)['"]\s*:/g;
 const LUCIDE_IMPORT = /import\s*\{([^}]*)\}\s*from\s*['"]lucide-react['"]/g;
 const JSX_NUMERIC_SIZE = /<([A-Z][a-zA-Z0-9_.]*)\b[^>]*\bsize=\{(\d+(?:\.\d+)?)\}/g;
 const SVG_VIEW_BOX = /<svg\b[^>]*\bviewBox=["']([^"']+)["']/i;
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+export function isTokenInventorySource(file) {
+  return !file.startsWith('packages/maximal-design-system-tools/');
+}
 
 function trackedFiles(root = WORKSPACE_ROOT, pattern = SOURCE_PATTERN) {
   return execFileSync(
@@ -40,6 +45,7 @@ function trackedFiles(root = WORKSPACE_ROOT, pattern = SOURCE_PATTERN) {
     .filter(
       (file) =>
         pattern.test(file)
+        && isTokenInventorySource(file)
         && fs.existsSync(path.join(root, file)),
     )
     .sort();
@@ -83,8 +89,11 @@ export function scanTokenSources(root = WORKSPACE_ROOT) {
 }
 
 export function runtimePropertyDeclarations(source) {
-  return new Set(occurrences(source, RUNTIME_DECLARATION).flatMap((match) =>
-    match[1] === undefined ? [] : [match[1]]));
+  return new Set(
+    [RUNTIME_DECLARATION, RUNTIME_TOKEN_DECLARATION].flatMap((pattern) =>
+      occurrences(source, pattern).flatMap((match) =>
+        match[1] === undefined ? [] : [match[1]])),
+  );
 }
 
 function tokenKey(name) {
@@ -95,8 +104,30 @@ export function readIconMetrics(file = ICON_METRICS_PATH) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
 }
 
-function mergeTokenSource(target, source, file) {
+function assertSafeTokenKeys(source, file) {
+  if (source === null || typeof source !== 'object') return;
   for (const [key, value] of Object.entries(source)) {
+    if (
+      key === '__proto__'
+      || key === 'constructor'
+      || key === 'prototype'
+    ) {
+      throw new Error(`Unsafe design token key ${key} in ${file}.`);
+    }
+    assertSafeTokenKeys(value, file);
+  }
+}
+
+function mergeTokenSource(target, source, file) {
+  assertSafeTokenKeys(source, file);
+  for (const [key, value] of Object.entries(source)) {
+    if (
+      key === '__proto__'
+      || key === 'constructor'
+      || key === 'prototype'
+    ) {
+      throw new Error(`Unsafe design token key ${key} in ${file}.`);
+    }
     const existing = target[key];
     if (existing === undefined) {
       target[key] = value;
@@ -153,6 +184,25 @@ function cssTokenValue(type, value) {
     return `${String(value.value)}px`;
   }
   if (type === 'number' && typeof value === 'number') return String(value);
+  if (
+    type === 'cubicBezier'
+    && Array.isArray(value)
+    && value.length === 4
+    && value.every((coordinate) => typeof coordinate === 'number')
+  ) {
+    return `cubic-bezier(${value.map(String).join(', ')})`;
+  }
+  if (type === 'duration') {
+    if (
+      value === null
+      || typeof value !== 'object'
+      || value.unit !== 'ms'
+      || typeof value.value !== 'number'
+    ) {
+      throw new Error('Owned CSS durations must use millisecond values.');
+    }
+    return `${String(value.value)}ms`;
+  }
   if (type === 'shadow' && typeof value === 'string') {
     const reference = /^\{([a-zA-Z0-9.-]+)\}$/.exec(value)?.[1];
     if (reference !== undefined) return `var(--${reference.replaceAll('.', '-')})`;
@@ -429,7 +479,11 @@ export function inventoryIssues(
   for (const [name, files] of [...references].sort(([left], [right]) =>
     left.localeCompare(right),
   )) {
-    if (tokens.has(name) || runtimeDeclarations.has(name) || cssProperties.has(name)) continue;
+    if (
+      tokens.has(name)
+      || runtimeDeclarations.has(name)
+      || cssProperties.has(name)
+    ) continue;
     issues.push({
       id: `unresolved-reference:${name}`,
       kind: 'unresolved-reference',

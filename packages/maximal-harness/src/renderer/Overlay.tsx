@@ -1,20 +1,25 @@
 import {
   useCallback,
   useEffect,
+  useReducer,
   useRef,
   useState,
+  type ComponentType,
+  type ReactNode,
 } from 'react';
 
-import { Button, Dialog, Menu, Tooltip } from '@maximal/maximal-electron/renderer';
 import { TERMINAL_ICON_URLS } from '@maximal/maximal-assets/terminal-icons';
+import {
+  Button,
+  Dialog,
+  MenuItem,
+  MenuRoot,
+  Tooltip,
+} from '@maximal/maximal-design-system';
 
 import type {
-  AgentApprovalRequest,
   AgentEffort,
-  AgentEnd,
   AgentModelOption,
-  AgentToolEvent,
-  ApproveRequest,
   AskAccepted,
   AssistantAttachment,
   AssistantChat,
@@ -22,11 +27,31 @@ import type {
   AssistantChatMessage,
   AssistantChatUpdate,
   AssistantOverlayPreferences,
+  AssistantRunDelta,
+  AssistantRunEnd,
+  AssistantRunApprovalDecision,
+  AssistantRunApprovalRequest,
+  AssistantRunToolEvent,
+  ModelDownloadProgress,
+  ModelDownloadRequest,
   ModelProgress,
   ProviderStatus,
 } from '../contracts.js';
 import { HARNESS_CONFIG, HARNESS_COPY } from '../constants.js';
 import { CandyPaint } from './CandyPaint.js';
+import {
+  isCurrentGeneration,
+  matchesApproval,
+  matchesDownload,
+  matchesOwnership,
+} from './async-ownership.js';
+import {
+  INITIAL_OVERLAY_OPERATION_STATE,
+  overlayOperationCanSubmit,
+  overlayOperationCanSwitchChat,
+  overlayOperationIsBusy,
+  overlayOperationTransition,
+} from './overlay-operation.js';
 
 function conciseModels(
   models: readonly AgentModelOption[],
@@ -42,20 +67,63 @@ function conciseModels(
   return [...choices.values()];
 }
 
+interface OverlayMenuItem {
+  id: string;
+  label: ReactNode;
+  description?: ReactNode;
+  icon?: ComponentType<{ size?: number }>;
+  selected?: boolean;
+  disabled?: boolean;
+  onSelect: () => void;
+}
+
+function overlayMenuItem({
+  id,
+  label,
+  description,
+  icon: Icon,
+  selected = false,
+  disabled,
+  onSelect,
+}: OverlayMenuItem): ReactNode {
+  return (
+    <MenuItem
+      aria-current={selected ? 'true' : undefined}
+      data-selected={selected ? '' : undefined}
+      data-testid={`menu-${id}`}
+      description={description}
+      disabled={disabled}
+      key={id}
+      leading={Icon ? <Icon size={16} /> : undefined}
+      onClick={onSelect}
+      trailing={
+        selected
+          ? <span aria-hidden="true" className="mh-menu-item__indicator">✓</span>
+          : undefined
+      }
+    >
+      {label}
+    </MenuItem>
+  );
+}
+
 export interface HarnessTransport {
+  initialRunId?: string;
+  initialDownload?: ModelDownloadRequest;
   hide: () => Promise<void>;
   provider: () => Promise<ProviderStatus>;
   selectModel: (modelKey: string) => Promise<ProviderStatus>;
   selectEffort: (effort: AgentEffort) => Promise<ProviderStatus>;
   ask: (
     prompt: string,
+    runId: string,
     chatId?: string,
     attachments?: AssistantAttachment[],
   ) => Promise<AskAccepted>;
   steer: (prompt: string, chatId?: string) => Promise<boolean>;
   abort: () => Promise<void>;
-  approve: (request: ApproveRequest) => Promise<void>;
-  ensureModel: () => Promise<ModelProgress>;
+  approve: (request: AssistantRunApprovalDecision) => Promise<void>;
+  ensureModel: (request: ModelDownloadRequest) => Promise<ModelDownloadProgress>;
   preferences: () => Promise<AssistantOverlayPreferences>;
   updatePreferences: (
     update: Partial<Pick<
@@ -63,11 +131,11 @@ export interface HarnessTransport {
       'candy' | 'approval' | 'outputFont'
     >>,
   ) => Promise<AssistantOverlayPreferences>;
-  onDelta: (listener: (text: string) => void) => () => void;
-  onTool: (listener: (event: AgentToolEvent) => void) => () => void;
-  onApproval: (listener: (request: AgentApprovalRequest) => void) => () => void;
-  onEnd: (listener: (result: AgentEnd) => void) => () => void;
-  onModelProgress: (listener: (progress: ModelProgress) => void) => () => void;
+  onDelta: (listener: (event: AssistantRunDelta) => void) => () => void;
+  onTool: (listener: (event: AssistantRunToolEvent) => void) => () => void;
+  onApproval: (listener: (request: AssistantRunApprovalRequest) => void) => () => void;
+  onEnd: (listener: (event: AssistantRunEnd) => void) => () => void;
+  onModelProgress: (listener: (event: ModelDownloadProgress) => void) => () => void;
   onShown: (listener: () => void) => () => void;
   onDismissRequested: (listener: () => void) => () => void;
   onPreferences: (
@@ -189,8 +257,13 @@ const DOCUMENT_TYPES = new Set([
   'text/xml',
   'text/yaml',
 ]);
+const MAX_ATTACHMENT_BYTES = 10_000_000;
+const MAX_ATTACHMENT_TOTAL_BYTES = 25_000_000;
 
 async function attachmentFromFile(file: File): Promise<PendingAttachment> {
+  if (file.size > MAX_ATTACHMENT_BYTES) {
+    throw new Error(`${file.name || 'This file'} exceeds the 10 MB attachment limit.`);
+  }
   if (file.type.startsWith('image/')) {
     const dataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
@@ -283,10 +356,13 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
   const [answer, setAnswer] = useState('');
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [tools, setTools] = useState<ToolActivity[]>([]);
-  const [approval, setApproval] = useState<AgentApprovalRequest>();
+  const [approval, setApproval] = useState<AssistantRunApprovalRequest>();
   const [download, setDownload] = useState<ModelProgress>();
   const [error, setError] = useState<string>();
-  const [busy, setBusy] = useState(false);
+  const [operation, dispatchOperation] = useReducer(
+    overlayOperationTransition,
+    INITIAL_OVERLAY_OPERATION_STATE,
+  );
   const [recentChats, setRecentChats] = useState<AssistantChat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string>();
   const [preferences, setPreferences] = useState<AssistantOverlayPreferences>({
@@ -303,6 +379,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
   const [backgrounded, setBackgrounded] = useState(false);
   const [scrolling, setScrolling] = useState(false);
   const [terminalConfirmation, setTerminalConfirmation] = useState(false);
+  const [approvalResolving, setApprovalResolving] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const modelPicker = useRef<HTMLButtonElement>(null);
@@ -312,6 +389,21 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const dismissalStarted = useRef(false);
   const dismissalCompleted = useRef(false);
+  const operationRef = useRef(operation);
+  const providerGeneration = useRef(0);
+  const chatListGeneration = useRef(0);
+  const chatLoadGeneration = useRef(0);
+  const preferenceGeneration = useRef(0);
+  const pendingMessageSequence = useRef(0);
+  const activeRunId = useRef<string | undefined>(transport.initialRunId);
+  const downloadSequence = useRef(0);
+  const activeDownload = useRef<ModelDownloadRequest | undefined>(
+    transport.initialDownload,
+  );
+  const approvalRef = useRef(approval);
+  operationRef.current = operation;
+  approvalRef.current = approval;
+  const busy = overlayOperationIsBusy(operation);
 
   useEffect(() => () => {
     if (scrollTimer.current) clearTimeout(scrollTimer.current);
@@ -376,7 +468,14 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
   // wiggle's promise is that it connects the moment one appears.
   useEffect(() => {
     const probe = () => {
-      void transport.provider().then(setStatus);
+      const generation = ++providerGeneration.current;
+      void transport.provider().then((next) => {
+        if (isCurrentGeneration(providerGeneration.current, generation)) setStatus(next);
+      }).catch(() => {
+        if (isCurrentGeneration(providerGeneration.current, generation)) {
+          setStatus({ state: 'unavailable', reason: HARNESS_COPY.overlay.requestFailed });
+        }
+      });
     };
     probe();
     window.addEventListener('focus', probe);
@@ -384,19 +483,32 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
   }, [transport]);
 
   const reloadChats = useCallback(() => {
+    const generation = ++chatListGeneration.current;
     void transport.chats.list({
       status: 'active',
       sort: 'activity',
       direction: 'desc',
       limit: 5,
-    }).then((result) => setRecentChats(result.chats));
+    }).then((result) => {
+      if (chatListGeneration.current === generation) setRecentChats(result.chats);
+    }).catch(() => {
+      if (chatListGeneration.current === generation) {
+        setError('Recent conversations could not be loaded.');
+      }
+    });
   }, [transport]);
 
   useEffect(reloadChats, [reloadChats]);
 
   const loadChat = useCallback((id: string) => {
+    if (!overlayOperationCanSwitchChat(operationRef.current)) return;
+    const generation = ++chatLoadGeneration.current;
     void transport.chats.open(id).then(() =>
       transport.chats.messages(id)).then((messages) => {
+        if (
+          chatLoadGeneration.current !== generation
+          || !overlayOperationCanSwitchChat(operationRef.current)
+        ) return;
         setActiveChatId(id);
         setMessages(messages.map((entry) => ({
           id: String(entry.id),
@@ -405,6 +517,10 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
         })));
         setAnswer('');
         reloadChats();
+      }).catch(() => {
+        if (chatLoadGeneration.current === generation) {
+          setError('The conversation could not be loaded.');
+        }
       });
   }, [reloadChats, transport]);
 
@@ -420,8 +536,18 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
   }, [summon]);
 
   useEffect(() => {
-    void transport.preferences().then(setPreferences);
-    return transport.onPreferences(setPreferences);
+    const generation = ++preferenceGeneration.current;
+    void transport.preferences().then((next) => {
+      if (preferenceGeneration.current === generation) setPreferences(next);
+    }).catch(() => {
+      if (preferenceGeneration.current === generation) {
+        setError('Assistant preferences could not be loaded.');
+      }
+    });
+    return transport.onPreferences((next) => {
+      preferenceGeneration.current += 1;
+      setPreferences(next);
+    });
   }, [transport]);
 
   useEffect(() => {
@@ -433,11 +559,13 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
 
   /* ------------------------------------------------------------- streaming */
 
-  useTransportEvent(transport.onDelta, (text) => {
-    setAnswer((current) => current + text);
+  useTransportEvent(transport.onDelta, (event) => {
+    if (!matchesOwnership(activeRunId.current, event.runId)) return;
+    setAnswer((current) => current + event.text);
   });
 
-  useTransportEvent(transport.onTool, ({ id, name, phase, isError }) => {
+  useTransportEvent(transport.onTool, ({ runId, id, name, phase, isError }) => {
+    if (!matchesOwnership(activeRunId.current, runId)) return;
     setTools((current) => {
       if (phase === 'start') {
         const started: ToolActivity = {
@@ -458,7 +586,10 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
     });
   });
 
-  useTransportEvent(transport.onApproval, setApproval);
+  useTransportEvent(transport.onApproval, (request) => {
+    if (!matchesOwnership(activeRunId.current, request.runId)) return;
+    setApproval(request);
+  });
 
   /**
    * The one-time model download.
@@ -466,25 +597,51 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
    * Re-probe once it finishes, so the card moves from "not downloaded" to a
    * ready backend without the user having to dismiss and summon again.
    */
-  useTransportEvent(transport.onModelProgress, (progress) => {
+  const applyModelProgress = useCallback((event: ModelDownloadProgress) => {
+    if (!matchesDownload(activeDownload.current, event)) return;
+    const { progress } = event;
     setDownload(progress);
     if (progress.state === 'ready') {
-      void transport.provider().then(setStatus);
+      activeDownload.current = undefined;
+      const generation = ++providerGeneration.current;
+      void transport.provider().then((next) => {
+        if (isCurrentGeneration(providerGeneration.current, generation)) setStatus(next);
+      }).catch(() => {
+        if (isCurrentGeneration(providerGeneration.current, generation)) {
+          setStatus({ state: 'unavailable', reason: HARNESS_COPY.overlay.requestFailed });
+        }
+      });
     }
-  });
+  }, [transport]);
+
+  useTransportEvent(transport.onModelProgress, applyModelProgress);
 
   const startDownload = useCallback(() => {
+    if (status.state !== 'needs-model') return;
+    const request = {
+      downloadId: `download-${String(++downloadSequence.current)}`,
+      model: status.model,
+    };
+    activeDownload.current = request;
     setDownload({ state: 'downloading', received: 0, total: 0 });
-    void transport.ensureModel().then(setDownload);
-  }, [transport]);
+    void transport.ensureModel(request).then(applyModelProgress).catch(() => {
+      if (!matchesDownload(activeDownload.current, request)) return;
+      activeDownload.current = undefined;
+      setDownload({ state: 'error', reason: HARNESS_COPY.overlay.requestFailed });
+    });
+  }, [applyModelProgress, status, transport]);
 
   const selectModel = useCallback(
     (modelKey: string) => {
+      const generation = ++providerGeneration.current;
+      activeDownload.current = undefined;
       setError(undefined);
       void transport.selectModel(modelKey).then((next) => {
-        setStatus(next);
+        if (isCurrentGeneration(providerGeneration.current, generation)) setStatus(next);
       }).catch(() => {
-        setError(HARNESS_COPY.overlay.requestFailed);
+        if (isCurrentGeneration(providerGeneration.current, generation)) {
+          setError(HARNESS_COPY.overlay.requestFailed);
+        }
       });
     },
     [transport],
@@ -492,19 +649,25 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
 
   const selectEffort = useCallback(
     (effort: AgentEffort) => {
+      const generation = ++providerGeneration.current;
       setError(undefined);
       void transport.selectEffort(effort).then((next) => {
-        setStatus(next);
+        if (isCurrentGeneration(providerGeneration.current, generation)) setStatus(next);
       }).catch(() => {
-        setError(HARNESS_COPY.overlay.requestFailed);
+        if (isCurrentGeneration(providerGeneration.current, generation)) {
+          setError(HARNESS_COPY.overlay.requestFailed);
+        }
       });
     },
     [transport],
   );
 
-  useTransportEvent(transport.onEnd, (result) => {
-    setBusy(false);
+  useTransportEvent(transport.onEnd, ({ runId, result }) => {
+    if (!matchesOwnership(activeRunId.current, runId)) return;
+    activeRunId.current = undefined;
+    dispatchOperation({ type: 'end' });
     setApproval(undefined);
+    setApprovalResolving(false);
     if (!result.ok) setError(result.error);
     if (
       backgrounded
@@ -528,11 +691,36 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
    */
   const decide = useCallback(
     (allow: boolean, remember = false) => {
-      if (!approval) return;
-      void transport.approve({ id: approval.id, allow, remember });
-      setApproval(undefined);
+      if (!approval || approvalResolving) return;
+      const request = approval;
+      setApprovalResolving(true);
+      void transport.approve({
+        runId: request.runId,
+        id: request.id,
+        allow,
+        remember,
+      }).then(() => {
+        if (!matchesApproval(activeRunId.current, approvalRef.current, request)) return;
+        setApproval(undefined);
+        setApprovalResolving(false);
+      }).catch(() => {
+        if (!matchesApproval(activeRunId.current, approvalRef.current, request)) return;
+        setApprovalResolving(false);
+        setError('The approval decision could not be sent.');
+      });
     },
-    [approval, transport],
+    [approval, approvalResolving, transport],
+  );
+
+  const updateApprovalPreference = useCallback(
+    (approval: AssistantOverlayPreferences['approval']) => {
+      setPermissionSelected(true);
+      void transport.updatePreferences({ approval }).then(setPreferences).catch(() => {
+        setPermissionSelected(false);
+        setError('Assistant preferences could not be updated.');
+      });
+    },
+    [transport],
   );
 
   // Follow streamed output only while the reader remains near the bottom.
@@ -545,6 +733,15 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
 
   const addFiles = useCallback((files: FileList | readonly File[]) => {
     const candidates = [...files].slice(0, 8 - attachments.length);
+    const pendingBytes = attachments.reduce(
+      (total, attachment) => total + attachment.data.length,
+      0,
+    );
+    const candidateBytes = candidates.reduce((total, file) => total + file.size, 0);
+    if (pendingBytes + candidateBytes > MAX_ATTACHMENT_TOTAL_BYTES) {
+      setError('Attachments exceed the 25 MB combined limit.');
+      return;
+    }
     void Promise.all(candidates.map(attachmentFromFile)).then((added) => {
       setAttachments((current) => [...current, ...added].slice(0, 8));
       setError(undefined);
@@ -571,7 +768,9 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
       );
       return;
     }
-    const pendingId = `pending-${String(Date.now())}`;
+    if (!overlayOperationCanSubmit(operation)) return;
+    const pendingId = `pending-${String(++pendingMessageSequence.current)}`;
+    const submittedAttachments = attachments;
     const displayText = text || `Attached ${String(attachments.length)} file(s)`;
     const documentContext = attachments
       .filter((attachment) => attachment.kind === 'document')
@@ -601,51 +800,90 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
     setOutputExpanded(true);
     followOutput.current = true;
 
-    if (busy) {
+    const restoreDraft = () => {
+      setPrompt((current) => current || text);
+      setAttachments((current) => current.length > 0 ? current : submittedAttachments);
+    };
+
+    if (operation === 'running') {
       const steeringPrompt = effectivePrompt.replace(/^\/btw(?:\s+|$)/, '').trim();
       void transport.steer(steeringPrompt, activeChatId).then((accepted) => {
         if (!accepted) {
           setMessages((current) => current.filter((entry) => entry.id !== pendingId));
-          setPrompt(text);
+          restoreDraft();
           setError('The current response could not be steered.');
         }
       }).catch(() => {
         setMessages((current) => current.filter((entry) => entry.id !== pendingId));
-        setPrompt(text);
+        restoreDraft();
         setError(HARNESS_COPY.overlay.requestFailed);
       });
       return;
     }
 
-    setBusy(true);
+    const runId = pendingId;
+    activeRunId.current = runId;
+    dispatchOperation({ type: 'submit' });
     setAnswer('');
     setTools([]);
     setError(undefined);
 
-    const ask = attachments.length === 0
-      ? transport.ask(effectivePrompt, activeChatId)
+    const imageAttachments = attachments
+      .filter((attachment) => attachment.kind === 'image')
+      .map(({ name, mimeType, data }) => ({ name, mimeType, data }));
+    const ask = imageAttachments.length === 0
+      ? transport.ask(effectivePrompt, runId, activeChatId)
       : transport.ask(
           effectivePrompt,
+          runId,
           activeChatId,
-          attachments.map(({ name, mimeType, data }) => ({ name, mimeType, data })),
+          imageAttachments,
         );
     void ask.then((accepted) => {
+      if (!matchesOwnership(activeRunId.current, runId)) return;
       if (accepted.started) {
+        if (accepted.runId !== runId) {
+          activeRunId.current = undefined;
+          dispatchOperation({ type: 'request-rejected' });
+          restoreDraft();
+          setMessages((current) => current.filter((entry) => entry.id !== pendingId));
+          setError('The response started with an unexpected operation identity.');
+          return;
+        }
+        dispatchOperation({ type: 'request-accepted' });
         setActiveChatId(accepted.chatId);
         reloadChats();
         return;
       }
-      setBusy(false);
-      setPrompt(text);
+      activeRunId.current = undefined;
+      dispatchOperation({ type: 'request-rejected' });
+      restoreDraft();
       setMessages((current) => current.filter((entry) => entry.id !== pendingId));
       setError(accepted.reason);
     }).catch(() => {
-      setBusy(false);
-      setPrompt(text);
+      if (!matchesOwnership(activeRunId.current, runId)) return;
+      activeRunId.current = undefined;
+      dispatchOperation({ type: 'request-rejected' });
+      restoreDraft();
       setMessages((current) => current.filter((entry) => entry.id !== pendingId));
       setError(HARNESS_COPY.overlay.requestFailed);
     });
-  }, [activeChatId, attachments, busy, hide, prompt, reloadChats, transport]);
+  }, [activeChatId, attachments, hide, operation, prompt, reloadChats, transport]);
+
+  const abort = useCallback(() => {
+    if (operation === 'idle' || operation.startsWith('aborting:')) return;
+    const runId = activeRunId.current;
+    dispatchOperation({ type: 'abort' });
+    void transport.abort().catch(() => {
+      if (
+        runId === undefined
+        || !matchesOwnership(activeRunId.current, runId)
+        || operationRef.current === 'idle'
+      ) return;
+      dispatchOperation({ type: 'abort-failed' });
+      setError('The current response could not be stopped.');
+    });
+  }, [operation, transport]);
 
   const openInTerminal = useCallback(() => {
     if (!activeChatId) return;
@@ -669,8 +907,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
         event.preventDefault();
         const index = PERMISSION_ORDER.indexOf(preferences.approval);
         const approval = PERMISSION_ORDER[(index + 1) % PERMISSION_ORDER.length] ?? 'all';
-        setPermissionSelected(true);
-        void transport.updatePreferences({ approval }).then(setPreferences);
+        updateApprovalPreference(approval);
         return;
       }
       if (event.ctrlKey && event.key.toLocaleLowerCase() === 'o') {
@@ -696,7 +933,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
         decide(true);
       }
     },
-    [approval, busy, decide, hide, preferences.approval, transport],
+    [approval, busy, decide, hide, preferences.approval, updateApprovalPreference],
   );
 
   /**
@@ -717,8 +954,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
         return;
       }
       if (busy) {
-        void transport.abort();
-        setBusy(false);
+        abort();
         return;
       }
       if (prompt || attachments.length > 0) {
@@ -729,7 +965,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
       }
       hide();
     },
-    [approval, attachments.length, busy, decide, hide, prompt, transport],
+    [abort, approval, attachments.length, busy, decide, hide, prompt],
   );
 
   const ready = status.state === 'ready';
@@ -763,8 +999,9 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
      *
      * It was a plain div with a click handler before: no role, no accessible
      * name, no focus trap, and Tab walked straight out of the card into
-     * nothing. Radix supplies all four; the three behaviours that were already
-     * right are preserved through its callbacks rather than a window listener.
+     * nothing. The design-system dialog supplies all four; the three behaviours
+     * that were already right are preserved through its callbacks rather than
+     * a window listener.
      */
     <>
       <div
@@ -776,37 +1013,40 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
         open
         modal={false}
         title={HARNESS_COPY.overlay.title}
-        className={`sb-shell mh-card mh-card--${animationPhase}${
+        className={`mh-card mh-card--${animationPhase}${
           showStage ? ' mh-card--expanded' : ''
         }${
-          preferences.candy ? ' mh-card-candy shell-candy-surface' : ''
+          preferences.candy ? ' mh-card-candy mh-candy-surface' : ''
         } mh-card--font-${preferences.outputFont}`}
-        testId="overlay-card"
+        overlayClassName="mh-dialog-backdrop"
+        viewportClassName="mh-dialog-viewport"
+        popupProps={{ 'data-testid': 'overlay-card' }}
         onKeyDown={onKeyDown}
         onEscapeKeyDown={onEscape}
       >
         {preferences.candy && <CandyPaint />}
         <header className="mh-card__header">
           <img
-            className="mh-card__icon shell-candy-surface__icon"
+            className="mh-card__icon mh-candy-surface__icon"
             src={TERMINAL_ICON_URLS.maximal}
             alt=""
           />
-          <div className="mh-card__identity shell-candy-surface__text">
+          <div className="mh-card__identity mh-candy-surface__text">
             <strong>Maximal Assistant</strong>
             <span>{preferences.hotkey}</span>
           </div>
           <div className="mh-card__conversation">
             <span>Conversation</span>
-            <Menu
-              align="end"
-              contentClassName="mh-control-menu"
-              testId="overlay-conversation-menu"
+            <MenuRoot
+              popupProps={{
+                className: 'mh-control-menu mh-control-menu--conversation',
+                'data-testid': 'overlay-conversation-menu',
+              }}
               trigger={(
                 <Button
-                  size="lg"
                   className="mh-select-trigger"
-                  testId="overlay-conversation"
+                  data-testid="overlay-conversation"
+                  disabled={!overlayOperationCanSwitchChat(operation)}
                 >
                   <span>{activeChatId
                     ? recentChats.find((chat) => chat.id === activeChatId)?.title ?? 'Recent chat'
@@ -814,7 +1054,8 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                   <span className="mh-select-trigger__chevron" aria-hidden="true">⌄</span>
                 </Button>
               )}
-              items={[
+            >
+              {[
                 {
                   id: 'new',
                   label: 'New chat',
@@ -831,8 +1072,8 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                   selected: chat.id === activeChatId,
                   onSelect: () => loadChat(chat.id),
                 })),
-              ]}
-            />
+              ].map(overlayMenuItem)}
+            </MenuRoot>
           </div>
         </header>
         {showStage && (
@@ -878,8 +1119,8 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
               {answer && (
                 <article className="mh-message mh-message--assistant" data-role="assistant">
                   <span className="mh-message__role">Maximal</span>
-                  <Tooltip content="Copy response">
-                    <button
+                  <Tooltip
+                    trigger={<button
                       type="button"
                       className="mh-answer-copy"
                       onClick={() => {
@@ -890,7 +1131,9 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                       aria-label="Copy response"
                     >
                       <span aria-hidden="true" />
-                    </button>
+                    </button>}
+                  >
+                    Copy response
                   </Tooltip>
                   <ResponseContent text={answer} />
                 </article>
@@ -923,16 +1166,16 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                     </div>
                   ) : (
                     <div className="mh-setup__actions">
-                      <button
-                        type="button"
-                        className="btn btn--primary mh-pill"
+                      <Button
+                        className="mh-pill"
+                        variant="primary"
                         onClick={startDownload}
                         data-testid="overlay-download-start"
                       >
                         {download?.state === 'error'
                           ? HARNESS_COPY.overlay.tryAgain
                           : HARNESS_COPY.overlay.download}
-                      </button>
+                      </Button>
                     </div>
                   )}
                   {download?.state === 'error' && (
@@ -975,24 +1218,25 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                     {approval.summary}
                   </pre>
                   <div className="mh-approval__actions">
-                    <button
-                      type="button"
-                      className="btn mh-pill"
+                    <Button
+                      className="mh-pill"
                       onClick={() => decide(false)}
                       data-testid="overlay-deny"
+                      disabled={approvalResolving}
                     >
                       {HARNESS_COPY.overlay.skip}
                       <kbd>Esc</kbd>
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn--primary mh-pill"
+                    </Button>
+                    <Button
+                      className="mh-pill"
+                      variant="primary"
                       onClick={() => decide(true)}
                       data-testid="overlay-allow"
+                      disabled={approvalResolving}
                     >
                       {HARNESS_COPY.overlay.allow}
                       <kbd>⌘↵</kbd>
-                    </button>
+                    </Button>
                   </div>
                 </article>
               )}
@@ -1007,17 +1251,15 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                   </div>
                   <div className="mh-approval__actions">
                     <Button
-                      size="sm"
                       onClick={() => setTerminalConfirmation(false)}
-                      testId="overlay-terminal-cancel"
+                      data-testid="overlay-terminal-cancel"
                     >
                       Cancel
                     </Button>
                     <Button
-                      size="sm"
                       variant="primary"
                       onClick={openInTerminal}
-                      testId="overlay-terminal-confirm"
+                      data-testid="overlay-terminal-confirm"
                     >
                       Open terminal
                     </Button>
@@ -1033,17 +1275,16 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
             <span className="mh-model-picker__label">
               {HARNESS_COPY.overlay.modelPickerLabel}
             </span>
-            <Menu
-              align="end"
-              contentClassName="mh-control-menu mh-control-menu--models"
-              testId="overlay-model-menu"
-              onCloseAutoFocus={(event) => event.preventDefault()}
+            <MenuRoot
+              popupProps={{
+                className: 'mh-control-menu mh-control-menu--model',
+                'data-testid': 'overlay-model-menu',
+              }}
               trigger={(
                 <Button
                   ref={modelPicker}
-                  size="lg"
                   className="mh-select-trigger mh-select-trigger--model"
-                  testId="overlay-model-picker"
+                  data-testid="overlay-model-picker"
                 >
                   <span>
                     {status.state === 'ready'
@@ -1054,7 +1295,8 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                   <span className="mh-select-trigger__chevron" aria-hidden="true">⌄</span>
                 </Button>
               )}
-              items={conciseModels(
+            >
+              {conciseModels(
                 status.models,
                 status.state === 'ready' ? status.modelKey : undefined,
               ).map((model) => ({
@@ -1062,45 +1304,46 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                 label: model.label,
                 selected: status.state === 'ready' && model.key === status.modelKey,
                 onSelect: () => selectModel(model.key),
-              }))}
-            />
+              })).map(overlayMenuItem)}
+            </MenuRoot>
             {status.state === 'ready' && currentModel?.efforts.length ? (
-              <Menu
-                align="end"
-                contentClassName="mh-control-menu"
-                testId="overlay-effort-menu"
+              <MenuRoot
+                popupProps={{
+                  className: 'mh-control-menu mh-control-menu--effort',
+                  'data-testid': 'overlay-effort-menu',
+                }}
                 trigger={(
                   <Button
-                    size="lg"
                     className="mh-select-trigger mh-select-trigger--effort"
-                    testId="overlay-effort"
+                    data-testid="overlay-effort"
                   >
                     <span>{status.effort ? EFFORT_LABELS[status.effort] : 'Effort'}</span>
                     <span className="mh-select-trigger__chevron" aria-hidden="true">⌄</span>
                   </Button>
                 )}
-                items={currentModel.efforts.map((effort) => ({
+              >
+                {currentModel.efforts.map((effort) => ({
                   id: effort,
                   label: EFFORT_LABELS[effort],
                   selected: status.effort === effort,
                   onSelect: () => selectEffort(effort),
-                }))}
-              />
+                })).map(overlayMenuItem)}
+              </MenuRoot>
             ) : null}
           </div>
         )}
 
         <div className="mh-permission-picker">
           <span>Tool permissions</span>
-          <Menu
-            align="end"
-            contentClassName="mh-control-menu mh-control-menu--permissions"
-            testId="overlay-permissions-menu"
+          <MenuRoot
+            popupProps={{
+              className: 'mh-control-menu mh-control-menu--permissions',
+              'data-testid': 'overlay-permissions-menu',
+            }}
             trigger={(
               <Button
-                size="lg"
                 className="mh-select-trigger"
-                testId="overlay-permissions"
+                data-testid="overlay-permissions"
               >
                 <span className="mh-permission-picker__value">
                   {permissionSelected && <CurrentPermissionIcon />}
@@ -1109,7 +1352,8 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                 <span className="mh-select-trigger__chevron" aria-hidden="true">⌄</span>
               </Button>
             )}
-            items={[
+          >
+            {[
               {
                 id: 'all',
                 label: 'Manually approve',
@@ -1139,11 +1383,10 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
               selected: preferences.approval === item.id,
               onSelect: () => {
                 const approval = item.id as AssistantOverlayPreferences['approval'];
-                setPermissionSelected(true);
-                void transport.updatePreferences({ approval }).then(setPreferences);
+                updateApprovalPreference(approval);
               },
-            }))}
-          />
+            })).map(overlayMenuItem)}
+          </MenuRoot>
         </div>
 
         <div
@@ -1158,7 +1401,7 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
           }}
         >
           <img
-            className="mh-card__prompt-icon"
+            className="maximal-elevated-control mh-card__prompt-icon"
             src={TERMINAL_ICON_URLS.maximal}
             alt=""
           />
@@ -1180,8 +1423,9 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
             {attachments.length > 0 && (
               <div className="mh-attachments" data-testid="overlay-attachments">
                 {attachments.map((attachment, index) => (
-                  <Tooltip key={`${attachment.name}-${String(index)}`} content={`Remove ${attachment.name}`}>
-                    <button
+                  <Tooltip
+                    key={`${attachment.name}-${String(index)}`}
+                    trigger={<button
                       type="button"
                       className="mh-attachment"
                       onClick={() => {
@@ -1193,7 +1437,9 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                       <span aria-hidden="true">{attachment.kind === 'image' ? '▧' : '▤'}</span>
                       <span>{attachment.name}</span>
                       <span aria-hidden="true">×</span>
-                    </button>
+                    </button>}
+                  >
+                    {`Remove ${attachment.name}`}
                   </Tooltip>
                 ))}
               </div>
@@ -1263,10 +1509,10 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
           />
           </div>
           <div className="mh-composer__actions">
-            <Tooltip content="Attach files">
-              <button
+            <Tooltip
+              trigger={<button
                 type="button"
-                className="mh-composer__button"
+                className="maximal-square-control mh-composer__button"
                 aria-label="Attach files"
                 onClick={() => {
                   fileInput.current?.click();
@@ -1274,12 +1520,14 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                 data-testid="overlay-attach"
               >
                 <span aria-hidden="true">+</span>
-              </button>
+              </button>}
+            >
+              Attach files
             </Tooltip>
-            <Tooltip content="Open conversation in terminal">
-              <button
+            <Tooltip
+              trigger={<button
                 type="button"
-                className="mh-composer__button"
+                className="maximal-square-control mh-composer__button"
                 aria-label="Open conversation in terminal"
                 disabled={activeChatId === undefined || !hasAssistantResponse}
                 onClick={() => {
@@ -1297,18 +1545,19 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                   <rect x="2.5" y="3.5" width="15" height="13" rx="2" />
                   <path d="m6 7 2 2-2 2M10.5 12h3.5" />
                 </svg>
-              </button>
+              </button>}
+            >
+              Open conversation in terminal
             </Tooltip>
-            <Tooltip content={busy ? 'Stop response' : 'Send message'}>
-              <button
+            <Tooltip
+              trigger={<button
                 type="button"
                 className="mh-composer__button mh-composer__button-send"
                 aria-label={busy ? 'Stop response' : 'Send message'}
                 disabled={!busy && (!ready || (prompt.trim().length === 0 && attachments.length === 0))}
                 onClick={() => {
                   if (busy) {
-                    void transport.abort();
-                    setBusy(false);
+                    abort();
                   } else {
                     submit();
                   }
@@ -1318,7 +1567,9 @@ export function Overlay({ transport }: { transport: HarnessTransport }) {
                 <span aria-hidden="true" className={busy ? 'mh-stop-icon' : 'mh-send-icon'}>
                   {busy ? '■' : '↑'}
                 </span>
-              </button>
+              </button>}
+            >
+              {busy ? 'Stop response' : 'Send message'}
             </Tooltip>
           </div>
         </div>

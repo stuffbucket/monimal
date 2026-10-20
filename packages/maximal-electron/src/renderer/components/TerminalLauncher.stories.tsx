@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from '@maximal/maximal-storybook';
 import { TerminalLauncher } from './TerminalLauncher.js';
 
 const meta = {
-  title: 'Terminal/TerminalLauncher',
+  title: 'Deprecated/TerminalLauncher',
   component: TerminalLauncher,
   args: {
     open: true,

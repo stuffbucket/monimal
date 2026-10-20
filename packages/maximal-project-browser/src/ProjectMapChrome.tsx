@@ -1,6 +1,5 @@
+import { Button, MenuItem, MenuRoot } from "@maximal/maximal-design-system"
 import {
-  Button,
-  Menu,
   Note,
   SpatialCanvasAvatar,
   SpatialCanvasControlGroup,
@@ -164,7 +163,7 @@ function MapHeader({
   return (
     <SpatialCanvasTopBar>
       <SpatialCanvasCorner>
-        <Menu
+        <MenuRoot
           trigger={
             <SpatialCanvasHeaderAction
               className="spatial-canvas__project-menu-trigger"
@@ -172,19 +171,14 @@ function MapHeader({
               label="Maximal menu"
             />
           }
-          items={[
-            {
-              id: "add-folder",
-              label: "Add project folder",
-              onSelect: chrome.onAddFolder,
-            },
-            {
-              id: "settings",
-              label: "Project settings",
-              onSelect: chrome.onOpenSettings,
-            },
-          ]}
-        />
+        >
+          <MenuItem data-testid="menu-add-folder" onClick={chrome.onAddFolder}>
+            Add project folder
+          </MenuItem>
+          <MenuItem data-testid="menu-settings" onClick={chrome.onOpenSettings}>
+            Project settings
+          </MenuItem>
+        </MenuRoot>
         <SpatialCanvasPages
           projectName={chrome.projectName}
           onProjectRename={chrome.onProjectRename}
@@ -304,9 +298,7 @@ export function ProjectMapChrome(chrome: ProjectMapChromeProps) {
           onClose={() => setShareOpen(false)}
         >
           <Note>Invite people, harnesses, and agents through the host.</Note>
-          <Button size="sm" onClick={() => setShareOpen(false)}>
-            Done
-          </Button>
+          <Button onClick={() => setShareOpen(false)}>Done</Button>
         </SpatialCanvasSidePanel>
       : null}
     </>

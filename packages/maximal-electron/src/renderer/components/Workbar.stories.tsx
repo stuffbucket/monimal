@@ -34,7 +34,7 @@ function Example() {
 }
 
 const meta = {
-  title: 'Layout/Workbar',
+  title: 'Deprecated/Workbar',
   component: Example,
   parameters: { layout: 'fullscreen' },
 } satisfies Meta<typeof Example>;

@@ -203,7 +203,7 @@ type TerminalViewArgs = TerminalDescriptor & {
 };
 
 const meta = {
-  title: 'Terminal/TerminalView',
+  title: 'Deprecated/TerminalView',
   component: TerminalView,
   args: {
     id: 'story-build',

@@ -1,0 +1,40 @@
+.maximal-story-scroll-frame {
+  position: relative;
+  width: var(--width-sidebar-standard);
+  height: var(--width-sidebar-minimum);
+  color: var(--maximal-color-text-default);
+  font: var(--body-medium);
+  background: var(--maximal-color-bg-secondary);
+  border: var(--border-width-thin) solid var(--maximal-color-border-default);
+  border-radius: var(--radius-large);
+}
+
+.maximal-story-scroller {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: var(--spacer-2);
+  overflow: auto;
+  scrollbar-width: none;
+}
+
+.maximal-story-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.maximal-story-scroll-rows {
+  display: grid;
+  gap: var(--spacer-2);
+}
+
+.maximal-story-scroll-columns {
+  display: flex;
+  width: max-content;
+  gap: var(--spacer-3);
+}
+
+.maximal-story-scroller:focus-visible {
+  outline: var(--border-width-thin) solid var(--maximal-color-border-selected);
+  outline-offset: calc(-1 * var(--border-width-thin));
+  border-radius: var(--radius-large);
+}

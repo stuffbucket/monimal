@@ -1,6 +1,7 @@
+import { Button } from '@maximal/maximal-design-system'
 import { useState, type ReactElement, type ReactNode } from 'react'
 
-import { Button, SettingsPage } from '@maximal/maximal-electron/renderer'
+import { SettingsPage } from '@maximal/maximal-electron/renderer'
 
 import {
   DEFAULT_SETTINGS_SECTION_ID,

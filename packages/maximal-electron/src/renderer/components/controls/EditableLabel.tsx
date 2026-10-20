@@ -74,7 +74,7 @@ export type EditableLabelState =
   | 'active'
   | 'editing';
 
-export interface EditableLabelProps {
+interface EditableLabelProps {
   value: string;
   state: EditableLabelState;
   onActivate: () => void;

@@ -13,7 +13,7 @@ import { Callout } from './Callout.js';
  * rather than asserting that they ought to work.
  */
 const meta = {
-  title: 'Controls/Callout',
+  title: 'Deprecated/Callout',
   component: Callout,
   args: {
     title: 'Approval needed',

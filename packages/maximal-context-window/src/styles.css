@@ -1,11 +1,12 @@
-@import "@maximal/maximal-electron/renderer/styles.css";
+@import "@maximal/maximal-design-system/tokens.css";
+@import "@maximal/maximal-design-system/styles.css";
 @import "@maximal/maximal-data-visualization/styles.css";
 
 .mcw-panel {
   display: grid;
-  gap: var(--shell-space-3, 0.75rem);
+  gap: var(--spacer-3);
   color: var(--maximal-color-text-default);
-  font: var(--shell-font);
+  font: var(--body-medium);
 }
 
 /* Capacity summary: model + window sizes + a single fill bar whose color
@@ -13,7 +14,7 @@
 
 .mcw-capacity {
   display: grid;
-  gap: var(--shell-space-1, 0.25rem);
+  gap: var(--spacer-1);
 }
 
 .mcw-capacity-heading {
@@ -21,14 +22,14 @@
   flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: var(--shell-space-2, 0.5rem);
-  font-size: var(--shell-text-xs);
+  gap: var(--spacer-2);
+  font: var(--body-small);
 }
 
 .mcw-capacity-model {
   overflow: hidden;
   color: var(--maximal-color-text-default);
-  font-weight: var(--shell-weight-lg);
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -42,9 +43,8 @@
 .mcw-capacity-footer {
   display: flex;
   justify-content: space-between;
-  gap: var(--shell-space-2, 0.5rem);
-  color: var(--maximal-color-text-secondary);
-  font-size: var(--shell-text-xs);
+  gap: var(--spacer-2);
+  font: var(--body-small);
 }
 
 /* Turn picker */
@@ -52,18 +52,18 @@
 .mcw-turn-picker {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--shell-space-1, 0.25rem);
+  gap: var(--spacer-1);
 }
 
 .mcw-turn-picker-button {
   border: 1px solid var(--maximal-color-border-default);
-  border-radius: var(--shell-radius-small, 0.25rem);
+  border-radius: var(--radius-small);
   background: var(--maximal-color-bg-secondary);
   color: var(--maximal-color-text-secondary);
-  font-size: var(--shell-text-xs);
+  font: var(--body-small);
   cursor: pointer;
-  padding-block: var(--shell-space-1, 0.25rem);
-  padding-inline: var(--shell-space-2, 0.5rem);
+  padding-block: var(--spacer-1);
+  padding-inline: var(--spacer-2);
 }
 
 .mcw-turn-picker-button:hover {
@@ -89,14 +89,13 @@
 
 .mcw-turn-bar {
   display: grid;
-  gap: var(--shell-space-1, 0.25rem);
+  gap: var(--spacer-1);
 }
 
 .mcw-turn-bar h3 {
   margin: 0;
   color: var(--maximal-color-text-secondary);
-  font-size: var(--shell-text-xs);
-  font-weight: var(--shell-weight-md);
+  font: var(--body-small-strong);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -106,7 +105,7 @@
   overflow: hidden;
   height: 0.85rem;
   border: 1px solid var(--maximal-color-border-strong, var(--maximal-color-border-default));
-  border-radius: var(--shell-radius-small, 0.25rem);
+  border-radius: var(--radius-small);
 }
 
 .mcw-turn-bar-segment {
@@ -117,22 +116,21 @@
 
 .mcw-turn-bar-total {
   color: var(--maximal-color-text-secondary);
-  font-size: var(--shell-text-xs);
+  font: var(--body-small);
 }
 
 /* Context window grid: one large map of cells representing the full context
    window for the selected turn, filled in the order it actually fills. */
 
 .mcw-map {
-  padding-block-start: var(--shell-space-3, 0.75rem);
+  padding-block-start: var(--spacer-3);
   border-block-start: 1px solid var(--maximal-color-border-default);
 }
 
 .mcw-map h3 {
-  margin: 0 0 var(--shell-space-2, 0.5rem);
+  margin: 0 0 var(--spacer-2);
   color: var(--maximal-color-text-secondary);
-  font-size: var(--shell-text-xs);
-  font-weight: var(--shell-weight-md);
+  font: var(--body-small-strong);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -143,7 +141,7 @@
   gap: 2px;
   overflow: hidden;
   border: 1px solid var(--maximal-color-border-strong, var(--maximal-color-border-default));
-  border-radius: var(--shell-radius-small, 0.25rem);
+  border-radius: var(--radius-small);
   background: var(--maximal-color-border-default);
   padding: 2px;
 }
@@ -249,8 +247,8 @@
 .mcw-legend {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
-  gap: var(--shell-space-1, 0.25rem) var(--shell-space-3, 0.75rem);
-  margin: var(--shell-space-2, 0.5rem) 0 0;
+  gap: var(--spacer-1) var(--spacer-3);
+  margin: var(--spacer-2) 0 0;
 }
 
 .mcw-legend .data-viz-legend-swatch {
@@ -279,9 +277,9 @@
 }
 
 .mcw-unavailable {
-  margin: var(--shell-space-1, 0.25rem) 0;
+  margin: var(--spacer-1) 0;
   color: var(--maximal-color-text-secondary);
-  font-size: var(--shell-text-xs);
+  font: var(--body-small);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,4 +1,4 @@
-import { InspectorPanel } from "@maximal/maximal-electron/renderer"
+import { InspectorPanel } from "@maximal/maximal-design-system"
 import { useState, type ReactElement } from "react"
 
 import { deriveContextSessions } from "../src/context-window.ts"
@@ -15,7 +15,7 @@ export function ContextWindowLab(): ReactElement {
     sessions.find(({ id }) => id === selectedSessionId) ?? sessions[0]
 
   return (
-    <div className="lab-shell sb-shell" data-theme={theme}>
+    <div className="lab-shell" data-theme={theme}>
       <button
         type="button"
         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}

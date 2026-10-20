@@ -15,12 +15,45 @@ import test from 'node:test';
 import {
   dtcgInventory,
   iconSourceIssues,
+  isTokenInventorySource,
   inventoryIssues,
   ratchetChanges,
+  readDesignTokens,
   readIconMetrics,
   scanTokenSources,
   runtimePropertyDeclarations,
 } from '../scripts/inventory.mjs';
+
+test('token inventory excludes non-runtime design-system tooling', () => {
+  assert.equal(
+    isTokenInventorySource('packages/maximal-design-system-tools/test/policy.test.mjs'),
+    false,
+  );
+  assert.equal(
+    isTokenInventorySource('packages/maximal-client/src/renderer/theme.css'),
+    true,
+  );
+});
+
+test('design-token sources reject prototype-polluting keys', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'maximal-token-keys-'));
+  try {
+    for (const key of ['__proto__', 'constructor', 'prototype']) {
+      writeFileSync(
+        path.join(root, 'unsafe.json'),
+        JSON.stringify({ group: { [key]: { polluted: true } } }),
+      );
+
+      assert.throws(
+        () => readDesignTokens(root),
+        new RegExp(`Unsafe design token key ${key}`),
+      );
+      assert.equal(Object.prototype.polluted, undefined);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test('DTCG inventory preserves CSS identity and observed declarations', () => {
   const tokens = new Map([
@@ -74,8 +107,19 @@ test('ratchet reports additions and stale baseline entries', () => {
       [...runtimePropertyDeclarations(`
         host.style.setProperty('--term-selection', theme.selection);
         host.style.setProperty("--maximal-term-baseline", baseline);
+        Object.assign(tokens, {
+          '--maximal-color-swatch-orange': alias('orange', 500),
+          '--maximal-color-bg-selected-quiet': mode === 'dark'
+            ? alias('white', 200)
+            : alias('black', 100),
+        });
       `)],
-      ['--term-selection', '--maximal-term-baseline'],
+      [
+        '--term-selection',
+        '--maximal-term-baseline',
+        '--maximal-color-swatch-orange',
+        '--maximal-color-bg-selected-quiet',
+      ],
     );
   });
 });
@@ -96,6 +140,26 @@ test('DTCG icon owners type matching CSS custom properties', () => {
   );
   assert.equal(inventory['icon-optical-map-scale'].$type, 'number');
   assert.equal(inventory['icon-optical-map-scale'].$value, 1.111111);
+});
+
+test('DTCG motion and stacking owners preserve CSS values', () => {
+  const tokens = new Map([
+    ['--easing-standard', [{
+      file: 'tokens.css',
+      value: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
+    }]],
+    ['--opacity-disabled', [{ file: 'tokens.css', value: '0.5' }]],
+    ['--z-index-popover', [{ file: 'tokens.css', value: '20' }]],
+    ['--z-index-assistant', [{ file: 'tokens.css', value: '40' }]],
+  ]);
+  const inventory = dtcgInventory(tokens).inventory;
+
+  assert.equal(inventory['easing-standard'].$type, 'cubicBezier');
+  assert.deepEqual(inventory['easing-standard'].$value, [0.25, 0.1, 0.25, 1]);
+  assert.equal(inventory['opacity-disabled'].$type, 'number');
+  assert.equal(inventory['z-index-popover'].$type, 'number');
+  assert.equal(inventory['z-index-assistant'].$type, 'number');
+  assert.equal(inventory['z-index-assistant'].$value, 40);
 });
 
 test('DTCG spatial grid owners type colors and dot geometry', () => {

@@ -1,9 +1,8 @@
+import { Button, TextInput } from "@maximal/maximal-design-system"
 import {
-  Button,
   SpatialCanvasCommentThread,
   SpatialCanvasPanelHeader,
   SpatialCanvasSidePanel,
-  TextInput,
 } from "@maximal/maximal-electron/renderer"
 import { useState } from "react"
 
@@ -56,9 +55,11 @@ export function ProjectMapDiscussion({
             <SpatialCanvasPanelHeader>
               <TextInput
                 aria-label="Search comments"
+                label="Search comments"
+                showLabel={false}
                 value={query}
                 placeholder="Search comments"
-                onChange={setQuery}
+                onChange={(event) => setQuery(event.currentTarget.value)}
               />
             </SpatialCanvasPanelHeader>
           ),
@@ -76,13 +77,12 @@ export function ProjectMapDiscussion({
             }}
           >
             <TextInput
-              aria-label="Message team"
+              label="Message team"
+              showLabel={false}
               value={draft}
-              onChange={setDraft}
+              onChange={(event) => setDraft(event.currentTarget.value)}
             />
-            <Button type="submit" size="sm">
-              Send
-            </Button>
+            <Button type="submit">Send</Button>
           </form>
         : undefined
       }

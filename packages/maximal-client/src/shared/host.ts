@@ -47,7 +47,6 @@ import type {
   TokenUsageSummary,
 } from '@maximal/maximal-core-contract/settings'
 import type {
-  AgentApprovalRequest,
   AgentEffort,
   AssistantChat,
   AssistantAttachment,
@@ -55,12 +54,15 @@ import type {
   AssistantChatListQuery,
   AssistantChatMessage,
   AssistantChatUpdate,
-  AgentEnd,
-  AgentToolEvent,
-  ApproveRequest,
   AskAccepted,
   AssistantOverlayPreferences,
-  ModelProgress,
+  AssistantRunDelta,
+  AssistantRunEnd,
+  AssistantRunApprovalDecision,
+  AssistantRunApprovalRequest,
+  AssistantRunToolEvent,
+  ModelDownloadProgress,
+  ModelDownloadRequest,
   ProviderStatus,
 } from '@maximal/maximal-harness'
 import type { LogFile } from '@maximal/maximal-logging'
@@ -185,6 +187,16 @@ export interface GeneralDesktopSettings {
 
 export interface ProviderOnboardingPreference {
   dismissed: boolean
+}
+
+/** Which renderer entry draws the workspace window. */
+export const UI_MODES = ['legacy', 'design-system', 'spike'] as const
+export type UiMode = (typeof UI_MODES)[number]
+
+export interface UiModeState {
+  mode: UiMode
+  /** Development builds expose the in-window switch; packaged builds do not. */
+  switchable: boolean
 }
 
 export interface AppearancePreference {
@@ -427,6 +439,11 @@ export interface MaximalHost {
     get: () => Promise<ProviderOnboardingPreference>
     setDismissed: (dismissed: boolean) => Promise<ProviderOnboardingPreference>
   }
+  uiMode: {
+    get: () => Promise<UiModeState>
+    /** Persists the mode and reloads the requesting workspace window. */
+    set: (mode: UiMode) => Promise<void>
+  }
   appearance: {
     get: () => Promise<AppearancePreference>
     setVibrancyEnabled: (enabled: boolean) => Promise<AppearancePreference>
@@ -481,13 +498,14 @@ export interface MaximalHost {
     selectEffort: (effort: AgentEffort) => Promise<ProviderStatus>
     ask: (
       prompt: string,
+      runId: string,
       chatId?: string,
       attachments?: AssistantAttachment[],
     ) => Promise<AskAccepted>
     steer: (prompt: string, chatId?: string) => Promise<boolean>
     abort: () => Promise<void>
-    approve: (request: ApproveRequest) => Promise<void>
-    ensureModel: () => Promise<ModelProgress>
+    approve: (request: AssistantRunApprovalDecision) => Promise<void>
+    ensureModel: (request: ModelDownloadRequest) => Promise<ModelDownloadProgress>
     preferences: () => Promise<AssistantOverlayPreferences>
     updatePreferences: (
       update: Partial<Pick<
@@ -495,11 +513,11 @@ export interface MaximalHost {
         'candy' | 'approval' | 'outputFont'
       >>,
     ) => Promise<AssistantOverlayPreferences>
-    onDelta: (listener: (text: string) => void) => Unsubscribe
-    onTool: (listener: (event: AgentToolEvent) => void) => Unsubscribe
-    onApproval: (listener: (request: AgentApprovalRequest) => void) => Unsubscribe
-    onEnd: (listener: (result: AgentEnd) => void) => Unsubscribe
-    onModelProgress: (listener: (progress: ModelProgress) => void) => Unsubscribe
+    onDelta: (listener: (event: AssistantRunDelta) => void) => Unsubscribe
+    onTool: (listener: (event: AssistantRunToolEvent) => void) => Unsubscribe
+    onApproval: (listener: (request: AssistantRunApprovalRequest) => void) => Unsubscribe
+    onEnd: (listener: (event: AssistantRunEnd) => void) => Unsubscribe
+    onModelProgress: (listener: (event: ModelDownloadProgress) => void) => Unsubscribe
     onShown: (listener: () => void) => Unsubscribe
     onDismissRequested: (listener: () => void) => Unsubscribe
     onPreferences: (

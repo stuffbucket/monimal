@@ -1,21 +1,18 @@
-import {
-  CopyButton,
-  Field,
-  FieldList,
-  FormField,
-  Slider,
-} from "@maximal/maximal-electron/renderer";
+import { Property, PropertyList, Select } from "@maximal/maximal-design-system";
+import { CopyButton } from "@maximal/maximal-electron/renderer";
+
+import { ControlNotes } from "../ControlNotes";
 
 import type { useOllamaProvider } from "./useOllamaProvider";
 
 const CONTEXT_LENGTH_OPTIONS = [
-  { value: 4_096, label: "4k" },
-  { value: 8_192, label: "8k" },
-  { value: 16_384, label: "16k" },
-  { value: 32_768, label: "32k" },
-  { value: 65_536, label: "64k" },
-  { value: 131_072, label: "128k" },
-  { value: 262_144, label: "256k" },
+  { value: "4096", label: "4k" },
+  { value: "8192", label: "8k" },
+  { value: "16384", label: "16k" },
+  { value: "32768", label: "32k" },
+  { value: "65536", label: "64k" },
+  { value: "131072", label: "128k" },
+  { value: "262144", label: "256k" },
 ] as const;
 
 interface OllamaRuntimeDetailsProps {
@@ -28,8 +25,8 @@ export function OllamaRuntimeDetails({ provider }: OllamaRuntimeDetailsProps) {
 
   return (
     <>
-      <FieldList>
-        <Field
+      <PropertyList>
+        <Property
           label="Application"
           value={
             runtime.application_path ? (
@@ -45,7 +42,7 @@ export function OllamaRuntimeDetails({ provider }: OllamaRuntimeDetailsProps) {
             )
           }
         />
-        <Field
+        <Property
           label="Endpoint"
           value={
             <>
@@ -54,7 +51,7 @@ export function OllamaRuntimeDetails({ provider }: OllamaRuntimeDetailsProps) {
             </>
           }
         />
-        <Field
+        <Property
           label="Server configuration"
           value={
             <>
@@ -66,7 +63,7 @@ export function OllamaRuntimeDetails({ provider }: OllamaRuntimeDetailsProps) {
             </>
           }
         />
-        <Field
+        <Property
           label="Desktop settings"
           value={
             runtime.desktop_settings_path ? (
@@ -82,28 +79,31 @@ export function OllamaRuntimeDetails({ provider }: OllamaRuntimeDetailsProps) {
             )
           }
         />
-      </FieldList>
+      </PropertyList>
       {runtime.context_length !== null ? (
-        <FormField
-          label="Context length"
+        <ControlNotes
           hint={
             provider.savingContextLength
               ? "Saving context length…"
               : "Context length determines how much of your conversation local models can remember and use to generate responses."
           }
         >
-          {(control) => (
-            <Slider
-              {...control}
+          {(describedBy) => (
+            <Select
               label="Context length"
-              value={Number(provider.contextLength)}
+              value={provider.contextLength}
               options={CONTEXT_LENGTH_OPTIONS}
-              testId="ollama-context-length"
-              onChange={(value) => provider.setContextLength(String(value))}
-              onCommit={(value) => void provider.saveContextLength(String(value))}
+              onValueChange={(value) => {
+                provider.setContextLength(value);
+                void provider.saveContextLength(value);
+              }}
+              triggerProps={{
+                "aria-describedby": describedBy,
+                "data-testid": "ollama-context-length",
+              }}
             />
           )}
-        </FormField>
+        </ControlNotes>
       ) : null}
     </>
   );

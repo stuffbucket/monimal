@@ -96,7 +96,7 @@ function hostAt(canvasElement: HTMLElement, index: number): TerminalHost {
 }
 
 const meta = {
-  title: 'Terminal/TerminalTabs',
+  title: 'Deprecated/TerminalTabs',
   component: TerminalTabs,
   args: {
     ids: IDS,

@@ -1,17 +1,8 @@
-import {
-  failedShellVariableChecks,
-  shellVariableChecks,
-  shellVariableContract,
-  shellVariableEntries,
-  shellVariablesIn,
-} from '@maximal/maximal-electron/verify/shell-variables';
 import { readFileSync, readdirSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import { extname, join, resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-const require = createRequire(import.meta.url);
 const packageRoot = resolve(import.meta.dirname, '..');
 const rendererRoot = join(packageRoot, 'src', 'renderer');
 
@@ -24,6 +15,12 @@ function sourceFiles(directory: string): string[] {
 }
 
 describe('renderer architecture', () => {
+  it('depends on maximal-design-system without maximal-electron', () => {
+    const manifest = readFileSync(join(packageRoot, 'package.json'), 'utf8');
+    expect(manifest).toContain('"@maximal/maximal-design-system"');
+    expect(manifest).not.toContain('"@maximal/maximal-electron"');
+  });
+
   it('uses only public renderer seams and no host globals', () => {
     const sources = sourceFiles(rendererRoot).map((file) => ({
       file,
@@ -36,7 +33,7 @@ describe('renderer architecture', () => {
       /from\s+['"]electron['"]/u,
       /window\.maximal/u,
       /maximal-electron\/src\//u,
-      /@maximal\/maximal-electron\/(?:host|electron-)/u,
+      /@maximal\/maximal-electron/u,
     ];
     for (const { file, text } of sources) {
       for (const pattern of forbidden) {
@@ -45,67 +42,44 @@ describe('renderer architecture', () => {
     }
 
     const imports = sources.flatMap(({ text }) =>
-      [...text.matchAll(/from\s+['"](@maximal\/maximal-electron[^'"]*)['"]/gu)].map(
+      [...text.matchAll(/from\s+['"](@maximal\/maximal-design-system[^'"]*)['"]/gu)].map(
         (match) => match[1],
       ),
     );
     expect(imports.length).toBeGreaterThan(0);
-    expect(new Set(imports)).toEqual(new Set(['@maximal/maximal-electron/renderer']));
+    expect(new Set(imports)).toEqual(new Set(['@maximal/maximal-design-system']));
   });
 
-  it('uses only shell variables published by maximal-electron', () => {
-    const upstreamCss = readFileSync(
-      require.resolve('@maximal/maximal-electron/renderer/styles.css'),
-      'utf8',
-    );
-    const stylesheets = [{ name: 'maximal-electron styles.css', css: upstreamCss }];
-    const published = shellVariableEntries({ stylesheets, runtimeProperties: [] });
-    const checks = shellVariableChecks({
-      stylesheets,
-      runtimeProperties: [],
-      published,
-    });
-    expect(checks.length).toBeGreaterThan(0);
-    expect(failedShellVariableChecks(checks)).toEqual([]);
-
-    const contract = shellVariableContract({ stylesheets, runtimeProperties: [] });
-    const known = new Set([
-      ...contract.required,
-      ...contract.fallback,
-      ...contract.structural,
-    ]);
+  it('loads design-system CSS without maximal-electron selectors', () => {
     const ownCss = readFileSync(join(packageRoot, 'src', 'styles.css'), 'utf8');
-    const own = shellVariablesIn(ownCss);
-    const used = [...new Set([...own.required, ...own.fallback])];
-    expect(used.length).toBeGreaterThan(0);
-    expect(used.filter((variable) => !known.has(variable))).toEqual([]);
-    for (const variable of [
-      '--shell-space-1',
-      '--shell-space-2',
-      '--shell-space-3',
-      '--shell-radius',
-      '--shell-radius-large',
-      '--shell-text-sm',
-      '--shell-text-xs',
-      '--shell-elevation',
-    ]) {
-      expect(own.fallback, `${variable} must work without a host override`).toContain(
-        variable,
-      );
-    }
+    expect(ownCss).toContain(
+      "@import '@maximal/maximal-design-system/tokens.css';",
+    );
+    expect(ownCss).toContain(
+      "@import '@maximal/maximal-design-system/styles.css';",
+    );
+    expect(ownCss).not.toMatch(/maximal-electron|sb-shell/u);
+    expect(ownCss).not.toContain('--shell-');
     expect(ownCss).not.toMatch(/#[0-9a-f]{3,8}\b|\brgba?\(|\bhsla?\(/iu);
+    expect(ownCss).not.toMatch(/\[data-testid(?:=|\])/u);
+    expect(ownCss).not.toMatch(
+      /(?<!\.mh-overlay-body )\.maximal-menu-item:has\(/u,
+    );
   });
 
   it('keeps the assistant card above its click-away layer', () => {
     const ownCss = readFileSync(join(packageRoot, 'src', 'styles.css'), 'utf8');
     expect(ownCss).toMatch(
-      /\.mh-overlay-body\s*>\s*\[data-sb-shell-portal-root\]\s*\{[^}]*z-index:\s*2;[^}]*pointer-events:\s*none;/su,
+      /\.mh-dialog-viewport\s*\{[^}]*z-index:\s*var\(--z-index-assistant\);[^}]*pointer-events:\s*none;/su,
     );
     expect(ownCss).toMatch(
       /\.mh-card\s*\{[^}]*pointer-events:\s*auto;/su,
     );
     expect(ownCss).toMatch(
-      /\.mh-click-away\s*\{[^}]*z-index:\s*1;/su,
+      /\.mh-click-away\s*\{[^}]*z-index:\s*calc\(var\(--z-index-assistant\) - var\(--z-index-raised-content\)\);/su,
+    );
+    expect(ownCss).toMatch(
+      /\.maximal-popup-positioner\s*\{[^}]*z-index:\s*calc\(var\(--z-index-assistant\) \+ var\(--z-index-raised-content\)\);/su,
     );
   });
 

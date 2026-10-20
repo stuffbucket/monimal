@@ -3,6 +3,7 @@ import { fileHeader, formattedVariables } from 'style-dictionary/utils'
 
 const ELEVATION_LEVELS = [100, 200, 300, 400, 500]
 const FORMAT = 'maximal/css-variables'
+const CSS_TRANSFORM_GROUP = 'maximal/css'
 const FONT_FACE = `@font-face {
   font-family: 'Lil Grotesk';
   src: url('../../tokens/fonts/lil-grotesk-variable.woff2') format('woff2-variations');
@@ -34,12 +35,31 @@ StyleDictionary.registerFormat({
   },
 })
 
+StyleDictionary.registerTransform({
+  name: 'maximal/duration',
+  type: 'value',
+  filter: (token, options) =>
+    (options.usesDtcg ? token.$type : token.type) === 'duration',
+  transform: (token, _platform, options) => {
+    const value = options.usesDtcg ? token.$value : token.value
+    return `${String(value.value)}${value.unit}`
+  },
+})
+
+StyleDictionary.registerTransformGroup({
+  name: CSS_TRANSFORM_GROUP,
+  transforms: [
+    ...StyleDictionary.hooks.transformGroups.css,
+    'maximal/duration',
+  ],
+})
+
 export default {
   usesDtcg: true,
   source: ['tokens/**/*.json'],
   platforms: {
     css: {
-      transformGroup: 'css',
+      transformGroup: CSS_TRANSFORM_GROUP,
       buildPath: 'dist/tokens/',
       files: [
         {

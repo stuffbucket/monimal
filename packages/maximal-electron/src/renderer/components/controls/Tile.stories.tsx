@@ -51,7 +51,7 @@ function HostStyles() {
 }
 
 const meta = {
-  title: 'Controls/Tile',
+  title: 'Deprecated/Tile',
   component: Card,
   args: {
     selected: false,

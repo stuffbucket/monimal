@@ -60,7 +60,7 @@ function ProviderSettings() {
 }
 
 const meta = {
-  title: 'Settings/SettingsDisclosure',
+  title: 'Deprecated/SettingsDisclosure',
   component: SettingsDisclosure,
   args: {
     title: 'Ollama hosted search',

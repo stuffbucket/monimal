@@ -11,7 +11,7 @@ import {
 import { SpatialCanvasSurface } from './SpatialCanvasSurface.js';
 
 const meta = {
-  title: 'Canvas/SpatialCanvasSurface',
+  title: 'Deprecated/SpatialCanvasSurface',
   component: SpatialCanvasSurface,
   parameters: {
     controls: { disable: true },

@@ -1,6 +1,4 @@
-import {
-  Dialog,
-} from '@maximal/maximal-electron/renderer'
+import { Dialog } from '@maximal/maximal-design-system'
 import { X } from 'lucide-react'
 import {
   useRef,
@@ -8,6 +6,7 @@ import {
   type PointerEvent,
   type ReactElement,
 } from 'react'
+import { shellOverlayContainer } from '../../shell-overlay-container'
 
 interface Hsv {
   hue: number
@@ -136,7 +135,8 @@ export function TerminalColorPicker({
         }}
         title={`${label} color`}
         className="terminal-color-picker"
-        testId={`${testId}-dialog`}
+        popupProps={{ 'data-testid': `${testId}-dialog` }}
+        container={shellOverlayContainer}
       >
         <div className="terminal-color-picker__header">
           <strong>Custom color</strong>

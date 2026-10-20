@@ -68,6 +68,39 @@ afterEach(async () => {
 });
 
 describe('discoverProvider', () => {
+  it('ignores malformed Ollama catalogue entries', async () => {
+    delete process.env['STUFFBUCKET_PROVIDER'];
+    await modelDirectory();
+    configureAgent({ ...agentOptions, preferredModel: 'ollama:qwen3:4b' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: string | URL | Request) => {
+        const url =
+          typeof input === 'string'
+            ? input
+            : input instanceof URL
+              ? input.href
+              : input.url;
+        return Promise.resolve(
+          url.endsWith('/v1/models')
+            ? Response.json({ data: [] })
+            : Response.json({
+                models: [{}, { name: 42 }, { name: '' }, { name: 'qwen3:4b' }],
+              }),
+        );
+      }),
+    );
+
+    await expect(discoverProvider()).resolves.toMatchObject({
+      state: 'ready',
+      modelKey: 'ollama:qwen3:4b',
+      models: [{
+        key: 'ollama:qwen3:4b',
+        label: 'qwen3:4b',
+      }],
+    });
+  });
+
   it('uses safe catalogue metadata for model labels and reasoning effort', async () => {
     process.env['STUFFBUCKET_PROVIDER'] = 'maximal';
     process.env['STUFFBUCKET_PROVIDER_API_KEY'] = 'mxt_terminal-token';

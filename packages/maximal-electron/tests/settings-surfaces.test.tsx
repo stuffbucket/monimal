@@ -18,14 +18,12 @@ function withTooltips(node: React.ReactNode): string {
 }
 
 describe('Avatar', () => {
-  it('shows the picture when there is one', () => {
+  it('keeps initials available while the picture loads', () => {
     const markup = renderToStaticMarkup(
       <Avatar account={{ ...ada, avatarUrl: 'https://example.com/a.png' }} />,
     );
-    expect(markup).toContain(
-      'background-image:url(&quot;https://example.com/a.png&quot;)',
-    );
-    expect(markup).toContain('aria-hidden="true"');
+    expect(markup).toContain('class="maximal-avatar"');
+    expect(markup).toContain('AL');
   });
 
   it('falls back to initials when there is not', () => {
@@ -36,7 +34,8 @@ describe('Avatar', () => {
 
   it('shows nobody when nobody is signed in', () => {
     const markup = renderToStaticMarkup(<Avatar />);
-    expect(markup).toContain('avatar--anon');
+    expect(markup).toContain('data-testid="avatar-anon"');
+    expect(markup).toContain('aria-hidden="true"');
   });
 });
 

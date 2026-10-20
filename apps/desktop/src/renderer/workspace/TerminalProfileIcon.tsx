@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactElement } from 'react'
 import { TERMINAL_ICON_URLS } from '@maximal/maximal-assets/terminal-icons'
-import type { TerminalProfileSummary } from '@maximal/maximal-electron/renderer'
+import type { TerminalProfileSummary } from '@maximal/maximal-terminal'
 
 const ICONS: Partial<Record<string, { url: string; color?: string }>> = {
   'claude-desktop': { url: TERMINAL_ICON_URLS.claudeDesktop, color: '#d97757' },

@@ -32,7 +32,7 @@ function SortableExample() {
 }
 
 const meta = {
-  title: 'Controls/PartitionedSortableList',
+  title: 'Deprecated/PartitionedSortableList',
   component: PartitionedSortableList,
   args: {
     enabledItems: INITIAL_ENABLED,
