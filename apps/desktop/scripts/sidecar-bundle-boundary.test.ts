@@ -28,6 +28,9 @@ describe('provider bundle boundary', () => {
     '../../node_modules/.pnpm/@deepseek-ai+schemastery@3.18.1/node_modules/@deepseek-ai/schemastery/lib/index.js',
     '../../packages/model-runtimes/omlx/dist/index.js',
     '../../packages/model-runtimes/anthropic/dist/index.js',
+    '../../packages/model-runtimes/vllm/dist/index.js',
+    '../vllm/node_modules/@maximal/maximal-runtime-vllm/dist/index.js',
+    '../../node_modules/.pnpm/@maximal+maximal-runtime-vllm@0.0.0/node_modules/@maximal/maximal-runtime-vllm/dist/index.js',
     '../omlx/dist/index.js',
     '../anthropic-provider/dist/index.js',
   ])('rejects external runtime input %s', (input) => {

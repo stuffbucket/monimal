@@ -28,7 +28,19 @@ Selecting an experience follows these steps:
 7. Show how to connect the user's app or script.
 8. Offer an optional speed test, which does not judge output quality.
 
-Maximal only looks in the model stores and runtimes it is set up to use. It never scans the whole disk or the network. Setup runs only fixed, checked steps, never arbitrary shell commands. Models that are already installed and allowed are found automatically. Before any download, the user sees the size, where it goes, and where it comes from.
+Setup MUST run only fixed, checked steps, never arbitrary shell commands. Maximal MUST NOT scan the whole disk. Before any download, the user MUST see the size, where it goes, and where it comes from.
+
+### 1.2.1 Discovery scope
+
+- Entering discovery MUST inspect this device's configured stores, runtimes, and bounded supported-service inventory.
+- The view MUST offer a **Local network** toggle, off by default, that adds local-network discovery to this-device discovery; known machines MUST NOT form a separate user-facing mode.
+- Enabling local-network discovery MUST show the intended interface/address scope. Discovery MUST NOT extend silently to VPNs, other routed networks, or unselected interfaces.
+- Discovery MUST be bounded, cancellable, and limited to reviewed service advertisements and supported endpoint probes.
+- Inventory requests MUST fetch metadata only; discovery MUST NOT load models, execute inference, install packages, publish inventory, or enable sharing.
+- Discovered services MUST NOT receive saved credentials until the user explicitly approves that destination.
+- Results MUST retain separate deployment identities, execution locations, and evidence freshness across machines. Server aliases MUST NOT be treated as verified artifact variants.
+- Missing isolation evidence MUST display **Isolation unverified**, not a sandboxed or safe label.
+- Manual endpoint entry MUST remain available when discovery cannot find a service.
 
 ### 1.3 Model selection cards
 
@@ -137,6 +149,23 @@ Before a share ends, Maximal notifies the owner and offers to extend it. Extendi
 Turning sharing off or letting it expire blocks new requests. Requests already running follow the rule in section 12.
 
 Requests reach a shared machine only through an approved endpoint, using credentials that are scoped to that share and expire with it. The transport and token design are open decisions in section 12.
+
+### 6.4 Serving isolation and exposure review
+
+- Sharing or re-exposing a deployment through Maximal MUST require a review of its serving isolation; discovery alone MUST NOT satisfy that gate.
+- The review MUST cover model loaders and runtime code, filesystem mounts, process privileges, resource limits, incoming API access, and outbound network access.
+- A reviewed serving sandbox MUST use an unprivileged identity, no unnecessary capabilities, no privilege escalation, syscall restrictions, and a read-only root with only explicitly bounded writable storage.
+- Model artifacts MUST be mounted read-only. The serving sandbox MUST NOT receive user home directories, credentials, host control sockets, or arbitrary host files.
+- Serving network access MUST be default-deny, with only reviewed ingress and explicitly allowlisted egress. Loopback binding and API authentication MUST NOT be treated as outbound-network isolation.
+- LAN consumption MUST use authenticated TLS or an authenticated encrypted tunnel. Allowing inbound inference and its established replies MUST NOT grant the serving worker general access to the host, LAN, or internet.
+- Download access MUST remain separate from inference-time network permissions. Model loading MUST NOT execute unreviewed repository code or unsafe serialized model code.
+- Published inference APIs MUST NOT expose runtime-management, shell, filesystem, or agent-tool operations. Model output MUST remain untrusted, and any tool execution MUST enforce its own authorization and isolation.
+- Container presence MUST NOT be presented as proof against host or GPU-driver compromise. Reviewers MUST define the accepted threat model and decide whether a shared GPU container or a dedicated VM/device boundary is required before exposure.
+- Changes to an active deployment's sandbox or network policy MUST require explicit operator approval for any restart or workload disruption.
+- Sharing and re-exposure control operations MUST invoke the [Core hardening precondition](../packages/maximal-core/src/lib/model-exposure/hardening.ts) immediately before opening or renewing ingress, under the authoritative deployment lifecycle lock.
+- [Versioned hardening evidence](../packages/maximal-core-contract/src/serving-hardening.ts) MUST bind the target, deployment revision, runtime and artifact digests, serving configuration, and ingress/egress policies. Changes MUST invalidate the review.
+- Evidence MUST come from an authenticated inspector through an authoritative reader, not a discovered server or an agent-supplied document. Missing, failed, unknown, stale, or untrusted evidence MUST block exposure.
+- A passing hardening decision MUST NOT substitute for ownership, organization policy, or user consent. The report collector and sharing control endpoints MUST be implemented before this helper is described as an operational sharing feature.
 
 ## 7. Feedback and optional usage sharing
 
@@ -257,15 +286,42 @@ The first implementation slice contains:
 
 These are contracts and in-process helpers, not a usable setup feature. They do not run downloads, enforce organization policy, authenticate consent, or expose control methods. An approval record alone is not authorization. Phase 1's end-to-end gate in section 10 remains open.
 
+### Existing-deployment connection slice
+
+- The first GPU-serving slice MUST connect an existing vLLM deployment before provisioning another model. The [vLLM connector](../packages/model-runtimes/vllm/src/index.ts) MUST reuse the shared Messages adapter and advertise only its implemented operation.
+- Execution targets MUST identify the configured endpoint, runner, served model ID, and explicit location. An authenticated loopback tunnel to Perun MUST remain a remote target. Additional hosts, including Domovyk and Iskra, MUST use distinct target identities.
+- Served aliases MUST NOT be treated as verified artifact variants. Configuration MUST NOT imply loaded or healthy state.
+- The [explicit live check](../packages/model-runtimes/vllm/examples/check-connection.mjs) MUST be reported separately from contract tests, desktop acceptance, managed setup, and performance estimates.
+- Connecting MUST NOT enable cluster discovery or sharing. Those workflows MUST retain the authorization, consent, and publication gates in sections 4–6.
+
+### Discovery checkpoint and evidence boundaries
+
+- Progress reports MUST identify the implemented discovery slice by its [wire contract](../packages/maximal-core-contract/src/model-discovery.ts), [host-owned service](../packages/maximal-models/src/discovery/service.ts), [Core control boundary](../packages/maximal-core/src/routes/control/model-discovery.ts), and [shared Settings surface](../packages/maximal-client/src/renderer/settings/local-models/ModelDiscoverySection.tsx).
+- Discovery acceptance MUST distinguish this-device endpoint probing from opt-in, explicitly scoped LAN probing. Supported interfaces, protocol defaults, and scan budgets MUST remain owned by the discovery implementation rather than a second configuration registry.
+- Progress reports MUST distinguish implemented discovery, the profile-installed vLLM connector, and [hardening checks](../packages/maximal-core/src/lib/model-exposure/hardening.ts) from the unimplemented reviewed Connect/Use flow, authenticated inspector collector, and sharing endpoints.
+- Simulated HTTP and renderer tests MUST NOT count as live LAN or desktop acceptance. The Core socket harness MUST NOT count as evidence that a concrete discovery host found a real service.
+- Perun's successful synthetic vLLM gateway check MUST NOT count as managed setup, standing connectivity, or serving isolation approval.
+- Perun exposure approval MUST remain blocked until privileged worker containment and authenticated, current inspection evidence pass the exposure review. Inference-proxy hardening MUST NOT substitute for worker containment.
+- viy SSH access and credential changes MUST remain deferred until explicitly resumed by the user.
+
 ### Remaining Phase 1 work, in implementation order
 
-1. **Device advisor and bounded inventory.** Inventory MUST inspect only configured stores and runtimes. Assessment MUST compute Fits, Constrained, Unsupported, or Unknown from variant-specific requirements and observed resources. Unified memory MUST count once. Reviewers MUST settle whether Unknown assessments permit setup before enabling that action; the current helper permits them.
-2. **One reviewed local execution path.** The first vertical slice MUST select one pinned local text or System-1 model and runtime. Setup MUST resolve references through the existing registry and reviewed runtime packages, rather than treating candidate metadata as authority. Model files MUST pass the registry's verification path before activation.
-3. **Trusted setup control and consent.** Core MUST add plan, consent, run, read, cancel, and connection-descriptor operations with explicit feature/version negotiation. The control layer MUST obtain real consent outside the agent, keep authoritative plan and approval state, and re-check eligibility and policy before side effects. Legacy `ensure` MUST use the same consent gate. Older sidecars MUST report unsupported.
-4. **Execution lifecycle and recovery.** Operations MUST publish monotonically revisioned snapshots. Cancellation and failure MUST affect only resources started by that operation. Recovery MUST preserve unrelated settings and report a reason and next step. Lifecycle and health MUST remain distinct from the registry's downloaded-and-verified state.
-5. **Routing and external use.** Device-only constraints MUST hold across dispatch, retry, and fallback. An explicit model choice MUST remain unchanged. Connection descriptors MUST describe only the target's supported operations and refer to credentials without including their values. One external-client example MUST exercise the selected local path.
-6. **Agent and product surfaces.** Typed harness tools MUST call the trusted control layer. Gallery cards, model pages, and Settings MUST share the product client's queries and revision handling. First-run setup MUST work without frontier-provider sign-in. Contact and feedback slots MUST stay empty as specified for Phase 1.
-7. **Phase 1 acceptance.** Verification MUST cover the full setup-to-external-use path, unsupported-device rejection, consent bypass attempts, corrupt artifacts, cancellation/recovery, and device-only retry/fallback. Real-hardware results MUST be reported separately from contract tests, following the workflow in section 11.
+1. **Discovery acceptance on real hosts.** Desktop and live LAN acceptance MUST exercise this-device defaults, explicit interface selection, refresh, cancellation, authentication-required endpoints, and unchanged existing providers. Non-default and unsupported endpoints MUST retain a reviewed manual fallback. Discovery completeness MUST NOT be inferred from the bounded scan finishing.
+2. **Reviewed Connect/Use for existing deployments.** A review MUST bind the selected endpoint, runtime, deployment identity, served model IDs, explicit execution location, supported operations, and credential reference before persisting a connection. Credential release MUST require approval for that destination. LAN consumption MUST use authenticated, encrypted transport. Connecting MUST NOT install adapters, silently switch legacy provider mode, or enable publication or sharing.
+3. **Device advisor and verified inventory.** Inventory MUST combine configured stores and runtimes with the bounded supported-service inventory from section 1.2.1. Assessment MUST compute Fits, Constrained, Unsupported, or Unknown from variant-specific requirements and observed resources. Unified memory MUST count once. Reviewers MUST settle whether Unknown assessments permit setup before enabling that action; the current helper permits them.
+4. **One reviewed local execution path.** The managed-setup slice MUST select one pinned local text or System-1 model and runtime. Setup MUST resolve references through the existing registry and reviewed runtime packages, rather than treating candidate metadata as authority. Model files MUST pass the registry's verification path before activation.
+5. **Trusted setup control and consent.** Core MUST add plan, consent, run, read, cancel, and connection-descriptor operations with explicit feature/version negotiation. The control layer MUST obtain real consent outside the agent, keep authoritative plan and approval state, and re-check eligibility and policy before side effects. Legacy `ensure` MUST use the same consent gate. Older sidecars MUST report unsupported.
+6. **Execution lifecycle and recovery.** Operations MUST publish monotonically revisioned snapshots. Cancellation and failure MUST affect only resources started by that operation. Recovery MUST preserve unrelated settings and report a reason and next step. Lifecycle and health MUST remain distinct from the registry's downloaded-and-verified state.
+7. **Routing and external use.** Device-only constraints MUST hold across dispatch, retry, and fallback. An explicit model choice MUST remain unchanged. Connection descriptors MUST describe only the target's supported operations and refer to credentials without including their values. One external-client example MUST exercise the selected local path.
+8. **Agent and product surfaces.** Typed harness tools MUST call the trusted control layer. Gallery cards, model pages, and Settings MUST share the product client's queries and revision handling. First-run setup MUST work without frontier-provider sign-in. Contact and feedback slots MUST stay empty as specified for Phase 1.
+9. **Phase 1 acceptance.** Verification MUST cover the full setup-to-external-use path, unsupported-device rejection, consent bypass attempts, corrupt artifacts, cancellation/recovery, and device-only retry/fallback. Real-hardware results MUST be reported separately from contract tests, following the workflow in section 11.
+
+### Controlled exposure and later hosts
+
+- An authenticated inspector collector MUST bind evidence to the current worker, runtime, artifacts, serving configuration, and ingress/egress policies before sharing endpoints use the existing hardening gate.
+- Sharing controls MUST enforce ownership, organization policy, user consent, and evidence freshness at each action; a passing report alone MUST NOT authorize exposure.
+- Perun worker migration MUST require privileged operator access; proxy-only changes MUST NOT be reported as completing that migration.
+- Domovyk and Iskra MUST receive separate deployment identities and transport/access reviews before cluster consumption or publication is enabled.
 
 The GLiNER runner's standalone CPU and CUDA demo runs are external-runtime evidence only. They MUST NOT be counted as Maximal end-to-end setup acceptance or promoted into general performance estimates.
 

@@ -18,7 +18,7 @@ import {
   readModelsPage,
   requestHeaders,
 } from "./http.ts"
-import { parseSse } from "./sse.ts"
+import { parseSse, type SseEvent } from "./sse.ts"
 import { translate } from "./translate.ts"
 import { configuredModel, serializeRequest } from "./wire.ts"
 
@@ -118,12 +118,19 @@ export class AnthropicAdapter extends LlmAdapter {
         protocolError("response is not an SSE stream")
       }
       if (!response.body) protocolError("response body is missing")
-      yield* translate(parseSse(response.body), instance)
+      yield* translate(this.transformEvents(parseSse(response.body)), instance)
     } catch (error) {
       rethrowAbort(scope.signal, error)
     } finally {
       scope.cleanup()
     }
+  }
+
+  /** Backend subclasses may normalize documented wire differences before validation. */
+  protected transformEvents(
+    events: AsyncIterable<SseEvent>,
+  ): AsyncIterable<SseEvent> {
+    return events
   }
 
   async #listDiscoveredModels(instance: ResolvedInstanceConfig) {

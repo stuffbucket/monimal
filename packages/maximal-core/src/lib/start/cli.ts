@@ -1,3 +1,5 @@
+import type { ModelDiscoveryFactory } from "@maximal/maximal-model-contract"
+
 import { defineCommand } from "citty"
 
 import type { ConnectorPluginFactory } from "~/lib/config/connector-plugins"
@@ -14,6 +16,7 @@ interface CreateStartCommandOptions {
   createConfiguratorRuntime?: ConfiguratorRuntimeFactory
   createConnectorPlugins?: ConnectorPluginFactory
   createProviderGateway?: ProviderGatewayFactory
+  createModelDiscovery?: ModelDiscoveryFactory
   runServer?: (options: RunServerOptions) => Promise<void>
 }
 
@@ -129,6 +132,7 @@ export function createStartCommand(options: CreateStartCommandOptions = {}) {
         createConfiguratorRuntime: options.createConfiguratorRuntime,
         createConnectorPlugins: options.createConnectorPlugins,
         createProviderGateway: options.createProviderGateway,
+        createModelDiscovery: options.createModelDiscovery,
       })
     },
   })

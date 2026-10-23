@@ -1,3 +1,4 @@
+import type { ModelDiscoveryFactory } from "@maximal/maximal-model-contract"
 import type { CommandDef } from "citty"
 
 import { defineCommand, parseArgs, runMain } from "citty"
@@ -42,6 +43,8 @@ export interface CliCompositionOptions {
    * config explicitly selects provider plugin mode.
    */
   createProviderGateway?: ProviderGatewayFactory
+  /** Optional metadata discovery, independent of inference-provider mode. */
+  createModelDiscovery?: ModelDiscoveryFactory
 }
 
 export interface RunCliOptions extends CliCompositionOptions {
@@ -77,6 +80,7 @@ export async function createMain(
             createConfiguratorRuntime: options.createConfiguratorRuntime,
             createConnectorPlugins: options.createConnectorPlugins,
             createProviderGateway: options.createProviderGateway,
+            createModelDiscovery: options.createModelDiscovery,
           }),
         ),
       setup: () => import("~/setup").then((module) => module.setup),

@@ -4,6 +4,9 @@ import {
   type LocalModelCatalogSnapshot,
   type LocalModelEnsureResult,
   type LocalModelOperationEvent,
+  ModelDiscoveryActionSchema,
+  ModelDiscoverySnapshotSchema,
+  type ModelDiscoverySnapshot,
   TerminalScopeLaunch as TerminalScopeLaunchSchema,
   type TerminalScopeLaunch,
   type TerminalScopeIssueRequest,
@@ -111,6 +114,7 @@ export interface CoreControlOperations {
   apiKeysSetEnforcement(enforcing: boolean): Promise<ControlResult<ApiKeysListResponse>>
   modelsList(): Promise<ControlResult<ModelsListResponse>>
   modelsRefresh(): Promise<ControlResult<ModelsListResponse>>
+  modelDiscoveryAct(request: unknown): Promise<ControlResult<ModelDiscoverySnapshot>>
   localModelsList(): Promise<ControlResult<LocalModelCatalogSnapshot>>
   localModelsEnsure(modelKey: string): Promise<ControlResult<LocalModelEnsureResult>>
   localModelsCancel(operationId: string): Promise<ControlResult<LocalModelCancelResult>>
@@ -159,6 +163,7 @@ export const optionalMethods = [
   'models/list',
   'models/refresh',
   'localModels/list',
+  'modelDiscovery/act',
   'localModels/ensure',
   'localModels/cancel',
   'usage/get',
@@ -336,6 +341,7 @@ export function createCoreControlOperations(call: ControlCall): CoreControlOpera
       call('apiKeys/setEnforcement', parseWith(ApiKeysListResponseSchema), { enforcing }),
     modelsList: () => call('models/list', parseWith(ModelsListResponseSchema)),
     modelsRefresh: () => call('models/refresh', parseWith(ModelsListResponseSchema)),
+    modelDiscoveryAct: (request) => call('modelDiscovery/act', parseWith(ModelDiscoverySnapshotSchema), request, parseWith(ModelDiscoveryActionSchema)),
     localModelsList: () =>
       call('localModels/list', parseWith(localModelCatalogSnapshotSchema)),
     localModelsEnsure: (modelKey) =>

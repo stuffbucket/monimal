@@ -38,6 +38,7 @@ const bridge = {
     revealFolder: () =>
       ipcRenderer.invoke(BRIDGE_CHANNELS.recordingsRevealFolder),
   },
+  modelDiscovery: { act: (request) => ipcRenderer.invoke(BRIDGE_CHANNELS.modelDiscoveryAct, request) },
   localModels: {
     list: () => ipcRenderer.invoke(BRIDGE_CHANNELS.localModelsList),
     ensure: (modelKey) => ipcRenderer.invoke(BRIDGE_CHANNELS.localModelsEnsure, modelKey),

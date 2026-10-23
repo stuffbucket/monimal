@@ -151,6 +151,8 @@ export {
   type ParsedMessage,
   successResponse,
 } from "./message.ts"
+export * from "./model-discovery.ts"
+export * from "./serving-hardening.ts"
 export type {
   LocalModelCatalogEntry,
   LocalModelCatalogSnapshot,

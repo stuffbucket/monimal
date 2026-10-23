@@ -3,14 +3,17 @@
 const FORBIDDEN_INPUT_MARKERS = [
   '/packages/model-runtimes/anthropic/',
   '/packages/model-runtimes/omlx/',
+  '/packages/model-runtimes/vllm/',
   '/../anthropic-provider/',
   '/../omlx/',
   '/@maximal/anthropic-provider/',
   '/@maximal/omlx/',
+  '/@maximal/maximal-runtime-vllm/',
   '/@deepseek-ai/dsh-llm/',
   '/@deepseek-ai/schemastery/',
   '/@maximal+anthropic-provider@',
   '/@maximal+omlx@',
+  '/@maximal+maximal-runtime-vllm@',
   '/@deepseek-ai+dsh-llm@',
   '/@deepseek-ai+schemastery@',
 ] as const

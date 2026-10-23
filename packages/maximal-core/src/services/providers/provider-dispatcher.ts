@@ -1,5 +1,6 @@
 import type {
   LocalModelControl,
+  ModelTopologyService,
   ProviderDispatch,
   ProviderGateway,
   ProviderOperation,
@@ -52,6 +53,7 @@ export interface ProviderDispatcher {
   dispose(): Promise<void>
   listModels(): Promise<ReadonlyArray<ProviderCatalogueModel>>
   localModels(): LocalModelControl | undefined
+  modelTopology?(): ModelTopologyService | undefined
   ready(): Promise<void>
   requiresGithubAuth(provider?: string): boolean
 }
@@ -469,6 +471,11 @@ export function createProviderDispatcher(
         ),
       )
       return catalogues.flat()
+    },
+
+    modelTopology() {
+      if (isLegacyMode()) return undefined
+      return (staticGateway ?? factoryGateway)?.gateway.modelTopology
     },
 
     localModels() {

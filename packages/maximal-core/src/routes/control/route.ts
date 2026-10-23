@@ -61,6 +61,8 @@ import { getTokenUsageSummary } from "~/lib/token-usage"
 import { getUpdateStatus } from "~/lib/update/update-check"
 import { listOllamaAccounts } from "~/services/providers/ollama-accounts"
 
+import type { ModelDiscoveryControl } from "./model-discovery"
+
 import { projectControlConfig } from "./config-projection"
 import { LocalModelOperations } from "./local-models"
 import { createControlRpcMethods, unsupportedVersion } from "./rpc"
@@ -84,6 +86,7 @@ export interface ControlRoutesOptions {
   listClients?: ClientRosterReader
   listProviderModels?: () => Promise<ReadonlyArray<ProviderCatalogueModel>>
   localModelOperations?: LocalModelOperations
+  modelDiscovery?: ModelDiscoveryControl
   trafficQueries?: TrafficQueryStore
 }
 
@@ -389,6 +392,7 @@ export function createControlRoutesComposition(
     listClients,
     listProviderModels,
     localModels: localModelOperations,
+    modelDiscovery: options.modelDiscovery,
     trafficQueries: options.trafficQueries ?? getDefaultTrafficObserver(),
   })
   registerRpc(app, methods)

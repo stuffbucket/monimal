@@ -64,6 +64,17 @@
       "cycleEdges": [],
       "duplicatePairs": []
     },
+    "@maximal/maximal-runtime-vllm": {
+      "root": "packages/model-runtimes/vllm",
+      "dependsOn": [
+        "@maximal/anthropic-provider",
+        "@maximal/eslint-config",
+        "@maximal/maximal-model-contract",
+        "@maximal/maximal-models"
+      ],
+      "cycleEdges": [],
+      "duplicatePairs": []
+    },
     "@maximal/eslint-config": {
       "root": "packages/eslint-config",
       "dependsOn": [],

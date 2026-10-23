@@ -1,3 +1,8 @@
+export { MODEL_DISCOVERY_DEFAULT_PORTS } from "./discovery/probe.ts"
+export {
+  createModelDiscoveryService,
+  type ModelDiscoveryOptions,
+} from "./discovery/service.ts"
 export {
   createProviderPluginHost,
   ProviderPluginHost,

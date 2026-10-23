@@ -49,6 +49,7 @@ their source repositories.
 | `packages/model-runtimes/anthropic` | Anthropic Messages adapter. |
 | `packages/model-runtimes/gliner25` | Cordis System One adapter for standalone GLiNER2.5 runner endpoints. |
 | `packages/model-runtimes/omlx` | oMLX HTTP adapter. |
+| `packages/model-runtimes/vllm` | Explicit vLLM deployment connections and execution-target metadata. |
 
 ## Asset provenance
 
@@ -161,6 +162,8 @@ packaged sidecar.
 | Observability packages | The contract is runtime-neutral; renderer surfaces depend on it, not the reverse. |
 | `model-runtimes/gliner25` | Ships as a profile-installed Cordis adapter and delegates tensor execution and model lifecycle to an explicitly configured standalone `gliner-runner` endpoint. |
 | `model-runtimes/omlx` | Ships as a profile-installed Cordis adapter, not as compiled Core code. |
+| `model-runtimes/vllm` | MUST connect only explicitly configured deployments and served model IDs through the shared Messages adapter; execution location MUST remain explicit even for loopback SSH tunnels. |
+| `model-runtimes/vllm` | MUST remain a profile-installed adapter; connecting MUST NOT install, load, publish, or grant access to a model. |
 | `apps/desktop` | Core dependencies are workspace links; the desktop sidecar build compiles `apps/desktop/sidecar`. |
 | `maximal-core` / `apps/desktop` | Desktop-spawned Core (`start --desktop-ipc`) uses inherited Node child-process IPC for control RPC and events instead of binding its private HTTP listener; standalone Core keeps its loopback control listener and public proxy unchanged. |
 | `maximal-core` | Production traffic and token-usage persistence and aggregation run in a Core-owned child process over validated inherited IPC; direct SQLite construction is retained only as an injected library and test seam. |
@@ -194,7 +197,10 @@ packaged sidecar.
 | `maximal-core` | Private workspace package, not published; the registry publish, release-tag, release-gates, and release-notes tooling are removed. |
 | `maximal-core` | The settings wire types and control contract live in `maximal-core-contract`; Core's `./settings-types` and `./control-contract` exports republish them. |
 | `maximal-core-contract` | Versioned local-model exploration wire records MUST live in the control contract. |
+| `maximal-models` / `maximal-core` / `maximal-client` / `apps/desktop` | Metadata discovery MUST be injected as a host-owned service independently of provider mode; Core MUST validate the control boundary, desktop MUST negotiate the optional RPC, and renderer queries MUST remain in the shared client. |
 | `maximal-core` | Local-model setup planning, digest computation, and approval validation MUST remain in Core, outside the runtime-neutral contracts. |
+| `maximal-core-contract` | Versioned serving-hardening evidence and decisions MUST remain credential-free control-plane records, not authorization. |
+| `maximal-core` | Sharing hardening checks MUST read authenticated inspector evidence against current deployment and network-policy identities; discovery self-reports MUST NOT authorize exposure. |
 | `maximal-core` / `maximal-model-contract` | Core exposes Ollama's local `/v1/systemone` decision API through model-routed and provider-qualified endpoints; the provider gateway identifies this capability as `systemone`. Model weights remain Ollama-managed and are not distributed by the workspace. |
 | `maximal-core` / `cli/cli` | GitHub.com device authentication uses the GitHub CLI OAuth application's public client credentials from its MIT-licensed `internal/authflow/flow.go`; Maximal owns polling and persistence and does not require the `gh` executable. |
 | Test workflow | Native tests enter through the root isolation wrapper; Docker stages Git-visible source with container-owned dependencies. |

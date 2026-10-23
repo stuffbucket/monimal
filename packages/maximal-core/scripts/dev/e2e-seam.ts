@@ -151,6 +151,9 @@ try {
     : `${missing.length}/${dispatches.length} advertised but not dispatchable (-32601): ${missing.join(", ")}`,
   )
 
+  const modelDiscovery = await client.call<{ state: string; endpoints: Array<unknown> }>("modelDiscovery/act", { action: "describe" })
+  report.check("headless model discovery", modelDiscovery.state === "unsupported" && modelDiscovery.endpoints.length === 0, "optional discovery host remains explicit over the real socket")
+
   const health = await client.call<{ ok: boolean }>("health")
   report.check("health", health.ok, JSON.stringify(health))
 

@@ -532,6 +532,7 @@ function registerIpc(
   )
   ipcMain.handle(BRIDGE_CHANNELS.modelsList, () => session.modelsList())
   ipcMain.handle(BRIDGE_CHANNELS.modelsRefresh, () => session.modelsRefresh())
+  ipcMain.handle(BRIDGE_CHANNELS.modelDiscoveryAct, (_event, request: unknown) => session.modelDiscoveryAct(request))
   ipcMain.handle(BRIDGE_CHANNELS.localModelsList, () => session.localModelsList())
   ipcMain.handle(BRIDGE_CHANNELS.localModelsEnsure, (_event, modelKey: unknown) =>
     session.localModelsEnsure(localModelIdentifier.parse(modelKey)),

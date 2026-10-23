@@ -3,6 +3,7 @@
 import { createBuiltinConfiguratorRuntime } from "@maximal/maximal-configurators"
 import { runCli } from "@maximal/maximal-core/provider-host"
 import { createBuiltinConnectorPlugins } from "@maximal/maximal-core/search-connector"
+import { createModelDiscoveryService } from "@maximal/maximal-models"
 
 import {
   createProviderPluginGateway,
@@ -17,6 +18,7 @@ export async function main(
   await runCli({
     createConfiguratorRuntime: createBuiltinConfiguratorRuntime,
     createConnectorPlugins: createBuiltinConnectorPlugins,
+    createModelDiscovery: createModelDiscoveryService,
     createProviderGateway: async (context) =>
       await createProviderPluginGateway(context, options),
   })

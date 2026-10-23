@@ -65,8 +65,10 @@ await ctx.fiber.dispose()
 `instances` is required and may contain multiple independent endpoints. Each instance owns one or more `aliases`; all aliases are registered atomically through one adapter. Alias duplication or a conflict with another stock DSH adapter fails activation without replacing the existing route.
 
 - `baseURL` must be a root `http:` or `https:` URL. Paths, embedded credentials, queries, and fragments are rejected.
-- `apiKey` is required and marked as a secret in the Schemastery schema. Error messages and logs never include it.
-- `authType` is `x-api-key` (default) or `authorization` (`Bearer` transport).
+- Authenticated instances MUST supply `apiKey`; the schema MUST mark it as a secret.
+- `authType` MUST be `x-api-key` (default), `authorization` (`Bearer` transport), or explicit `none`.
+- `authType: none` MUST omit `apiKey` and MUST use an IPv4 loopback literal endpoint, including an authenticated SSH tunnel.
+- Requests MUST reject redirects rather than forward credentials or request content to another destination.
 - `modelDefaults` supplies `maxTokens` (default 16,000), optional context/sampling values, and optional default reasoning effort.
 - `models` is advisory metadata plus per-model overrides. It never restricts request routing; unlisted model IDs pass through.
 - `adjustInputTokens` preserves compatibility with Anthropic-compatible gateways that report cache reads/writes inside `input_tokens`. When enabled, cache tokens are subtracted to produce DSH's disjoint `TokenUsage` counts.

@@ -5,6 +5,7 @@ import {
   TerminalScopeIssueRequest,
   TerminalScopeRevokeRequest,
 } from "@maximal/maximal-core-contract/control"
+import { ModelDiscoveryActionSchema } from "@maximal/maximal-core-contract/control"
 import {
   AccountSetEnabledRequest,
   ApiKeyCreateRequest,
@@ -111,6 +112,7 @@ import { getTokenUsageSummary } from "~/lib/token-usage"
 import { BUILD_VERSION } from "~/lib/update/build-info"
 import { getUpdateStatus } from "~/lib/update/update-check"
 import { projectControlConfig } from "~/routes/control/config-projection"
+import { ModelDiscoveryControl } from "~/routes/control/model-discovery"
 import { getCopilotUsage } from "~/services/github/get-copilot-usage"
 import { listOllamaAccounts } from "~/services/providers/ollama-accounts"
 import {
@@ -143,6 +145,7 @@ export interface ControlRpcDeps {
    *  `clients/list` cannot answer from different state. */
   listClients?: ClientRosterReader
   localModels?: LocalModelOperations
+  modelDiscovery?: ModelDiscoveryControl
   trafficQueries?: TrafficQueryStore
   /** Narrow operation seams for dispatcher-level tests. Production uses the real
    *  shared settings operations when an override is absent. */
@@ -519,6 +522,22 @@ function createAccountRpcMethods(
   }
 }
 
+function createModelDiscoveryRpcMethods(
+  control: ModelDiscoveryControl | undefined,
+): RpcRegistry {
+  const discovery = control ?? new ModelDiscoveryControl(undefined)
+  return {
+    "modelDiscovery/act": (params: unknown) =>
+      discovery.act(
+        parseParams(
+          ModelDiscoveryActionSchema,
+          params,
+          "Expected a supported model-discovery action.",
+        ),
+      ),
+  }
+}
+
 /**
  * Build the full method registry.
  *
@@ -537,6 +556,7 @@ export function createControlRpcMethods(deps: ControlRpcDeps): RpcRegistry {
     health: () => ({ ok: true, version: BUILD_VERSION }),
     ...createSettingsRpcMethods(deps),
     ...createLocalModelRpcMethods(deps.localModels),
+    ...createModelDiscoveryRpcMethods(deps.modelDiscovery),
     ...createAccountRpcMethods(mutex, hub),
 
     // Reads. Each mirrors a live feed topic and shares its builder, so a

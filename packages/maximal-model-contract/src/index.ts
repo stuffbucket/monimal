@@ -7,6 +7,73 @@ export {
   type ModelEndpointReference,
 } from "./endpoint.ts"
 
+export const MODEL_DISCOVERY_SCHEMA_VERSION = 1 as const
+
+export interface ModelDiscoveryNetworkScope {
+  readonly id: string
+  readonly interfaceName: string
+  readonly cidr: string
+  readonly hostCount: number
+}
+
+export interface DiscoveredModel {
+  readonly id: string
+  readonly name: string
+  /** A served ID is not a verified artifact variant or proof of operation support. */
+  readonly executionLocation: ModelExecutionLocation | "unknown"
+  readonly configuredTargetId?: string
+}
+
+export interface DiscoveredModelEndpoint {
+  readonly id: string
+  readonly url: string
+  readonly address: string
+  readonly scope: "device" | "lan"
+  readonly protocol: "ollama" | "openai-compatible" | "unverified"
+  readonly runtime: string | null
+  readonly observedAt: string
+  readonly authenticationRequired: boolean
+  readonly reachability: "responded"
+  readonly isolation: "unverified"
+  readonly models: ReadonlyArray<DiscoveredModel>
+}
+
+export interface ModelDiscoverySnapshot {
+  readonly schemaVersion: typeof MODEL_DISCOVERY_SCHEMA_VERSION
+  readonly id: string | null
+  readonly revision: number
+  readonly state:
+    "idle" | "running" | "completed" | "cancelled" | "failed" | "unsupported"
+  readonly includeLocalNetwork: boolean
+  readonly networkScopes: ReadonlyArray<ModelDiscoveryNetworkScope>
+  readonly endpoints: ReadonlyArray<DiscoveredModelEndpoint>
+  readonly completedProbes: number
+  readonly totalProbes: number
+  readonly truncated: boolean
+  readonly message: string | null
+}
+
+export type ModelDiscoveryAction =
+  | { readonly action: "describe" }
+  | {
+      readonly action: "start"
+      readonly includeLocalNetwork: boolean
+      readonly networkScopeIds: ReadonlyArray<string>
+    }
+  | { readonly action: "read" | "cancel"; readonly id: string }
+
+export interface ModelDiscoveryService {
+  act(request: ModelDiscoveryAction): Promise<ModelDiscoverySnapshot>
+  dispose(): void
+}
+
+export interface ModelDiscoveryFactoryContext {
+  readonly configuredTargets: () => ReadonlyArray<ModelExecutionTarget>
+}
+export type ModelDiscoveryFactory = (
+  context: ModelDiscoveryFactoryContext,
+) => ModelDiscoveryService
+
 /** An HTTP operation a provider can serve through the gateway. */
 export const MODEL_OPERATIONS = Object.freeze([
   "messages",

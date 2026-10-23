@@ -4,6 +4,7 @@ import { Banner, Button } from "@maximal/maximal-electron/renderer";
 
 import type { SettingsCapabilities } from "../capabilities";
 
+import { ModelDiscoverySection } from "./ModelDiscoverySection";
 import { MaximalModelsSection } from "./MaximalModelsSection";
 import { OllamaProviderSection } from "./OllamaProviderSection";
 import { useLocalModelCatalogue } from "./useLocalModelCatalogue";
@@ -41,6 +42,7 @@ export function LocalModelsSection({
           <strong>Local model action failed:</strong> {error}
         </Banner>
       ) : null}
+      <ModelDiscoverySection capabilities={capabilities} />
       <OllamaProviderSection capabilities={capabilities} provider={ollama} />
       <MaximalModelsSection
         capabilities={capabilities}

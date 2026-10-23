@@ -1,4 +1,8 @@
-import type { ProviderGateway } from "@maximal/maximal-model-contract"
+import type {
+  ModelDiscoveryFactory,
+  ModelDiscoveryService,
+  ProviderGateway,
+} from "@maximal/maximal-model-contract"
 import type { TrafficObserver } from "@maximal/maximal-observability-contract"
 import type { MiddlewareHandler } from "hono"
 
@@ -17,6 +21,8 @@ import type {
   ProviderHostConfigSource,
 } from "~/lib/provider-host-types"
 import type { ProviderDispatcher } from "~/services/providers/provider-dispatcher"
+
+import { ModelDiscoveryControl } from "~/routes/control/model-discovery"
 
 import {
   buildCorsOptions,
@@ -183,6 +189,7 @@ function applyCommonMiddleware(app: Hono): void {
 export interface CreateServerAppsOptions {
   configurators?: ConfiguratorRegistry
   createProviderGateway?: ProviderGatewayFactory
+  createModelDiscovery?: ModelDiscoveryFactory
   providerConfigSource?: ProviderHostConfigSource
   providerGateway?: ProviderGateway
   readConfig?: () => AppConfig
@@ -300,16 +307,16 @@ export interface ServerApps {
   publicApp: Hono
 }
 
-/** Build isolated listeners around an explicitly injected provider boundary. */
-export function createServerApps(
-  options: CreateServerAppsOptions = {},
-): ServerApps {
-  const publicApp = new Hono()
-  const controlApp = new Hono()
-  const trafficObserver = options.trafficObserver ?? getDefaultTrafficObserver()
-  const localModelLifecycle: { operations?: LocalModelOperations } = {}
+function createProviderServices(options: CreateServerAppsOptions) {
+  const lifecycle: {
+    operations?: LocalModelOperations
+    discovery?: ModelDiscoveryService
+  } = {}
   const providerDispatcher = createProviderDispatcher({
-    beforeDispose: () => localModelLifecycle.operations?.dispose(),
+    beforeDispose: () => {
+      lifecycle.operations?.dispose()
+      lifecycle.discovery?.dispose()
+    },
     configSource: options.providerConfigSource,
     gateway: options.providerGateway,
     gatewayFactory: options.createProviderGateway,
@@ -325,7 +332,33 @@ export function createServerApps(
     control: () => providerDispatcher.localModels(),
     hub: getControlHub,
   })
-  localModelLifecycle.operations = localModelOperations
+  lifecycle.operations = localModelOperations
+  const discoveryService = options.createModelDiscovery?.({
+    configuredTargets: () =>
+      providerDispatcher.modelTopology?.()?.snapshot().targets ?? [],
+  })
+  lifecycle.discovery = discoveryService
+  return {
+    providerDispatcher,
+    providerModelRouter,
+    localModelOperations,
+    modelDiscovery: new ModelDiscoveryControl(discoveryService),
+  }
+}
+
+/** Build isolated listeners around an explicitly injected provider boundary. */
+export function createServerApps(
+  options: CreateServerAppsOptions = {},
+): ServerApps {
+  const publicApp = new Hono()
+  const controlApp = new Hono()
+  const trafficObserver = options.trafficObserver ?? getDefaultTrafficObserver()
+  const {
+    providerDispatcher,
+    providerModelRouter,
+    localModelOperations,
+    modelDiscovery,
+  } = createProviderServices(options)
 
   applyCommonMiddleware(publicApp)
   applyCommonMiddleware(controlApp)
@@ -335,6 +368,7 @@ export function createServerApps(
     configurators: options.configurators,
     listProviderModels: () => providerModelRouter.listProviderModels(),
     localModelOperations,
+    modelDiscovery,
     trafficQueries:
       options.trafficQueries
       ?? (isTrafficQueryStore(trafficObserver) ? trafficObserver : undefined),

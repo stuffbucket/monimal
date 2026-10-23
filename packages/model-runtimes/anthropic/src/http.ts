@@ -18,14 +18,15 @@ export function requestHeaders(
   instance: ResolvedInstanceConfig,
   accept: string,
 ): Record<string, string> {
-  return {
+  const headers: Record<string, string> = {
     ...attributionHeaders(),
     accept,
     "anthropic-version": "2023-06-01",
-    ...(instance.authType === "x-api-key" ?
-      { "x-api-key": instance.apiKey }
-    : { authorization: `Bearer ${instance.apiKey}` }),
   }
+  if (instance.authType === "x-api-key") headers["x-api-key"] = instance.apiKey
+  if (instance.authType === "authorization")
+    headers.authorization = `Bearer ${instance.apiKey}`
+  return headers
 }
 
 export function createRequestScope(
@@ -54,7 +55,13 @@ export async function checkedFetch(
 ): Promise<Response> {
   let response: Response
   try {
-    response = await fetch(url, { ...init, signal: scope.signal })
+    // A configured endpoint cannot redirect credentials or request content to
+    // another destination, including redirects that retain the same origin.
+    response = await fetch(url, {
+      ...init,
+      redirect: "error",
+      signal: scope.signal,
+    })
   } catch (error) {
     if (scope.signal.aborted) aborted(error)
     throw new LlmError(

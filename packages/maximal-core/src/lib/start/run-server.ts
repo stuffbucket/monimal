@@ -8,7 +8,10 @@
  * claude-code-flow.ts) so this file reads as a checklist.
  */
 
-import type { ProviderGateway } from "@maximal/maximal-model-contract"
+import type {
+  ModelDiscoveryFactory,
+  ProviderGateway,
+} from "@maximal/maximal-model-contract"
 
 import { serve } from "srvx"
 
@@ -163,6 +166,15 @@ export interface RunServerOptions {
    * validation, and only when `providerHost.mode` is `plugins`.
    */
   createProviderGateway?: ProviderGatewayFactory
+  createModelDiscovery?: ModelDiscoveryFactory
+}
+
+function providerBindings(options: RunServerOptions) {
+  return {
+    createProviderGateway: options.createProviderGateway,
+    createModelDiscovery: options.createModelDiscovery,
+    providerGateway: options.providerGateway,
+  }
 }
 
 function warnAboutStaleSession(): void {
@@ -328,9 +340,8 @@ export async function runServer(options: RunServerOptions): Promise<void> {
         configurators: configuratorRegistry,
         controlPort: controlPortRequested,
         desktopIpc,
-        createProviderGateway: options.createProviderGateway,
+        ...providerBindings(options),
         providerConfigSource,
-        providerGateway: options.providerGateway,
         proxyPort: port,
       })
 
@@ -368,6 +379,7 @@ interface BindListenersOptions {
   controlPort: number
   desktopIpc: boolean
   createProviderGateway?: ProviderGatewayFactory
+  createModelDiscovery?: ModelDiscoveryFactory
   providerConfigSource: ProviderHostConfigSource
   providerGateway?: ProviderGateway
   proxyPort: number
@@ -390,6 +402,7 @@ async function bindListeners({
   controlPort,
   desktopIpc,
   createProviderGateway,
+  createModelDiscovery,
   providerConfigSource,
   providerGateway,
   proxyPort,
@@ -422,6 +435,7 @@ async function bindListeners({
     const apps = createServerApps({
       configurators,
       createProviderGateway,
+      createModelDiscovery,
       providerConfigSource,
       providerGateway,
       requestShutdown,

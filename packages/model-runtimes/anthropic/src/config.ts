@@ -1,6 +1,7 @@
 import Schema from "@deepseek-ai/schemastery"
+import { isIP } from "node:net"
 
-export const AUTH_TYPES = ["x-api-key", "authorization"] as const
+export const AUTH_TYPES = ["x-api-key", "authorization", "none"] as const
 export type AuthType = (typeof AUTH_TYPES)[number]
 
 export const REASONING_EFFORTS = [
@@ -29,7 +30,7 @@ export interface ModelConfig extends ModelDefaults {
 export interface InstanceConfig {
   adjustInputTokens?: boolean
   aliases: Array<string>
-  apiKey: string
+  apiKey?: string
   authType?: AuthType
   baseURL: string
   displayName?: string
@@ -95,8 +96,7 @@ const instanceSchema = Schema.object({
     .required(),
   apiKey: Schema.string()
     .pattern(/^[\x21-\x7E]+$/)
-    .role("secret")
-    .required(),
+    .role("secret"),
   authType: Schema.union(
     AUTH_TYPES.map((value) => Schema.const(value)),
   ).default("x-api-key"),
@@ -132,7 +132,7 @@ export function resolveConfig(config: Config): ResolvedConfig {
     return Object.freeze({
       adjustInputTokens: instance.adjustInputTokens ?? false,
       aliases: Object.freeze(uniqueAliases),
-      apiKey: instance.apiKey.trim(),
+      apiKey: resolveApiKey(instance, baseURL),
       authType: instance.authType ?? "x-api-key",
       baseURL,
       displayName: instance.displayName ?? "Anthropic",
@@ -141,6 +141,33 @@ export function resolveConfig(config: Config): ResolvedConfig {
     })
   })
   return Object.freeze({ instances: Object.freeze(instances) })
+}
+
+function resolveApiKey(instance: InstanceConfig, baseURL: string): string {
+  if (instance.authType === "none") {
+    // Explicitly unauthenticated APIs are reachable only on this host, including
+    // authenticated SSH tunnels. A tunnel does not change execution location.
+    const hostname = new URL(baseURL).hostname
+    if (
+      isIP(hostname) !== 4
+      || hostname.split(".")[0] !== "127"
+      || instance.apiKey !== undefined
+    ) {
+      throw new TypeError(
+        "anthropic-provider: authType none requires an IPv4 loopback endpoint and no apiKey",
+      )
+    }
+    return ""
+  }
+  if (
+    typeof instance.apiKey !== "string"
+    || !/^[\x21-\x7E]+$/.test(instance.apiKey)
+  ) {
+    throw new TypeError(
+      "anthropic-provider: authenticated instances require an apiKey",
+    )
+  }
+  return instance.apiKey
 }
 
 function normalizeRootBaseURL(raw: string): string {

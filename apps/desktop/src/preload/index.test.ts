@@ -81,6 +81,7 @@ describe('preload bridge allowlist', () => {
       'logs',
       'material',
       'menuBarMode',
+      'modelDiscovery',
       'ollamaRuntime',
       'onCoreStatus',
       'onOpenLicenses',
@@ -170,6 +171,7 @@ describe('preload bridge allowlist', () => {
     ])
     expect(Object.keys(bridge.logs).sort()).toEqual(['coreLocation', 'list', 'location', 'reveal', 'revealCore'])
     expect(Object.keys(bridge.recordings).sort()).toEqual(['revealFolder'])
+    expect(Object.keys(bridge.modelDiscovery ?? {}).sort()).toEqual(['act'])
     expect(Object.keys(bridge.localModels).sort()).toEqual([
       'cancel',
       'ensure',
@@ -330,6 +332,7 @@ describe('preload bridge allowlist', () => {
     await bridge.control.apiKeysSetEnforcement(true)
     await bridge.control.modelsList()
     await bridge.control.modelsRefresh()
+    await bridge.modelDiscovery?.act({ action: 'describe' })
     await bridge.localModels.list()
     await bridge.localModels.ensure('qwen')
     await bridge.localModels.cancel('operation-1')
@@ -492,6 +495,7 @@ describe('preload bridge allowlist', () => {
       [BRIDGE_CHANNELS.apiKeysSetEnforcement, true],
       [BRIDGE_CHANNELS.modelsList],
       [BRIDGE_CHANNELS.modelsRefresh],
+      [BRIDGE_CHANNELS.modelDiscoveryAct, { action: 'describe' }],
       [BRIDGE_CHANNELS.localModelsList],
       [BRIDGE_CHANNELS.localModelsEnsure, 'qwen'],
       [BRIDGE_CHANNELS.localModelsCancel, 'operation-1'],

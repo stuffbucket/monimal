@@ -10,6 +10,8 @@ import type {
 } from '@maximal/maximal-browser'
 import type {
   ControlErrorReason,
+  ModelDiscoveryAction,
+  ModelDiscoverySnapshot,
   LocalModelCancelResult,
   LocalModelCatalogEntry,
   LocalModelCatalogSnapshot,
@@ -365,6 +367,8 @@ type Unsubscribe = () => void
  * Everything this client asks of the host that renders it, exposed as
  * `window.maximal`. The host decides how each call is carried.
  */
+export type { ModelDiscoveryAction, ModelDiscoverySnapshot } from "@maximal/maximal-core-contract/control"
+
 export interface MaximalHost {
   /** Base URL where `/v1` is served for external programs (to display/copy). */
   getProxyUrl: () => Promise<string>
@@ -390,6 +394,9 @@ export interface MaximalHost {
   }
   recordings: {
     revealFolder: () => Promise<void>
+  }
+  modelDiscovery?: {
+    act: (request: ModelDiscoveryAction) => Promise<ControlResult<ModelDiscoverySnapshot>>
   }
   localModels: {
     list: () => Promise<ControlResult<LocalModelCatalogSnapshot>>

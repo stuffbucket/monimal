@@ -52,6 +52,8 @@ import type {
   LocalModelEnsureResult,
   LocalModelOperationEvent,
   MaximalHost,
+  ModelDiscoveryAction,
+  ModelDiscoverySnapshot,
   MenuBarModeAttempt,
   MenuBarModeState,
   OllamaRuntimeStatus,
@@ -234,6 +236,7 @@ export interface SettingsCapabilities {
     list(): Promise<ModelsListResponse>
     refresh(): Promise<ModelsListResponse>
   }
+  modelDiscovery?: { act(request: ModelDiscoveryAction): Promise<ModelDiscoverySnapshot> }
   localModels: {
     list(): Promise<LocalModelCatalogSnapshot>
     ensure(modelKey: string): Promise<LocalModelEnsureResult>
@@ -344,6 +347,7 @@ export function createProxyUrlTracker(
 /** The single Settings adapter allowed to touch `window.maximal`. */
 export function createCoreSettingsCapabilities(): SettingsCapabilities {
   const bridge = window.maximal
+  const discovery = bridge.modelDiscovery
   const proxyUrlTracker = createProxyUrlTracker(
     bridge.getProxyUrl(),
     bridge,
@@ -490,6 +494,7 @@ export function createCoreSettingsCapabilities(): SettingsCapabilities {
       refresh: async () =>
         unwrapControlResult(await bridge.control.modelsRefresh()),
     },
+    modelDiscovery: discovery ? { act: async (request) => unwrapControlResult(await discovery.act(request)) } : undefined,
     localModels: {
       list: async () => unwrapControlResult(await bridge.localModels.list()),
       ensure: async (modelKey) =>

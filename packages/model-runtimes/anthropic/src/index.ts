@@ -17,6 +17,7 @@ export {
   type ResolvedConfig,
   type ResolvedInstanceConfig,
 } from "./config.ts"
+export type { SseEvent } from "./sse.ts"
 
 export type AnthropicProviderConfig = ConfigShape
 
