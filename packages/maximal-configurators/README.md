@@ -3,6 +3,7 @@
 ## Pi CLI
 
 - Operators MUST use this integration only with an already configured Maximal proxy and reviewed provider connections.
+- The running proxy MUST implement `GET /v1/models?format=maximal` with `schemaVersion: 1`. A separately installed `maximal` binary MUST NOT be assumed to include this checkout's API; a successful standard OpenAI model list MUST NOT count as selector-catalog compatibility.
 - Operators MUST NOT treat inventory discovery or model selection as Connect approval, runtime installation, model loading, sharing approval, or isolation evidence.
 - Operators MUST use Pi's existing `/model` selector; this extension MUST NOT install another picker or write Pi settings, credentials, or `models.json`.
 

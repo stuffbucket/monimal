@@ -53,6 +53,24 @@ export interface PiCatalogOptions {
   readonly signal?: AbortSignal
 }
 
+function discoveryError(
+  response: Response | undefined,
+  catalogValidated: boolean,
+): Error {
+  // Raw fetch/schema errors can contain response bodies or credentials.
+  if (response?.status === 401 || response?.status === 403)
+    return new Error(
+      `Maximal model discovery failed: the proxy denied catalog access (HTTP ${response.status}). Check the configured Maximal proxy key and access policy, not an upstream provider key.`,
+    )
+  if (response?.ok && !catalogValidated)
+    return new Error(
+      "Maximal model discovery failed: the proxy returned an invalid or unsupported selector catalog. This bridge requires GET /v1/models?format=maximal with schemaVersion 1; a standard OpenAI model list is not sufficient. Run a proxy built from this checkout; the installed maximal command may launch a different build. Changing keys cannot add the missing catalog format.",
+    )
+  return new Error(
+    "Maximal model discovery failed. Check the configured proxy origin, API key, and selector schemaVersion; existing static catalogs are not used as a fallback.",
+  )
+}
+
 /** Metadata only. No inference, control RPC, adapter installation, or upstream credentials. */
 export async function discoverPiModels(
   config: PiDiscoveryConfig,
@@ -64,6 +82,7 @@ export async function discoverPiModels(
   ])
   const key = proxyApiKey(config, options.environment ?? process.env)
   let response: Response | undefined
+  let catalogValidated = false
   try {
     signal.throwIfAborted()
     response = await (options.fetchImplementation ?? fetch)(
@@ -80,15 +99,13 @@ export async function discoverPiModels(
     )
     if (!response.ok) throw new Error()
     const catalog = MaximalModelList.parse(await catalogBody(response, signal))
+    catalogValidated = true
     if (catalog.data.length > 2048) throw new Error()
     return projectPiModels(catalog, config)
   } catch {
     if (signal.aborted)
       throw new Error("Maximal model discovery was cancelled or timed out.")
-    // Fetch/schema errors may embed response bodies or credentials. Never echo them.
-    throw new Error(
-      "Maximal model discovery failed. Check the configured proxy origin, API key, and selector schemaVersion; existing static catalogs are not used as a fallback.",
-    )
+    throw discoveryError(response, catalogValidated)
   } finally {
     if (response?.body && !response.body.locked)
       await response.body.cancel().catch(() => undefined)

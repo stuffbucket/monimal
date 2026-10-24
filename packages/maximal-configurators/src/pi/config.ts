@@ -94,6 +94,17 @@ export const PiDiscoveryConfigSchema = z
   })
 export type PiDiscoveryConfig = z.infer<typeof PiDiscoveryConfigSchema>
 
+function configReadError(error: unknown): Error {
+  if (error instanceof Error && "code" in error && error.code === "ENOENT")
+    return new Error(
+      "Maximal Pi config file not found. MAXIMAL_PI_CONFIG or --config must point to a JSON file you have created, not a placeholder path. See packages/maximal-configurators/README.md for the required schema.",
+    )
+  // Never retain a parser error as cause: it may include secret config content.
+  return new Error(
+    "Invalid Maximal Pi config. Supply schemaVersion 1, a trusted proxy origin, an API-key environment reference (or null for loopback), and reviewed overrides without credential values.",
+  )
+}
+
 /** The path is explicitly selected by the operator; no project config or secrets are written. */
 export async function readPiDiscoveryConfig(
   file: string,
@@ -103,10 +114,8 @@ export async function readPiDiscoveryConfig(
     if (bytes.byteLength > 1024 * 1024) throw new Error()
     const value: unknown = JSON.parse(bytes.toString("utf8"))
     return PiDiscoveryConfigSchema.parse(value)
-  } catch {
-    throw new Error(
-      "Invalid Maximal Pi config. Supply schemaVersion 1, a trusted proxy origin, an API-key environment reference (or null for loopback), and reviewed overrides without credential values.",
-    )
+  } catch (error) {
+    throw configReadError(error)
   }
 }
 

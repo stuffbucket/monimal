@@ -243,6 +243,52 @@ await test("unavailable, malformed, oversized, and unsupported responses cannot 
   }
 })
 
+await test("a standard OpenAI list identifies the unsupported running proxy without exposing response data", async () => {
+  await assert.rejects(
+    discoverPiModels(config(), {
+      environment: { MAXIMAL_TEST_KEY: "test-key" },
+      fetchImplementation: () =>
+        Promise.resolve(
+          Response.json({
+            object: "list",
+            data: [
+              { id: "secret-response", object: "model", owned_by: "provider" },
+            ],
+          }),
+        ),
+    }),
+    (error: unknown) =>
+      error instanceof Error
+      && error.message.includes(
+        "requires GET /v1/models?format=maximal with schemaVersion 1",
+      )
+      && error.message.includes(
+        "installed maximal command may launch a different build",
+      )
+      && !error.message.includes("secret-response")
+      && error.cause === undefined,
+  )
+})
+
+await test("denied catalog access is distinguished from unsupported catalog versions", async () => {
+  for (const status of [401, 403]) {
+    await assert.rejects(
+      discoverPiModels(config(), {
+        environment: { MAXIMAL_TEST_KEY: "test-key" },
+        fetchImplementation: () =>
+          Promise.resolve(new Response("secret-response", { status })),
+      }),
+      (error: unknown) =>
+        error instanceof Error
+        && error.message.includes(`HTTP ${status}`)
+        && error.message.includes("Maximal proxy key")
+        && !error.message.includes("unsupported selector catalog")
+        && !error.message.includes("secret-response")
+        && error.cause === undefined,
+    )
+  }
+})
+
 await test("missing credentials and cancellation stop before I/O", async () => {
   let calls = 0
   const fetchImplementation: typeof fetch = () => {

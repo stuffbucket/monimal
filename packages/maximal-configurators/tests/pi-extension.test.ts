@@ -1,11 +1,12 @@
 import assert from "node:assert/strict"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import test from "node:test"
 
 import type { MaximalPiHost, PiCommandContext } from "../src/pi/extension.ts"
 
+import { readPiDiscoveryConfig } from "../src/pi/config.ts"
 import { installMaximalPi } from "../src/pi/extension.ts"
 
 class FakePi implements MaximalPiHost {
@@ -76,6 +77,23 @@ async function withFixture(
     await rm(directory, { recursive: true, force: true })
   }
 }
+
+await test("missing config is distinguished from malformed content without exposing parser input", () =>
+  withFixture(async (file) => {
+    await assert.rejects(
+      readPiDiscoveryConfig(join(dirname(file), "not-created.json")),
+      /config file not found/u,
+    )
+    await writeFile(file, "secret-config-content: not JSON")
+    await assert.rejects(
+      readPiDiscoveryConfig(file),
+      (error: unknown) =>
+        error instanceof Error
+        && error.message.includes("Invalid Maximal Pi config")
+        && !error.message.includes("secret-config-content")
+        && error.cause === undefined,
+    )
+  }))
 
 await test("native refresh callbacks and explicit refresh reconcile provider identities without inference", () =>
   withFixture(async (file) => {
