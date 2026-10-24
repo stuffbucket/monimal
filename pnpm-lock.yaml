@@ -514,6 +514,12 @@ importers:
       '@maximal/maximal-core':
         specifier: workspace:*
         version: link:../maximal-core
+      '@maximal/maximal-core-contract':
+        specifier: workspace:*
+        version: link:../maximal-core-contract
+      zod:
+        specifier: ^4.5.4
+        version: 4.5.4
     devDependencies:
       '@maximal/eslint-config':
         specifier: workspace:*

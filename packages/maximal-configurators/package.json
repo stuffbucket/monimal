@@ -10,21 +10,29 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./pi": {
+      "types": "./dist/pi.d.ts",
+      "import": "./dist/pi.js"
+    }
   },
   "files": [
     "dist"
   ],
   "scripts": {
     "analyze": "bun ../maximal-core/scripts/analyze.ts",
-    "build": "tsup src/index.ts --format esm --dts --clean --target node24 --out-dir dist",
+    "build": "tsup src/index.ts src/pi.ts --format esm --dts --clean --target node24 --out-dir dist",
     "lint": "eslint",
+    "pi:models": "node src/pi/cli.ts",
+    "smoke:pi": "node scripts/pi-smoke.mjs",
     "test": "node --test tests/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@deepseek-ai/cordis": "4.0.2",
-    "@maximal/maximal-core": "workspace:*"
+    "@maximal/maximal-core": "workspace:*",
+    "@maximal/maximal-core-contract": "workspace:*",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@maximal/eslint-config": "workspace:*",
@@ -36,5 +44,10 @@
   },
   "engines": {
     "node": ">=24"
+  },
+  "pi": {
+    "extensions": [
+      "./dist/pi.js"
+    ]
   }
 }

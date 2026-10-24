@@ -8,6 +8,8 @@
     "pnpm:devPreinstall": "node scripts/prepare-workspace.mjs",
     "analyze": "turbo run analyze",
     "dev": "turbo run dev --filter=maximal-desktop",
+    "pi:models": "pnpm --filter @maximal/maximal-configurators run pi:models",
+    "pi:smoke": "pnpm --filter @maximal/maximal-configurators run smoke:pi",
     "dev:context": "turbo run dev:context --filter=@maximal/maximal-context-window",
     "dev:server": "turbo run dev:server --filter=maximal-desktop -- start",
     "storybook": "turbo run storybook --filter=@maximal/maximal-design-system",

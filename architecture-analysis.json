@@ -325,7 +325,8 @@
       "root": "packages/maximal-configurators",
       "dependsOn": [
         "@maximal/eslint-config",
-        "@maximal/maximal-core"
+        "@maximal/maximal-core",
+        "@maximal/maximal-core-contract"
       ],
       "cycleEdges": [],
       "duplicatePairs": []

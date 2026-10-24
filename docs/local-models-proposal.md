@@ -313,6 +313,14 @@ These are contracts and in-process helpers, not a usable setup feature. They do 
 - The Pi integration MUST consume this model list through its dynamic provider refresh API, reuse a supported streaming implementation, and keep classifier-only offerings out of the chat selector. It MUST NOT send prompts or upstream credentials during catalog refresh, invent missing limits or prices, or write external-client configuration automatically.
 - Unreviewed metadata-discovery results MUST remain outside the configured model list. Reviewed Connect/Use and live discovery acceptance MUST remain gated by the ordered work below.
 
+### Pi CLI checkpoint
+
+- The [Pi bridge and CLI workflow](../packages/maximal-configurators/README.md) MUST consume only configured Maximal inventory. Operators MUST select a reviewed proxy destination explicitly; the bridge MUST NOT turn discovery results into connections or change host policy.
+- The bridge MUST register provider-qualified groups through Pi's config-form provider API, use native `refreshModels` for existing groups, and expose an explicit metadata-only refresh for group reconciliation. Missing limits/prices and unsupported chat operations MUST remain skipped with reasons.
+- Reports MUST identify the isolated [Pi/Core socket smoke](../packages/maximal-configurators/scripts/pi-smoke.mjs) separately from live-provider acceptance. Its Messages text, Unicode, streamed tool-call/replay, duplicate-alias routing, and unavailable-proxy checks MUST NOT count as native Connect consent, production runtime validation, live LAN discovery, or desktop acceptance.
+- Responses and Chat Completions projections MUST NOT be described as live-provider verified solely because their metadata tests pass.
+- Desktop UX MUST remain deferred independently of this CLI checkpoint and the operational Connect/Use host requirements below.
+
 ### Reviewed-connection control checkpoint
 
 - The versioned [connection records](../packages/maximal-core-contract/src/model-connection.ts) and Core [review/commit controller](../packages/maximal-core/src/lib/model-connections/control.ts) MUST remain distinct from a working product Connect/Use feature.

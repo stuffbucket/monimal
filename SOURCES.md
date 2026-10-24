@@ -153,6 +153,7 @@ packaged sidecar.
 | `maximal-core` / `maximal-settings` | Core preserves its synchronous `config.json` storage and locking while validating installed connector payloads through the shared settings API; unknown plugins remain opaque. |
 | `maximal-settings` | Dependency changes MUST update the reviewed closure and deterministic SBOM; `.pnpmfile.cjs` MUST enforce the reviewed resolution graph and integrity. |
 | `maximal-configurators` | Owns first-party Cordis registration and terminal-profile launch configuration through Core's capability-scoped configurator host. |
+| `maximal-configurators` | Pi integration MUST consume configured Maximal selector inventory through native dynamic providers, preserve provider-qualified routing, require explicit destination and metadata review, and leave external client configuration untouched. |
 | `apps/desktop` / `maximal-core` | Connector payloads remain opaque in Core and are validated by host-installed Standard Schema plugins. |
 | `maximal-core/downstream` | Declares itself as an independently installed compatibility fixture. |
 | Model packages | Core consumes the side-effect-free model contract; orchestration and concrete runtime adapters remain separate packages. |
