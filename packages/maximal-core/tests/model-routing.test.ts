@@ -4,6 +4,7 @@ import type {
   ProviderStatus,
 } from "@maximal/maximal-model-contract"
 
+import { MaximalModelList } from "@maximal/maximal-core-contract/control"
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 
 import type { AppConfig } from "~/lib/config/config"
@@ -110,6 +111,40 @@ function appFor(gateway: ProviderGateway, config: AppConfig = {}) {
 }
 
 describe("catalog-driven model routing", () => {
+  test("selector paths dispatch duplicate IDs to the selected provider", async () => {
+    const gateway = new RoutingGateway(
+      [status("perun"), status("domovyk")],
+      (dispatch) =>
+        dispatch.operation === "models" ?
+          Response.json({ data: [{ id: "served-alias" }] })
+        : message(dispatch.provider),
+    )
+    const app = appFor(gateway)
+    const response = await app.request("/v1/models?format=maximal")
+    expect(response.status).toBe(200)
+    const catalogue = MaximalModelList.parse(await response.json())
+    expect(catalogue.data).toHaveLength(2)
+    for (const model of catalogue.data) {
+      expect(model.operations).toEqual(["messages"])
+      const result = await app.request(`${model.basePath}/messages`, {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({
+          model: model.id,
+          max_tokens: 32,
+          messages: [{ role: "user", content: "hello" }],
+        }),
+      })
+      expect(result.status).toBe(200)
+      expect(await result.json()).toMatchObject({ id: `msg_${model.provider}` })
+    }
+    expect(
+      gateway.dispatches
+        .filter(({ operation }) => operation === "messages")
+        .map(({ provider }) => provider),
+    ).toEqual(["perun", "domovyk"])
+  })
+
   test("routes an ordinary request to its unique provider without GitHub auth", async () => {
     const gateway = new RoutingGateway([status("ollama")], (dispatch) =>
       dispatch.operation === "models" ?

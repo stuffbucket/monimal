@@ -16,12 +16,14 @@ import type { ConfiguratorRegistry } from "~/lib/configurator-host"
 import type { RpcRegistry } from "~/lib/jsonrpc/dispatch"
 import type { ControlHub } from "~/lib/live/hub"
 import type { ControlSnapshot } from "~/lib/live/resources"
+import type { ModelConnectionAuthority } from "~/lib/model-connections/authority"
 import type {
   ProviderGatewayFactory,
   ProviderHostConfigSource,
 } from "~/lib/provider-host-types"
 import type { ProviderDispatcher } from "~/services/providers/provider-dispatcher"
 
+import { ModelConnectionControl } from "~/lib/model-connections/control"
 import { ModelDiscoveryControl } from "~/routes/control/model-discovery"
 
 import {
@@ -190,6 +192,7 @@ export interface CreateServerAppsOptions {
   configurators?: ConfiguratorRegistry
   createProviderGateway?: ProviderGatewayFactory
   createModelDiscovery?: ModelDiscoveryFactory
+  modelConnectionAuthority?: ModelConnectionAuthority
   providerConfigSource?: ProviderHostConfigSource
   providerGateway?: ProviderGateway
   readConfig?: () => AppConfig
@@ -311,11 +314,13 @@ function createProviderServices(options: CreateServerAppsOptions) {
   const lifecycle: {
     operations?: LocalModelOperations
     discovery?: ModelDiscoveryService
+    connections?: ModelConnectionControl
   } = {}
   const providerDispatcher = createProviderDispatcher({
     beforeDispose: () => {
       lifecycle.operations?.dispose()
       lifecycle.discovery?.dispose()
+      lifecycle.connections?.dispose()
     },
     configSource: options.providerConfigSource,
     gateway: options.providerGateway,
@@ -338,7 +343,14 @@ function createProviderServices(options: CreateServerAppsOptions) {
       providerDispatcher.modelTopology?.()?.snapshot().targets ?? [],
   })
   lifecycle.discovery = discoveryService
+  const modelConnections = new ModelConnectionControl(
+    options.modelConnectionAuthority,
+    Date.now,
+    () => providerModelRouter.invalidate(),
+  )
+  lifecycle.connections = modelConnections
   return {
+    modelConnections,
     providerDispatcher,
     providerModelRouter,
     localModelOperations,
@@ -358,6 +370,7 @@ export function createServerApps(
     providerModelRouter,
     localModelOperations,
     modelDiscovery,
+    modelConnections,
   } = createProviderServices(options)
 
   applyCommonMiddleware(publicApp)
@@ -369,6 +382,7 @@ export function createServerApps(
     listProviderModels: () => providerModelRouter.listProviderModels(),
     localModelOperations,
     modelDiscovery,
+    modelConnections,
     trafficQueries:
       options.trafficQueries
       ?? (isTrafficQueryStore(trafficObserver) ? trafficObserver : undefined),
@@ -397,6 +411,9 @@ export function createServerApps(
     modelOrder: () =>
       getSystemOneSettings((options.readConfig ?? getConfig)()).model_order,
     providerModels: () => providerModelRouter.listAdvertisedModels(),
+    providerInventory: () => providerModelRouter.listProviderModels(),
+    executionTargets: () =>
+      providerDispatcher.modelTopology?.()?.snapshot().targets ?? [],
   })
   const messageRoutes = createMessageRoutes({
     dispatcher: providerDispatcher,

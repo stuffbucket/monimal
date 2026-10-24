@@ -1,6 +1,7 @@
 import type {
   LocalModelCatalogEntry,
   LocalModelControl,
+  ModelExecutionTarget,
 } from "@maximal/maximal-model-contract"
 
 import { Hono } from "hono"
@@ -10,6 +11,7 @@ import type { ProviderCatalogueModel } from "~/lib/live/resources"
 import { isVariantId } from "~/lib/models/anthropic-id-rewrite"
 import { primeModelsCache } from "~/lib/models/refresh-models"
 import { modelsCached, state } from "~/lib/runtime-state/state"
+import { maximalModelList } from "~/routes/models/selector-catalog"
 
 import {
   anthropicModelList,
@@ -27,6 +29,8 @@ export interface ModelRoutesOptions {
   localModels?: () => LocalModelControl | undefined
   modelOrder?: () => ReadonlyArray<string>
   providerModels?: () => Promise<ReadonlyArray<ProviderCatalogueModel>>
+  providerInventory?: () => Promise<ReadonlyArray<ProviderCatalogueModel>>
+  executionTargets?: () => ReadonlyArray<ModelExecutionTarget>
 }
 
 function aggregateLocalModels(
@@ -182,6 +186,20 @@ function anthropicAggregate(
   }
 }
 
+async function selectorModelList(
+  options: ModelRoutesOptions,
+  copilot: Parameters<typeof maximalModelList>[0]["copilot"],
+  local: ReadonlyArray<LocalModelCatalogEntry>,
+) {
+  const inventory = options.providerInventory ?? options.providerModels
+  return maximalModelList({
+    copilot,
+    local,
+    providers: (await inventory?.()) ?? [],
+    targets: options.executionTargets?.() ?? [],
+  })
+}
+
 export function createModelRoutes(options: ModelRoutesOptions = {}): Hono {
   const routes = new Hono()
 
@@ -215,6 +233,12 @@ export function createModelRoutes(options: ModelRoutesOptions = {}): Hono {
     // (`wire-models.ts`) so no raw Copilot field (billing, policy, …) leaks.
     try {
       const local = aggregateLocalModels(options.localModels?.())
+      // Explicit opt-in only: SDK clients retain their exact protocol shapes.
+      // Read all configured offerings before aggregate routing preferences so
+      // the selector can retain provider-qualified identities.
+      if (c.req.query("format") === "maximal") {
+        return c.json(await selectorModelList(options, models, local))
+      }
       const providers = (await options.providerModels?.()) ?? []
       const preferredOrder = options.modelOrder?.() ?? []
       const sources = { local, preferredOrder, providers }

@@ -18,6 +18,7 @@ import { z } from "zod"
 import type { ConfiguratorRegistry } from "~/lib/configurator-host"
 import type { ClientRosterReader } from "~/lib/http/active-clients"
 import type { RpcRegistry } from "~/lib/jsonrpc/dispatch"
+import type { ModelConnectionControl } from "~/lib/model-connections/control"
 import type { TrafficQueryStore } from "~/lib/observability/store"
 
 import {
@@ -87,6 +88,7 @@ export interface ControlRoutesOptions {
   listProviderModels?: () => Promise<ReadonlyArray<ProviderCatalogueModel>>
   localModelOperations?: LocalModelOperations
   modelDiscovery?: ModelDiscoveryControl
+  modelConnections?: ModelConnectionControl
   trafficQueries?: TrafficQueryStore
 }
 
@@ -393,6 +395,7 @@ export function createControlRoutesComposition(
     listProviderModels,
     localModels: localModelOperations,
     modelDiscovery: options.modelDiscovery,
+    modelConnections: options.modelConnections,
     trafficQueries: options.trafficQueries ?? getDefaultTrafficObserver(),
   })
   registerRpc(app, methods)

@@ -52,6 +52,7 @@ export class ProviderModelRouter {
   readonly #systemOneSettings: () => SystemOneSettingsResponse
   #catalogue: ReadonlyArray<ProviderCatalogueModel> = []
   #expiresAt = 0
+  #catalogueRevision = 0
   #loading: Promise<ReadonlyArray<ProviderCatalogueModel>> | undefined
 
   constructor(
@@ -66,17 +67,30 @@ export class ProviderModelRouter {
     this.#systemOneSettings = options.systemOneSettings ?? getSystemOneSettings
   }
 
+  /** A committed or uncertain connection invalidates cached configured inventory. */
+  invalidate(): void {
+    this.#catalogueRevision += 1
+    this.#catalogue = []
+    this.#expiresAt = 0
+    this.#loading = undefined
+  }
+
   async listProviderModels(): Promise<ReadonlyArray<ProviderCatalogueModel>> {
     if (this.#now() < this.#expiresAt) return this.#catalogue
-    this.#loading ??= this.#dispatcher.listModels().then((catalogue) => {
-      this.#catalogue = catalogue
-      this.#expiresAt = this.#now() + CATALOG_TTL_MS
-      return catalogue
-    })
+    const revision = this.#catalogueRevision
+    const loading = (this.#loading ??= this.#dispatcher
+      .listModels()
+      .then((catalogue) => {
+        if (revision === this.#catalogueRevision) {
+          this.#catalogue = catalogue
+          this.#expiresAt = this.#now() + CATALOG_TTL_MS
+        }
+        return catalogue
+      }))
     try {
-      return await this.#loading
+      return await loading
     } finally {
-      this.#loading = undefined
+      if (this.#loading === loading) this.#loading = undefined
     }
   }
 

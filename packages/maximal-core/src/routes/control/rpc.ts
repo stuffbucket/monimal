@@ -5,7 +5,10 @@ import {
   TerminalScopeIssueRequest,
   TerminalScopeRevokeRequest,
 } from "@maximal/maximal-core-contract/control"
-import { ModelDiscoveryActionSchema } from "@maximal/maximal-core-contract/control"
+import {
+  ModelConnectionActionSchema,
+  ModelDiscoveryActionSchema,
+} from "@maximal/maximal-core-contract/control"
 import {
   AccountSetEnabledRequest,
   ApiKeyCreateRequest,
@@ -104,6 +107,7 @@ import {
   buildModelsList,
 } from "~/lib/live/resources"
 import { streamSubscription } from "~/lib/live/stream-subscription"
+import { ModelConnectionControl } from "~/lib/model-connections/control"
 import { getDefaultTrafficObserver } from "~/lib/observability/store"
 import { cacheModels } from "~/lib/platform/utils"
 import { state } from "~/lib/runtime-state/state"
@@ -146,6 +150,7 @@ export interface ControlRpcDeps {
   listClients?: ClientRosterReader
   localModels?: LocalModelOperations
   modelDiscovery?: ModelDiscoveryControl
+  modelConnections?: ModelConnectionControl
   trafficQueries?: TrafficQueryStore
   /** Narrow operation seams for dispatcher-level tests. Production uses the real
    *  shared settings operations when an override is absent. */
@@ -522,6 +527,22 @@ function createAccountRpcMethods(
   }
 }
 
+function createModelConnectionRpcMethods(
+  control: ModelConnectionControl | undefined,
+): RpcRegistry {
+  const connections = control ?? new ModelConnectionControl()
+  return {
+    "modelConnections/act": (params: unknown) =>
+      connections.act(
+        parseParams(
+          ModelConnectionActionSchema,
+          params,
+          "Expected a supported reviewed-connection action without credentials or approval flags.",
+        ),
+      ),
+  }
+}
+
 function createModelDiscoveryRpcMethods(
   control: ModelDiscoveryControl | undefined,
 ): RpcRegistry {
@@ -557,6 +578,7 @@ export function createControlRpcMethods(deps: ControlRpcDeps): RpcRegistry {
     ...createSettingsRpcMethods(deps),
     ...createLocalModelRpcMethods(deps.localModels),
     ...createModelDiscoveryRpcMethods(deps.modelDiscovery),
+    ...createModelConnectionRpcMethods(deps.modelConnections),
     ...createAccountRpcMethods(mutex, hub),
 
     // Reads. Each mirrors a live feed topic and shares its builder, so a

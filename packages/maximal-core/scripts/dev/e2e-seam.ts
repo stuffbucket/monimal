@@ -154,6 +154,9 @@ try {
   const modelDiscovery = await client.call<{ state: string; endpoints: Array<unknown> }>("modelDiscovery/act", { action: "describe" })
   report.check("headless model discovery", modelDiscovery.state === "unsupported" && modelDiscovery.endpoints.length === 0, "optional discovery host remains explicit over the real socket")
 
+  const modelConnections = await client.call<{ state: string; connections: Array<unknown> }>("modelConnections/act", { action: "describe" })
+  report.check("headless reviewed connections", modelConnections.state === "unsupported" && modelConnections.connections.length === 0, "no connection can be authorized without a trusted host consent and transaction authority")
+
   const health = await client.call<{ ok: boolean }>("health")
   report.check("health", health.ok, JSON.stringify(health))
 

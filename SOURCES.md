@@ -198,6 +198,8 @@ packaged sidecar.
 | `maximal-core` | The settings wire types and control contract live in `maximal-core-contract`; Core's `./settings-types` and `./control-contract` exports republish them. |
 | `maximal-core-contract` | Versioned local-model exploration wire records MUST live in the control contract. |
 | `maximal-models` / `maximal-core` / `maximal-client` / `apps/desktop` | Metadata discovery MUST be injected as a host-owned service independently of provider mode; Core MUST validate the control boundary, desktop MUST negotiate the optional RPC, and renderer queries MUST remain in the shared client. |
+| `maximal-core` | The opt-in public selector model list MUST project configured inventory without upstream URLs or credentials and preserve provider-qualified routing separately from metadata discovery. |
+| `maximal-core` | Reviewed model connections MUST require outside-agent host consent and a matching authoritative deployment/configuration transaction immediately before credential release and persistence. |
 | `maximal-core` | Local-model setup planning, digest computation, and approval validation MUST remain in Core, outside the runtime-neutral contracts. |
 | `maximal-core-contract` | Versioned serving-hardening evidence and decisions MUST remain credential-free control-plane records, not authorization. |
 | `maximal-core` | Sharing hardening checks MUST read authenticated inspector evidence against current deployment and network-policy identities; discovery self-reports MUST NOT authorize exposure. |

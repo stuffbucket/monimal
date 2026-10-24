@@ -298,11 +298,30 @@ These are contracts and in-process helpers, not a usable setup feature. They do 
 
 - Progress reports MUST identify the implemented discovery slice by its [wire contract](../packages/maximal-core-contract/src/model-discovery.ts), [host-owned service](../packages/maximal-models/src/discovery/service.ts), [Core control boundary](../packages/maximal-core/src/routes/control/model-discovery.ts), and [shared Settings surface](../packages/maximal-client/src/renderer/settings/local-models/ModelDiscoverySection.tsx).
 - Discovery acceptance MUST distinguish this-device endpoint probing from opt-in, explicitly scoped LAN probing. Supported interfaces, protocol defaults, and scan budgets MUST remain owned by the discovery implementation rather than a second configuration registry.
-- Progress reports MUST distinguish implemented discovery, the profile-installed vLLM connector, and [hardening checks](../packages/maximal-core/src/lib/model-exposure/hardening.ts) from the unimplemented reviewed Connect/Use flow, authenticated inspector collector, and sharing endpoints.
+- Progress reports MUST distinguish implemented discovery, the profile-installed vLLM connector, and [hardening checks](../packages/maximal-core/src/lib/model-exposure/hardening.ts) from the unimplemented operational Connect/Use host and UI, authenticated inspector collector, and sharing endpoints.
 - Simulated HTTP and renderer tests MUST NOT count as live LAN or desktop acceptance. The Core socket harness MUST NOT count as evidence that a concrete discovery host found a real service.
 - Perun's successful synthetic vLLM gateway check MUST NOT count as managed setup, standing connectivity, or serving isolation approval.
 - Perun exposure approval MUST remain blocked until privileged worker containment and authenticated, current inspection evidence pass the exposure review. Inference-proxy hardening MUST NOT substitute for worker containment.
 - viy SSH access and credential changes MUST remain deferred until explicitly resumed by the user.
+
+### External-selector preparation
+
+- External selectors MUST opt in to the versioned [Maximal model-list contract](../packages/maximal-core-contract/src/model-list.ts) through `GET /v1/models?format=maximal`; the standard OpenAI and Anthropic projections MUST remain compatible.
+- Consumers MUST retain `(source, provider, id)` identity and the returned proxy-relative route. Duplicate served aliases across providers MUST NOT be collapsed. A null route MUST NOT be offered as selectable.
+- Consumers MUST distinguish declared target location, availability, and lifecycle from model-list reachability. An empty target list or null limit/capability MUST remain unknown; fetching inventory MUST NOT imply a loaded model or serving-isolation approval.
+- Selector progress reports MUST distinguish the [Core projection](../packages/maximal-core/src/routes/models/selector-catalog.ts) and simulated routing tests from a working Pi extension or live-host acceptance.
+- The Pi integration MUST consume this model list through its dynamic provider refresh API, reuse a supported streaming implementation, and keep classifier-only offerings out of the chat selector. It MUST NOT send prompts or upstream credentials during catalog refresh, invent missing limits or prices, or write external-client configuration automatically.
+- Unreviewed metadata-discovery results MUST remain outside the configured model list. Reviewed Connect/Use and live discovery acceptance MUST remain gated by the ordered work below.
+
+### Reviewed-connection control checkpoint
+
+- The versioned [connection records](../packages/maximal-core-contract/src/model-connection.ts) and Core [review/commit controller](../packages/maximal-core/src/lib/model-connections/control.ts) MUST remain distinct from a working product Connect/Use feature.
+- Hosts MUST provide the [trusted authority](../packages/maximal-core/src/lib/model-connections/authority.ts) before `modelConnections/act` reports available. The default desktop and standalone compositions MUST report unsupported until their installed-runtime reader, destination-scoped credential reader, native consent, and atomic persistence implementation exist.
+- A review MUST bind discovery and deployment identity/revision, the exact endpoint, runner, installed runtime content, served IDs/target IDs, explicit execution location, supported operations, credential destination/reference, provider mode, policy revision, and evidence expiry. Renderer approval flags, discovered-server self-reports, and agent-supplied bindings MUST NOT authorize a connection.
+- The host MUST obtain consent outside the agent without holding the deployment lock, then reread and compare the complete binding under that lock immediately before credential release and persistence. Persistence MUST preserve unrelated settings and advance the authoritative revision before releasing the lock.
+- Commit attempts MUST invalidate the selector inventory cache, including uncertain outcomes. In-flight older inventory requests MUST NOT repopulate or clear a newer cache generation. Failed or uncertain commits MUST NOT retry automatically; cancellation MUST NOT claim to undo an in-progress atomic commit.
+- Reports MUST label the injected-host transaction, consent, and selector tests as simulated evidence. They MUST NOT count as native user consent, production profile persistence, live LAN acceptance, or Pi selector integration.
+- Before exposing a product Connect action, desktop MUST implement and review the trusted host authority and native review presentation, then wire the shared client query/action surface to it. This checkpoint MUST NOT be reported as completing item 2 below.
 
 ### Remaining Phase 1 work, in implementation order
 

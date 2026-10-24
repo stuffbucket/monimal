@@ -11,6 +11,10 @@ export type {
   ConnectorPluginFactory,
 } from "~/lib/config/connector-plugins"
 export type {
+  ModelConnectionAuthority,
+  ModelConnectionTransaction,
+} from "~/lib/model-connections/authority"
+export type {
   ProviderCompatibilityConfig,
   ProviderCompatibilityModelConfig,
   ProviderGatewayFactory,
