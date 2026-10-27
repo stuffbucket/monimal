@@ -15,7 +15,7 @@ import { translateAnthropicMessagesToResponsesPayload } from "~/routes/messages/
 import { splitWebTools } from "~/routes/messages/web-tools"
 
 describe("normalizeToolSchema for schema-less server tools", () => {
-  test("returns default empty object schema when input_schema is undefined, empty, or omits type", () => {
+  test("returns default empty object schema when input_schema is undefined or empty, and preserves existing properties", () => {
     expect(normalizeToolSchema(undefined)).toEqual({
       type: "object",
       properties: {},
@@ -24,16 +24,12 @@ describe("normalizeToolSchema for schema-less server tools", () => {
       type: "object",
       properties: {},
     })
-    expect(
-      normalizeToolSchema({
-        properties: { query: { type: "string" } },
-        required: ["query"],
-      }),
-    ).toEqual({
+    const existing = {
       type: "object",
       properties: { query: { type: "string" } },
       required: ["query"],
-    })
+    }
+    expect(normalizeToolSchema(existing)).toBe(existing)
   })
 
   test("translateToOpenAI and translateAnthropicMessagesToResponsesPayload tolerate server tools without input_schema", () => {
