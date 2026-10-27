@@ -151,18 +151,29 @@ beforeEach(() => {
 })
 
 describe("GET /v1/models — OpenAI default (no protocol signal)", () => {
-  test("returns the OpenAI list shape with only OpenAI fields", async () => {
+  test("returns the OpenAI list shape with only OpenAI + gateway discovery fields", async () => {
     const res = await buildApp().request("/v1/models")
     expect(res.status).toBe(200)
     const body = (await res.json()) as { object: string; data: Array<Entry> }
     expect(body.object).toBe("list")
     const entry = body.data[0]
     expect(Object.keys(entry).sort()).toEqual(
-      ["created", "id", "object", "owned_by"].sort(),
+      [
+        "created",
+        "display_name",
+        "id",
+        "max_input_tokens",
+        "max_tokens",
+        "object",
+        "owned_by",
+      ].sort(),
     )
     expect(entry.id).toBe("claude-opus-4-6-20260301")
     expect(entry.object).toBe("model")
     expect(entry.owned_by).toBe("anthropic")
+    expect(entry.display_name).toBe("Claude Opus 4.6")
+    expect(entry.max_input_tokens).toBe(1_000_000)
+    expect(entry.max_tokens).toBe(64_000)
     for (const leaked of LEAK_VECTORS) expect(entry[leaked]).toBeUndefined()
   })
 

@@ -4,6 +4,7 @@ import type {
   AnthropicMessage,
   AnthropicMessagesPayload,
   AnthropicTextBlock,
+  AnthropicToolReferenceBlock,
   AnthropicToolResultBlock,
   AnthropicToolResultContentBlock,
   AnthropicUserContentBlock,
@@ -41,14 +42,25 @@ type IndexedAttachment = {
 }
 type UnsupportedTopLevelAnthropicFields = {
   diagnostics?: unknown
+  advisor?: unknown
+  cache_control?: Record<string, unknown>
 }
 
 export const stripUnsupportedTopLevelAnthropicFields = (
   payload: AnthropicMessagesPayload,
 ): void => {
-  delete (
-    payload as AnthropicMessagesPayload & UnsupportedTopLevelAnthropicFields
-  ).diagnostics
+  const extended = payload as AnthropicMessagesPayload
+    & UnsupportedTopLevelAnthropicFields
+  delete extended.diagnostics
+  delete extended.advisor
+  if (
+    extended.cache_control
+    && typeof extended.cache_control === "object"
+    && "scope" in extended.cache_control
+  ) {
+    const { scope: _scope, ...rest } = extended.cache_control
+    extended.cache_control = rest
+  }
 }
 
 const getCompactCandidateText = (message: AnthropicMessage): string => {
@@ -94,16 +106,33 @@ const isCompactAutoContinueMessage = (
   )
 }
 
+const COMPACTION_HINT_VALUES = new Set([
+  "manual",
+  "auto",
+  "reactive",
+  "snip",
+  "background",
+])
+
 export const getCompactType = (
   anthropicPayload: AnthropicMessagesPayload,
+  compactionHeader?: string,
 ): CompactType => {
   const lastMessage = anthropicPayload.messages.at(-1)
-  if (lastMessage && isCompactMessage(lastMessage)) {
+  if (lastMessage && isCompactAutoContinueMessage(lastMessage)) {
+    return COMPACT_AUTO_CONTINUE
+  }
+
+  const normalizedCompactionHint = compactionHeader?.trim().toLowerCase()
+  if (
+    normalizedCompactionHint
+    && COMPACTION_HINT_VALUES.has(normalizedCompactionHint)
+  ) {
     return COMPACT_REQUEST
   }
 
-  if (lastMessage && isCompactAutoContinueMessage(lastMessage)) {
-    return COMPACT_AUTO_CONTINUE
+  if (lastMessage && isCompactMessage(lastMessage)) {
+    return COMPACT_REQUEST
   }
 
   const system = anthropicPayload.system
@@ -151,10 +180,6 @@ const mergeContentWithText = (
   if (typeof tr.content === "string") {
     return { ...tr, content: `${tr.content}\n\n${textBlock.text}` }
   }
-  // Unable to merge, discard other text blocks, wait for the next round of re-request
-  if (hasToolRef(tr)) {
-    return tr
-  }
   return {
     ...tr,
     content: [...resultBlocks(tr), textBlock],
@@ -168,10 +193,6 @@ const mergeContentWithTexts = (
   if (typeof tr.content === "string") {
     const appendedTexts = textBlocks.map((tb) => tb.text).join("\n\n")
     return { ...tr, content: `${tr.content}\n\n${appendedTexts}` }
-  }
-  // Unable to merge, discard other text blocks, wait for the next round of re-request
-  if (hasToolRef(tr)) {
-    return tr
   }
   return { ...tr, content: [...resultBlocks(tr), ...textBlocks] }
 }
@@ -444,6 +465,16 @@ const mergeToolResult = (
   )
 }
 
+const rewriteToolReferenceBlock = (
+  block: AnthropicToolReferenceBlock,
+): AnthropicTextBlock => ({
+  type: "text",
+  text: `Tool ${block.tool_name} loaded`,
+  ...(block.cache_control !== undefined ?
+    { cache_control: block.cache_control }
+  : {}),
+})
+
 export const stripToolReferenceTurnBoundary = (
   anthropicPayload: AnthropicMessagesPayload,
 ): void => {
@@ -451,15 +482,23 @@ export const stripToolReferenceTurnBoundary = (
     if (msg.role !== "user" || !Array.isArray(msg.content)) continue
 
     const hasToolReference = msg.content.some(
-      (block) => block.type === "tool_result" && hasToolRef(block),
+      (block) =>
+        block.type === "tool_reference"
+        || (block.type === "tool_result" && hasToolRef(block)),
     )
     if (!hasToolReference) continue
 
-    msg.content = msg.content.filter(
-      (block) =>
-        block.type !== "text"
-        || block.text.trim() !== TOOL_REFERENCE_TURN_BOUNDARY,
-    )
+    msg.content = msg.content
+      .filter(
+        (block) =>
+          block.type !== "text"
+          || block.text.trim() !== TOOL_REFERENCE_TURN_BOUNDARY,
+      )
+      .map((block) =>
+        block.type === "tool_reference" ?
+          rewriteToolReferenceBlock(block)
+        : block,
+      )
   }
 }
 
@@ -490,10 +529,10 @@ export const stripUnsupportedClaudeCodeTools = (
   if (!userAgent || !CLAUDE_CODE_USER_AGENT.test(userAgent) || !payload.tools)
     return
 
-  payload.tools = payload.tools.filter((tool) => {
-    const raw = tool as typeof tool & { type?: unknown }
-    return raw.type !== ADVISOR_TOOL_TYPE || raw.name !== ADVISOR_TOOL_NAME
-  })
+  payload.tools = payload.tools.filter(
+    (tool) =>
+      tool.type !== ADVISOR_TOOL_TYPE || tool.name !== ADVISOR_TOOL_NAME,
+  )
 }
 
 // align with vscode copilot claude agent tools
@@ -544,6 +583,8 @@ const stripCacheControlScope = (obj: unknown): void => {
 // Strips eager_input_streaming from tool definitions — injected by some
 // editors (e.g. Zed) but rejected by Copilot's backend.
 const stripCacheControl = (payload: AnthropicMessagesPayload): void => {
+  stripCacheControlScope(payload)
+
   if (Array.isArray(payload.system)) {
     for (const block of payload.system) {
       stripCacheControlScope(block)
@@ -560,20 +601,19 @@ const stripCacheControl = (payload: AnthropicMessagesPayload): void => {
   for (const msg of payload.messages) {
     if (!Array.isArray(msg.content)) continue
     for (const block of msg.content) {
+      stripCacheControlScope(block)
       if (block.type !== "tool_result" || !Array.isArray(block.content))
         continue
       for (const inner of block.content) {
-        const b = inner as typeof inner & { cache_control?: unknown }
-        if ("cache_control" in b) {
-          delete b.cache_control
-        }
+        delete inner.cache_control
       }
     }
   }
 }
 
 // Pre-request processing: filter thinking blocks for Claude models so only
-// valid thinking blocks are sent to the Copilot Messages API.
+// valid thinking blocks are sent to the Copilot Messages API, and rewrite any
+// top-level user tool_reference blocks into text blocks.
 const filterAssistantThinkingBlocks = (
   payload: AnthropicMessagesPayload,
 ): void => {
@@ -588,6 +628,12 @@ const filterAssistantThinkingBlocks = (
           && !block.signature.includes("@")
         )
       })
+    } else if (msg.role === "user" && Array.isArray(msg.content)) {
+      msg.content = msg.content.map((block) =>
+        block.type === "tool_reference" ?
+          rewriteToolReferenceBlock(block)
+        : block,
+      )
     }
   }
 }

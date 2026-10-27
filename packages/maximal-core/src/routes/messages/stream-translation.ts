@@ -97,17 +97,31 @@ function handleFinish(
     typeof choice.finish_reason === "string"
     && choice.finish_reason.length > 0
   ) {
+    if (state.thinkingBlockOpen) {
+      events.push(
+        {
+          type: "content_block_delta",
+          index: state.contentBlockIndex,
+          delta: {
+            type: "signature_delta",
+            signature: delta.reasoning_opaque ?? "",
+          },
+        },
+        {
+          type: "content_block_stop",
+          index: state.contentBlockIndex,
+        },
+      )
+      state.thinkingBlockOpen = false
+      state.contentBlockIndex++
+    }
     if (state.contentBlockOpen) {
-      const toolBlockOpen = isToolBlockOpen(state)
       context.events.push({
         type: "content_block_stop",
         index: state.contentBlockIndex,
       })
       state.contentBlockOpen = false
       state.contentBlockIndex++
-      if (!toolBlockOpen) {
-        handleReasoningOpaque(delta, events, state)
-      }
     }
 
     events.push(

@@ -95,6 +95,22 @@ export const invalidRequest = (c: Context) =>
     400,
   )
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
+const NIL_UUID = "00000000-0000-0000-0000-000000000000"
+
+function resolveRequestId(
+  c: Context,
+  payload: AnthropicMessagesPayload,
+  sessionId: string | undefined,
+): string {
+  const promptId = c.req.header("x-claude-code-prompt-id")?.trim().toLowerCase()
+  if (promptId && promptId !== NIL_UUID && UUID_PATTERN.test(promptId)) {
+    return promptId
+  }
+  return generateRequestIdFromPayload(payload, sessionId)
+}
+
 // Reverse the dash-date sentinel form (added by /v1/models for Claude
 // Desktop's normalizer) back to Copilot's original dot-form, then route
 // to the variant SKU when the inbound request set effort or requested
@@ -281,16 +297,23 @@ export async function handleCompletion(
   // steps see only the cleaned tools list.
   const webToolPolicy = splitWebTools(anthropicPayload)
 
-  const subagentMarker = parseSubagentMarkerFromFirstUser(anthropicPayload)
+  const sessionId = getRootSessionId(anthropicPayload, c)
+  logger.debug("Extracted session ID:", sessionId)
+
+  const subagentMarker = parseSubagentMarkerFromFirstUser(anthropicPayload, {
+    requestClass: c.req.header("x-claude-code-request-class"),
+    agentType: c.req.header("x-claude-code-agent-type"),
+    sessionId,
+  })
   if (subagentMarker) {
     debugJson(logger, "Detected Subagent marker:", subagentMarker)
   }
 
-  const sessionId = getRootSessionId(anthropicPayload, c)
-  logger.debug("Extracted session ID:", sessionId)
-
   // claude code and opencode compact / auto-continue detection
-  const compactType = getCompactType(anthropicPayload)
+  const compactType = getCompactType(
+    anthropicPayload,
+    c.req.header("x-claude-code-compaction"),
+  )
 
   const anthropicBeta = c.req.header("anthropic-beta")
   logger.debug("Anthropic Beta header:", anthropicBeta)
@@ -315,7 +338,7 @@ export async function handleCompletion(
     skipLastMessage: compactType === COMPACT_REQUEST,
   })
 
-  const requestId = generateRequestIdFromPayload(anthropicPayload, sessionId)
+  const requestId = resolveRequestId(c, anthropicPayload, sessionId)
   logger.debug("Generated request ID:", requestId)
 
   if (state.manualApprove) {
