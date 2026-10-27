@@ -115,6 +115,7 @@ export interface Model {
   model_picker_enabled: boolean
   model_picker_price_category?: string
   name: string
+  description?: string
   object: string
   preview: boolean
   vendor: string

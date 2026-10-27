@@ -15,7 +15,13 @@ import { runtimeLogger } from "~/lib/platform/runtime-logger"
 
 import { findEndpointModel } from "../../lib/models/models"
 import { translateToOpenAI } from "./non-stream-translation"
-import { stripUnsupportedTopLevelAnthropicFields } from "./preprocess"
+import {
+  sanitizeIdeTools,
+  stripToolReferenceTurnBoundary,
+  stripUnsupportedClaudeCodeTools,
+  stripUnsupportedTopLevelAnthropicFields,
+} from "./preprocess"
+import { splitWebTools } from "./web-tools"
 
 /**
  * Forwards token counting to Anthropic's real /v1/messages/count_tokens endpoint.
@@ -85,6 +91,14 @@ export async function handleCountTokens(c: Context) {
 
     // Fallback: GPT tokenizer estimation (also used for non-Claude models)
     const anthropicBeta = c.req.header("anthropic-beta")
+
+    sanitizeIdeTools(anthropicPayload)
+    stripUnsupportedClaudeCodeTools(
+      anthropicPayload,
+      c.req.header("user-agent"),
+    )
+    splitWebTools(anthropicPayload)
+    stripToolReferenceTurnBoundary(anthropicPayload)
 
     const openAIPayload = translateToOpenAI(anthropicPayload)
 

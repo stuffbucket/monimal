@@ -67,7 +67,7 @@ function getThinkingBudget(
   model: Model | undefined,
 ): number | undefined {
   const thinking = payload.thinking
-  if (model && thinking) {
+  if (model && thinking && thinking.type !== "disabled") {
     const profile = resolveModelProfile(model)
     const maxThinkingBudget = Math.min(
       profile.maxThinkingBudget,
@@ -288,12 +288,21 @@ function translateAnthropicToolsToOpenAI(
 /**
  * Ensures `type: "object"` schema has a `properties` field.
  * OpenAI's API rejects object schemas without it.
+ * Server-executed tools (e.g. `advisor_20260301`, `tool_search_tool_*`) omit
+ * `input_schema`; default to an empty object schema so translation never throws.
  */
 export const normalizeToolSchema = (
-  schema: Record<string, unknown>,
+  schema: Record<string, unknown> | undefined,
 ): Record<string, unknown> => {
-  if (schema.type === "object" && !schema.properties) {
-    return { ...schema, properties: {} }
+  if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
+    return { type: "object", properties: {} }
+  }
+  if (!schema.type || schema.type === "object") {
+    return {
+      ...schema,
+      type: "object",
+      properties: schema.properties ?? {},
+    }
   }
   return schema
 }

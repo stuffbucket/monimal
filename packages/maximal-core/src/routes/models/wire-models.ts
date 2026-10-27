@@ -34,6 +34,10 @@ export interface OpenAiModel {
   object: "model"
   created: number
   owned_by: string
+  display_name?: string
+  description?: string
+  max_input_tokens?: number
+  max_tokens?: number
 }
 
 export interface OpenAiModelList {
@@ -42,12 +46,32 @@ export interface OpenAiModelList {
   has_more: false
 }
 
+interface DiscoveryMetadata {
+  display_name: string
+  description?: string
+  max_input_tokens: number
+  max_tokens: number
+}
+
+function toDiscoveryMetadata(
+  model: Model,
+  profile = resolveModelProfile(model),
+): DiscoveryMetadata {
+  return {
+    display_name: model.name,
+    ...(model.description ? { description: model.description } : {}),
+    max_input_tokens: profile.maxContextWindowTokens || profile.maxPromptTokens,
+    max_tokens: profile.maxOutputTokens,
+  }
+}
+
 export function toOpenAiModel(model: Model): OpenAiModel {
   return {
     id: forwardId(model.id),
     object: "model",
     created: 0,
     owned_by: model.vendor,
+    ...toDiscoveryMetadata(model),
   }
 }
 
@@ -73,6 +97,7 @@ export interface AnthropicModel {
   id: string
   type: "model"
   display_name: string
+  description?: string
   created_at: string
   max_input_tokens?: number
   max_tokens?: number
@@ -102,12 +127,10 @@ export function toAnthropicModel(model: Model): AnthropicModel {
   return {
     id: forwardId(model.id),
     type: "model",
-    display_name: model.name,
+    ...toDiscoveryMetadata(model, profile),
     // Anthropic permits an epoch when the release date is unknown; the Copilot
     // catalog doesn't carry one.
     created_at: EPOCH_ISO,
-    max_input_tokens: profile.maxContextWindowTokens,
-    max_tokens: profile.maxOutputTokens,
     capabilities: {
       image_input: { supported: profile.supportsVision },
       pdf_input: { supported: profile.supportsVision },
@@ -141,7 +164,12 @@ export function anthropicModelList(models: Array<Model>): AnthropicModelList {
  * including no signal at all — gets the historical OpenAI default.
  */
 export function prefersAnthropicModels(headers: Headers): boolean {
-  if (headers.get("anthropic-version")) return true
+  if (
+    headers.get("anthropic-version")?.trim()
+    || headers.get("anthropic-beta")?.trim()
+  ) {
+    return true
+  }
   const ua = headers.get("user-agent")?.toLowerCase() ?? ""
   return ua.startsWith("anthropic/") || ua.startsWith("claude")
 }
