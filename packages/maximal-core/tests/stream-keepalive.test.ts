@@ -19,12 +19,12 @@ const waitMs = (ms: number): Promise<void> =>
 
 const createMockStream = () => {
   const written: Array<SSEMessage> = []
-  const stream = {
+  const stream: Pick<SSEStreamingApi, "writeSSE"> = {
     writeSSE: (msg: SSEMessage) => {
       written.push(msg)
       return Promise.resolve()
     },
-  } as unknown as SSEStreamingApi
+  }
   return { stream, written }
 }
 

@@ -41,7 +41,7 @@ export interface StreamKeepAlive {
  *   in-flight event write.
  */
 export const createStreamKeepAlive = (
-  stream: SSEStreamingApi,
+  stream: Pick<SSEStreamingApi, "writeSSE">,
   intervalMs: number = DEFAULT_STREAM_KEEPALIVE_MS,
 ): StreamKeepAlive => {
   let messageStartSent = false
