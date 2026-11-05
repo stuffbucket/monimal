@@ -399,7 +399,6 @@ Phases 2–4 remain scoped by section 10 and gated by the applicable decisions i
 - Confidentiality claims MUST account for a workstation administrator's ability to inspect data processed on that machine; TLS and worker containers MUST NOT be presented as protection from that administrator.
 - Project routing policy SHOULD distinguish this-device-only, approved studio infrastructure, approved teammate workstations, and approved external services.
 - Personal-workstation eligibility MUST depend on the request's data classification and approved destination policy, including retries and fallbacks under section 5.
-- The initial sharing pilot SHOULD use dedicated studio hardware before personal workstations.
 - Worker containment and inspection MUST satisfy section 6.4; a GPU container MUST NOT be promoted into a VM/device isolation guarantee.
 - Runtime logging, retention, prompt caches, and cross-tenant KV-cache behavior MUST receive an explicit privacy review before multi-user service acceptance.
 - Model-generated tool calls MUST remain subject to the consuming agent's independent authorization and execution sandbox.
@@ -412,14 +411,68 @@ Phases 2–4 remain scoped by section 10 and gated by the applicable decisions i
 - Operational audit records SHOULD capture caller/share identity, authorization outcome, target, timing, and resource usage without prompt or response content.
 - Publication and renewal MUST retain the ownership, organization policy, consent, and authenticated current-inspection gates in sections 4–6.
 
-### Suggested delivery order and acceptance gates
+### Bounded studio service-access pilot (proposed)
 
-1. **Finish the supported local path.** The machine-local Pi consent/runtime workaround SHOULD be replaced with the trusted product Connect/Use host and regression coverage owned by the corresponding packages; machine-specific paths and approval receipts MUST NOT enter shipped integration code.
-2. **Make inventory understandable.** The shared contracts and metadata owners SHOULD supply stable offering/deployment identities and the labels above; clients MUST preserve unknown availability/isolation rather than turn successful catalog fetches into readiness claims.
-3. **Pilot an enrolled studio worker.** The pilot SHOULD implement encrypted connectivity, scoped grants, quotas, expiry, and owner-side revocation on dedicated hardware without automatically enrolling personal workstations.
-4. **Establish trusted inspection.** Publication MUST remain blocked until the authenticated collector binds current worker/runtime/artifact and network-policy evidence to the deployment lifecycle gate in section 6.4.
-5. **Add workstation publication.** Personal sharing SHOULD be enabled only after the dedicated-worker security review, with explicit owner controls and request-level destination/data-class policy.
-6. **Exercise adversarial acceptance.** Acceptance MUST cover hidden restricted metadata, direct unauthorized inference, credential misdelivery, stale grants/listings, revocation during streaming, resource exhaustion, runtime filesystem/network escape attempts, and independent agent-tool authorization.
+- The pilot MUST require organization and operator approval of a pilot decision record before implementation.
+- Recipient access MUST remain disabled until the Phase 1 end-to-end gate in section 10 passes.
+- The approved decision record MUST resolve the applicable section 12 decisions explicitly for the bounded pilot scope.
+- Pilot completion MUST NOT be reported as completing a section 10 phase.
+- Pilot-specific decisions MUST NOT be reported as resolving section 12 for general rollout.
+- The pilot SHOULD serve one approved existing text-model deployment on one dedicated studio worker.
+- The pilot MUST NOT use personal workstations as serving targets.
+- The Mavka machine-local connection MUST NOT count as studio-pilot acceptance evidence.
+- Pi SHOULD be the first pilot client.
+- Pilot access MUST be limited to a small invited group named in the decision record.
+- The pilot MUST exclude artifact distribution, automatic model provisioning, public listings, contact listings, and section 7.2 usage sharing.
+- The pilot inventory MUST NOT be described as the section 4 organization directory.
+- Pilot inventory publication MUST retain section 4's authorization, signing, expiry, revocation, and explicit publication-consent requirements.
 
+The pilot decision record MUST settle each of these decision groups before implementation:
+
+- service and inventory ownership, hosting, and the trusted Connect/Use host composition for recipient and headless-worker consent;
+- model/license approval, permitted operations, allowed request data classes, destination policy, and policy precedence;
+- corporate identity, revocable device identity, trust roots, version negotiation, and unsupported-client behavior;
+- encrypted transport, relay payload visibility, credential issuance, enforcement-point placement, and grant-holder location;
+- share audience, expiry, quotas, operator pause, bounded stop/drain behavior, and termination of active requests and streams on security revocation;
+- offline grant expiry, revocation freshness, participant removal, and pilot teardown;
+- runtime privacy-review results, operational audit access/retention, and measurable acceptance criteria.
+
+- Pilot connectivity MUST NOT expose raw runtime ports to recipients.
+- Pilot authentication MUST NOT use shared long-lived keys.
+- Opening or renewing a tunnel that enables inference ingress MUST invoke the section 6.4 hardening precondition under its deployment lifecycle lock.
+- Pi MUST reach pilot offerings through the recipient's Maximal proxy.
+- A relay that can inspect inference payloads MUST be an approved destination under section 5's full-payload policy.
+- Studio grants MUST NOT be written into Pi configuration.
+- Recipient destination approval MUST use the trusted Connect/Use consent boundary in section 13 rather than model selection in Pi.
+- Pilot dispatch and retries MUST enforce the full-payload destination policy in section 5 before data leaves the recipient's device.
+- Retries MUST re-check the request's grant.
+- The owner-side gateway MUST reject revoked grants for new requests even when clients retain cached inventory.
+- The owner-side gateway MUST reject new requests when it cannot establish current revocation state.
+- Denied, stale, offline, expired, busy, and revoked outcomes MUST remain distinguishable to the recipient.
+- These outcomes MUST NOT trigger fallback to another target during the pilot.
+- Pilot audit records MUST remain separate from section 7.2 usage sharing.
+
+### Pilot delivery order and acceptance gates
+
+1. **Approve the bounded pilot.** Reviewers MUST approve the decision record above before pilot implementation.
+2. **Finish supported Connect/Use.** The machine-local Pi consent/runtime workaround MUST be replaced with the trusted product host and package-owned regression coverage described in section 13.
+3. **Establish trusted worker inspection.** Publication MUST remain blocked until the authenticated collector binds current worker/runtime/artifact and network-policy evidence to the deployment lifecycle gate in section 6.4.
+4. **Implement enrollment and protected transport.** The pilot MUST implement the enrollment, transport, and request-authorization requirements above against the inspected worker.
+5. **Implement sharing controls.** The pilot MUST implement the decision record's audience, expiry, quota, operator-pause, stop, and revocation behavior.
+6. **Make authorized inventory usable.** The shared contracts and metadata owners MUST supply the authorization-filtered offering identities and caller-relative labels specified above.
+7. **Exercise real multi-user and adversarial acceptance.** Acceptance MUST cover hidden restricted metadata, direct unauthorized inference, credential misdelivery, stale grants/listings, expiry and revocation during streaming, resource exhaustion, runtime filesystem/network escape attempts, and independent agent-tool authorization.
+8. **Consider workstation publication separately.** Personal sharing MUST remain deferred until the dedicated-worker security review and the workstation-specific gates in sections 5–6 pass.
+
+- Offering-identity and label work MAY proceed before enrollment implementation.
+- Invited-recipient access MUST remain disabled until steps 1–7 pass.
+- Step 7 MUST use approved test identities and synthetic data before invited-recipient access is enabled.
+- Recipient access MUST remain disabled until the runtime privacy review above passes for the pilot deployment.
+- Supported Connect/Use acceptance MUST include real native approval, cancellation without configuration changes, and atomic persistence preserving unrelated settings.
+- Machine-specific paths and approval receipts MUST NOT enter shipped integration code.
+- Clients MUST preserve unknown availability and isolation rather than turn successful catalog fetches into readiness claims.
+- Pi scope changes MUST retain the explicit client-side choice required in section 13.
+- The proposed owner flow SHOULD expose inspection results before a separate share review and confirmation.
+- The proposed recipient flow SHOULD present execution location and data restrictions before destination approval and explicit model selection.
+- Reports MUST NOT describe these participant flows as operational before real multi-user acceptance.
 - Each delivery report MUST separate implemented contracts, simulated tests, real-device acceptance, and unresolved decisions.
 - This plan MUST NOT authorize opening ingress, changing an active worker's sandbox, enrolling a device, or enabling sharing without the corresponding operator and organization approvals.
