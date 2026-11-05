@@ -316,10 +316,26 @@ These are contracts and in-process helpers, not a usable setup feature. They do 
 ### Pi CLI checkpoint
 
 - The [Pi bridge and CLI workflow](../packages/maximal-configurators/README.md) MUST consume only configured Maximal inventory. Operators MUST select a reviewed proxy destination explicitly; the bridge MUST NOT turn discovery results into connections or change host policy.
-- The bridge MUST register provider-qualified groups through Pi's config-form provider API, use native `refreshModels` for existing groups, and expose an explicit metadata-only refresh for group reconciliation. Missing limits/prices and unsupported chat operations MUST remain skipped with reasons.
+- The bridge MUST register provider-qualified groups through Pi's config-form provider API, use native `refreshModels` for existing groups, and expose an explicit metadata-only refresh for group reconciliation. Missing limits, pricing outside an explicitly defined zero-charge policy, and unsupported chat operations MUST remain skipped with reasons.
 - Reports MUST identify the isolated [Pi/Core socket smoke](../packages/maximal-configurators/scripts/pi-smoke.mjs) separately from live-provider acceptance. Its Messages text, Unicode, streamed tool-call/replay, duplicate-alias routing, and unavailable-proxy checks MUST NOT count as native Connect consent, production runtime validation, live LAN discovery, or desktop acceptance.
 - Responses and Chat Completions projections MUST NOT be described as live-provider verified solely because their metadata tests pass.
 - Desktop UX MUST remain deferred independently of this CLI checkpoint and the operational Connect/Use host requirements below.
+
+### 2026-11-05 machine-local validation checkpoint
+
+- Progress reports MUST distinguish committed selector/catalog work through `487f075` from the uncommitted device-listener discovery, session attachment, local provider grouping, and zero-price changes present during this checkpoint.
+- Reports MUST record the cache-disabled affected native run as 109 successful tasks, including 38 configurator tests and 76 model lifecycle/discovery tests; this result MUST NOT imply that every workspace test or live-provider path executed.
+- Reports MUST distinguish the installed Pi 1.5.0/Core smoke with synthetic inference upstreams from the operator-approved live Mavka connection below.
+- Live-connection reports MUST identify `nvidia/Cosmos3-Edge` on Mavka's existing vLLM deployment, with 4,096 context tokens and a reviewed 1,024-token output cap, as one configured offering rather than discovery of every model on the machine.
+- Reports MUST identify the operator's native Pi approval, persisted connection receipt, and successful HTTP 200 inference verification separately from subsequent metadata-only catalog and selector checks.
+- Reports MUST record the observed live catalog and Pi available registry as containing `maximal-local.provider-vllm-device` with zero input, output, cache-read, and cache-write prices.
+- Reports MUST NOT infer Ready, verified capabilities, or serving isolation from this connection: the catalog still reports unknown target availability/lifecycle and unknown capabilities.
+- The machine-local `/maximal-connect-local` repair MUST be described as an excluded local extension change, not a shipped configurator feature. Its Node review worker avoids Pi's reproduced `graceful-fs` resolution failure before native confirmation; this workaround MUST NOT be treated as the trusted product host required below.
+- Regression evidence for that workaround MUST distinguish six temporary simulated worker checks from real Pi confirmation rendering and Escape cancellation with unchanged configuration; synthetic approval tests MUST NOT count as real operator approval.
+- Consumers MUST distinguish Maximal's authoritative offering inventory and display names from Pi's user-owned `enabledModels` scope. Reports MUST record that the observed `maximal/*` scope hid the separate local group, while switching `/model` to **all** with Tab exposed Cosmos.
+- A broader local/studio scope MUST require an explicit client-side choice; the bridge MUST NOT silently change saved scope or defaults.
+- Stronger device/provider display labels MUST remain proposed until changed at the authoritative metadata owner; the observed model label remains `Cosmos3-Edge (local)`.
+- This checkpoint MUST NOT count as managed provisioning, complete product Connect/Use, live multi-user/LAN acceptance, sandbox inspection, or authorization to share Mavka's workstation.
 
 ### Reviewed-connection control checkpoint
 
@@ -353,3 +369,57 @@ These are contracts and in-process helpers, not a usable setup feature. They do 
 The GLiNER runner's standalone CPU and CUDA demo runs are external-runtime evidence only. They MUST NOT be counted as Maximal end-to-end setup acceptance or promoted into general performance estimates.
 
 Phases 2–4 remain scoped by section 10 and gated by the applicable decisions in section 12. Stage 1 does not authorize directory, sharing, telemetry, or media work ahead of those decisions.
+
+## 14. Studio model-access implementation plan
+
+### Authority and presentation
+
+- Maximal SHOULD be the studio's authoritative model-access gateway; Pi and other external clients SHOULD consume its authorized inventory rather than maintain duplicate offering lists.
+- Catalog contracts SHOULD describe an offering separately from model/artifact identity and deployment identity.
+- Catalog contracts SHOULD carry owner/device identity, caller-relative execution location, allowed operations, accounting policy, and evidence freshness as structured metadata rather than encode those facts only in display names.
+- Device and owner metadata MUST be filtered by the caller's authorization before publication to a client.
+- Display labels SHOULD distinguish **This device**, **Studio device**, and **External service**; a teammate's workstation MUST NOT be labeled as the caller's local device merely because both use a loopback gateway.
+- Studio accounting policy MUST distinguish a zero consumer usage charge from physical operating costs; the present Pi local zero-price projection MUST NOT define future billing authority.
+- A display-name change MUST preserve offering identity and proxy routing.
+
+### Enrollment and transport decisions
+
+- Reviewers SHOULD prefer explicit device enrollment and opt-in service publication over general LAN scanning as the studio trust mechanism.
+- Enrollment MUST establish a distinct, revocable device identity before a directory accepts its publications.
+- Reviewers SHOULD evaluate outbound authenticated device tunnels as the initial connectivity design; raw runtime ports SHOULD NOT be exposed directly to the studio network.
+- A relay design MUST specify whether the relay terminates encryption and can inspect inference payloads.
+- Directory metadata storage MUST remain separate from inference payload transport.
+- Credential issuance MUST scope short-lived grants to the caller, serving destination, share, and permitted operations.
+- The owner-side gateway MUST enforce each request's grant independently of directory visibility and cached client inventory.
+- Offline behavior MUST define grant expiry and revocation freshness before cached authorization is permitted.
+
+### Privacy and threat-model decisions
+
+- Reviewers MUST assess hostile clients/model runtimes and a potentially inspecting hardware owner as separate threats.
+- Confidentiality claims MUST account for a workstation administrator's ability to inspect data processed on that machine; TLS and worker containers MUST NOT be presented as protection from that administrator.
+- Project routing policy SHOULD distinguish this-device-only, approved studio infrastructure, approved teammate workstations, and approved external services.
+- Personal-workstation eligibility MUST depend on the request's data classification and approved destination policy, including retries and fallbacks under section 5.
+- The initial sharing pilot SHOULD use dedicated studio hardware before personal workstations.
+- Worker containment and inspection MUST satisfy section 6.4; a GPU container MUST NOT be promoted into a VM/device isolation guarantee.
+- Runtime logging, retention, prompt caches, and cross-tenant KV-cache behavior MUST receive an explicit privacy review before multi-user service acceptance.
+- Model-generated tool calls MUST remain subject to the consuming agent's independent authorization and execution sandbox.
+
+### Sharing lifecycle decisions
+
+- Share reviews SHOULD expose audience, expiry, concurrency/resource limits, and owner-use pause behavior before publication.
+- Reviewers SHOULD distinguish **Stop sharing**, which rejects new requests and may drain bounded work, from **Revoke access**, which terminates affected active requests and streams.
+- Active-job behavior on share expiry, owner pause, and security revocation MUST be settled under section 12 before rollout; these suggested lifecycle choices MUST NOT be reported as implemented behavior.
+- Operational audit records SHOULD capture caller/share identity, authorization outcome, target, timing, and resource usage without prompt or response content.
+- Publication and renewal MUST retain the ownership, organization policy, consent, and authenticated current-inspection gates in sections 4–6.
+
+### Suggested delivery order and acceptance gates
+
+1. **Finish the supported local path.** The machine-local Pi consent/runtime workaround SHOULD be replaced with the trusted product Connect/Use host and regression coverage owned by the corresponding packages; machine-specific paths and approval receipts MUST NOT enter shipped integration code.
+2. **Make inventory understandable.** The shared contracts and metadata owners SHOULD supply stable offering/deployment identities and the labels above; clients MUST preserve unknown availability/isolation rather than turn successful catalog fetches into readiness claims.
+3. **Pilot an enrolled studio worker.** The pilot SHOULD implement encrypted connectivity, scoped grants, quotas, expiry, and owner-side revocation on dedicated hardware without automatically enrolling personal workstations.
+4. **Establish trusted inspection.** Publication MUST remain blocked until the authenticated collector binds current worker/runtime/artifact and network-policy evidence to the deployment lifecycle gate in section 6.4.
+5. **Add workstation publication.** Personal sharing SHOULD be enabled only after the dedicated-worker security review, with explicit owner controls and request-level destination/data-class policy.
+6. **Exercise adversarial acceptance.** Acceptance MUST cover hidden restricted metadata, direct unauthorized inference, credential misdelivery, stale grants/listings, revocation during streaming, resource exhaustion, runtime filesystem/network escape attempts, and independent agent-tool authorization.
+
+- Each delivery report MUST separate implemented contracts, simulated tests, real-device acceptance, and unresolved decisions.
+- This plan MUST NOT authorize opening ingress, changing an active worker's sandbox, enrolling a device, or enabling sharing without the corresponding operator and organization approvals.
